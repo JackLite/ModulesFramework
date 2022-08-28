@@ -1,13 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
+using Core.Enumerators;
 
 namespace Core
 {
     public partial class DataWorld
     {
-        public class Query<T> where T : struct
+        public readonly struct Query<T> where T : struct
         {
             private readonly DataWorld _world;
             private readonly EntityData[] _entityFilter;
@@ -26,6 +25,7 @@ namespace Core
                     ref var ef = ref _entityFilter[i];
                     ef.exclude = ef.exclude || !table.Contains(ef.eid);
                 }
+
                 return this;
             }
 
@@ -37,6 +37,7 @@ namespace Core
                     ref var ef = ref _entityFilter[i];
                     ef.exclude = ef.exclude || table.Contains(ef.eid);
                 }
+
                 return this;
             }
 
@@ -48,28 +49,20 @@ namespace Core
                     ref var c = ref _world.GetComponent<TW>(ed.eid);
                     ed.exclude = !customFilter.Invoke(c);
                 }
+
                 return this;
             }
 
-            public Entity[] GetEntities()
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            public EntitiesEnumerable GetEntities()
             {
-                var entitiesId = GetEntitiesId().ToArray();
-                var entities = new Entity[entitiesId.Length];
-                for (var i = 0; i < entitiesId.Length; ++i)
-                {
-                    entities[i] = _world.GetEntity(entitiesId[i]);
-                }
-                return entities;
+                return new EntitiesEnumerable(_entityFilter, _world);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
-            public IEnumerable<int> GetEntitiesId()
+            public EntityDataEnumerable GetEntitiesId()
             {
-                foreach (var ef in _entityFilter)
-                {
-                    if (!ef.exclude && ef.isActive)
-                        yield return ef.eid;
-                }
+                return new EntityDataEnumerable(_entityFilter);
             }
         }
     }

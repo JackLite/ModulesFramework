@@ -1,6 +1,6 @@
 ﻿namespace Core
 {
-    internal struct EntityData
+    public struct EntityData
     {
         public int eid;
         public bool exclude;

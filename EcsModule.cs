@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -18,6 +19,7 @@ namespace EcsCore
     public abstract class EcsModule
     {
         private SortedDictionary<int, SystemsGroup> _systems;
+        private SystemsGroup[] _systemsArr;
         private bool _isActive;
         private static readonly Dictionary<Type, object> _globalDependencies = new Dictionary<Type, object>();
         private static Exception _exception;
@@ -71,6 +73,7 @@ namespace EcsCore
                     p.Value.Init();
                 }
 
+                _systemsArr = _systems.Values.ToArray();
                 _isActive = true;
             }
             catch (Exception e)
@@ -103,9 +106,9 @@ namespace EcsCore
         /// </summary>
         internal void RunPhysics()
         {
-            foreach (var p in _systems)
+            foreach (var p in _systemsArr)
             {
-                p.Value.RunPhysic();
+                p.RunPhysic();
             }
         }
 
@@ -115,9 +118,9 @@ namespace EcsCore
         internal void Run()
         {
             CheckException();
-            foreach (var p in _systems)
+            foreach (var p in _systemsArr)
             {
-                p.Value.Run();
+                p.Run();
             }
         }
 
@@ -127,9 +130,9 @@ namespace EcsCore
         /// </summary>
         internal void PostRun()
         {
-            foreach (var p in _systems)
+            foreach (var p in _systemsArr)
             {
-                p.Value.PostRun();
+                p.PostRun();
             }
         }
 
@@ -139,6 +142,7 @@ namespace EcsCore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Deactivate()
         {
+            if (!_isActive) return;
             OnDeactivate();
             if (_systems != null)
                 DestroySystems();

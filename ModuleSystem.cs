@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Linq;
 using Core;
 
@@ -11,12 +10,12 @@ namespace EcsCore
     internal class ModuleSystem : IRunSystem, IRunPhysicSystem, IPostRunSystem, IDestroySystem
     {
         private readonly DataWorld _world;
-        private readonly IReadOnlyCollection<EcsModule> _modules;
+        private readonly EcsModule[] _modules;
 
         internal ModuleSystem(DataWorld world, ModulesRepository modulesRepository)
         {
             _world = world;
-            _modules = modulesRepository.LocalModules;
+            _modules = modulesRepository.LocalModules.ToArray();
         }
 
         public void Run()

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using EcsCore;
 
 namespace Core
@@ -6,10 +7,11 @@ namespace Core
     public class Ecs
     {
         private ModulesRepository _modulesRepository;
-        private  IReadOnlyCollection<EcsModule> _globalModules;
+        private EcsModule[] _globalModules;
         private DataWorld _world;
         private bool _isInitialized;
         private ModuleSystem _moduleSystem;
+        private EcsOneFrameSystem _oneFrameSystem;
 
         public DataWorld World => _world;
 
@@ -18,17 +20,19 @@ namespace Core
             _modulesRepository = new ModulesRepository();
             _world = new DataWorld();
             _moduleSystem = new ModuleSystem(_world, _modulesRepository);
+            _oneFrameSystem = new EcsOneFrameSystem(_world);
         }
-        
+
         public async void Start()
         {
             // находим все глобальные модули
-            _globalModules = _modulesRepository.GlobalModules;
+            _globalModules = _modulesRepository.GlobalModules.ToArray();
             // активируем их
             foreach (var module in _globalModules)
             {
                 await module.Activate(_world);
             }
+
             _isInitialized = true;
         }
 
@@ -54,6 +58,8 @@ namespace Core
             {
                 module.PostRun();
             }
+            
+            _oneFrameSystem.PostRun();
         }
 
         public void RunPhysic()

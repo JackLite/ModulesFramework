@@ -73,7 +73,7 @@ namespace Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private Entity GetEntity(int id)
+        public Entity GetEntity(int id)
         {
             return _entitiesTable.GetData(id);
         }
