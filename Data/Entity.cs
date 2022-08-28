@@ -1,0 +1,33 @@
+﻿using System.Runtime.CompilerServices;
+
+namespace Core
+{
+    public struct Entity
+    {
+        public int Id { get; set; }
+        public DataWorld World { get; set; }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Entity AddComponent<T>(T component) where T : struct
+        {
+            World.AddComponent(Id, component);
+            return this;
+        }
+
+        public ref T GetComponent<T>() where T : struct
+        {
+            return ref World.GetComponent<T>(Id);
+        }
+
+        public Entity RemoveComponent<T>() where T : struct
+        {
+            World.RemoveComponent<T>(Id);
+            return this;
+        }
+
+        public void Destroy()
+        {
+            World.DestroyEntity(Id);
+        }
+    }
+}
