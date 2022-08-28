@@ -45,16 +45,7 @@ namespace Core
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetData(int eid)
         {
-            try
-            {
-                return ref _table[_tableMap[eid]];
-            }
-            catch (Exception e)
-            {
-                var test = 0;
-                test++;
-                throw new Exception();
-            }
+            return ref _table[_tableMap[eid]];
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
