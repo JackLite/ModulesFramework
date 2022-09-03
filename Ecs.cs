@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using EcsCore;
+using ModulesFramework.Modules;
 
 namespace Core
 {
@@ -30,7 +30,7 @@ namespace Core
             // активируем их
             foreach (var module in _globalModules)
             {
-                await module.Activate(_world);
+                await module.Init(_world);
             }
 
             _isInitialized = true;
@@ -40,6 +40,8 @@ namespace Core
         {
             if (!_isInitialized)
                 return;
+            if (ExceptionsPool.TryPop(out var e))
+                throw e;
             _moduleSystem.Run();
 
             foreach (var module in _globalModules)

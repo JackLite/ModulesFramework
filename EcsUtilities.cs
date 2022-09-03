@@ -16,7 +16,7 @@ namespace EcsCore
         /// </summary>
         /// <param name="moduleType">Type of module</param>
         /// <returns>Enumerable of created systems</returns>
-        /// <seealso cref="EcsModule.Activate"/>
+        /// <seealso cref="EcsModule.Init"/>
         internal static IEnumerable<ISystem> CreateSystems(Type moduleType)
         {
             var types = GetSystemTypes(moduleType).ToArray();

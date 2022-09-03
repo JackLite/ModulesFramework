@@ -22,8 +22,9 @@ namespace Core
                 var table = _world.GetEscTable<TW>();
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
-                    ref var ef = ref _entityFilter[i];
-                    ef.exclude = ef.exclude || !table.Contains(ef.eid);
+                    ref var ed = ref _entityFilter[i];
+                    if (!ed.isActive) continue;
+                    ed.exclude = ed.exclude || !table.Contains(ed.eid);
                 }
 
                 return this;
@@ -34,8 +35,9 @@ namespace Core
                 var table = _world.GetEscTable<TW>();
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
-                    ref var ef = ref _entityFilter[i];
-                    ef.exclude = ef.exclude || table.Contains(ef.eid);
+                    ref var ed = ref _entityFilter[i];
+                    if (!ed.isActive) continue;
+                    ed.exclude = ed.exclude || table.Contains(ed.eid);
                 }
 
                 return this;
@@ -46,6 +48,7 @@ namespace Core
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
+                    if (!ed.isActive) continue;
                     ref var c = ref _world.GetComponent<TW>(ed.eid);
                     ed.exclude = !customFilter.Invoke(c);
                 }
@@ -63,6 +66,34 @@ namespace Core
             public EntityDataEnumerable GetEntitiesId()
             {
                 return new EntityDataEnumerable(_entityFilter);
+            }
+
+            public bool Any()
+            {
+                foreach (var _ in GetEntitiesId())
+                    return true;
+
+                return false;
+            }
+
+            public bool TrySelectFirst<TRet>(out TRet c) where TRet : struct
+            {
+                foreach (var eid in GetEntitiesId())
+                {
+                    c = _world.GetComponent<TRet>(eid);
+                    return true;
+                }
+
+                c = new TRet();
+                return false;
+            }
+
+            public void DestroyAll()
+            {
+                foreach (var eid in GetEntitiesId())
+                {
+                    _world.DestroyEntity(eid);
+                }
             }
         }
     }

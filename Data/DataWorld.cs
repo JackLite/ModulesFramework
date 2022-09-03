@@ -9,12 +9,22 @@ namespace Core
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
         private int _entityCount;
+        private readonly Stack<int> _freeEid = new Stack<int>();
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity NewEntity()
         {
-            ++_entityCount;
-            var id = _entityCount;
+            int id;
+            if (_freeEid.Count == 0)
+            {
+                ++_entityCount;
+                id = _entityCount;
+            }
+            else
+            {
+                id = _freeEid.Pop();
+            }
+
             var entity = new Entity
             {
                 Id = id,
@@ -64,6 +74,22 @@ namespace Core
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool Exist<T>() where T : struct
+        {
+            var table = GetEscTable<T>();
+            var query = new Query<T>(this, table);
+            return query.Any();
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool TrySelectFirst<T>(out T c) where T : struct
+        {
+            var table = GetEscTable<T>();
+            var query = new Query<T>(this, table);
+            return query.TrySelectFirst<T>(out c);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable<T> CreateTableIfNeed<T>() where T : struct
         {
             var type = typeof(T);
@@ -86,6 +112,7 @@ namespace Core
                 table.Remove(id);
             }
             _entitiesTable.Remove(id);
+            _freeEid.Push(id);
         }
     }
 }

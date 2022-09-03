@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Core;
 using EcsCore.DependencyInjection;
+using ModulesFramework.Modules;
 
 namespace EcsCore
 {
@@ -20,17 +21,20 @@ namespace EcsCore
     {
         private SortedDictionary<int, SystemsGroup> _systems;
         private SystemsGroup[] _systemsArr;
+        private bool _isInit;
         private bool _isActive;
         private static readonly Dictionary<Type, object> _globalDependencies = new Dictionary<Type, object>();
         private static Exception _exception;
         private ModulesRepository _repository;
 
-        [Obsolete] protected virtual Type Type => GetType();
+        [Obsolete]
+        protected virtual Type Type => GetType();
 
         private Type ConcreteType => GetType();
         public bool IsGlobal { get; }
 
         public Dictionary<Type, OneData> OneDataDict { get; private set; } = new Dictionary<Type, OneData>();
+        public static Dictionary<Type, OneData> GlobalOneDataDict { get; private set; } = new Dictionary<Type, OneData>();
 
         protected EcsModule()
         {
@@ -41,10 +45,9 @@ namespace EcsCore
         /// Activate concrete module: call and await EcsModule.Setup(), create all systems and insert dependencies
         /// </summary>
         /// <param name="world">The world where systems and entities will live</param>
-        /// <param name="eventTable">The table for events</param>
         /// <param name="parent">Parent module, when you need dependencies from other module</param>
         /// <seealso cref="Setup"/>
-        public async Task Activate(DataWorld world, EcsModule parent = null)
+        public async Task Init(DataWorld world, EcsModule parent = null)
         {
             try
             {
@@ -74,12 +77,23 @@ namespace EcsCore
                 }
 
                 _systemsArr = _systems.Values.ToArray();
-                _isActive = true;
+                _isInit = true;
             }
             catch (Exception e)
             {
                 _exception = new Exception(e.Message, e);
+                ExceptionsPool.AddException(_exception);
             }
+        }
+
+        /// <summary>
+        /// Turn on/off the module.
+        /// If false, IRunSystem, IRunPhysicSystem and IPostRunSystem will to be updated
+        /// </summary>
+        /// <param name="isActive">Flag to turn on/off the module</param>
+        public void SetActive(bool isActive)
+        {
+            _isActive = isActive;
         }
 
         /// <summary>
@@ -96,9 +110,9 @@ namespace EcsCore
         /// </summary>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsActiveAndInitialized()
+        public bool IsInitialized()
         {
-            return _systems != null && _isActive;
+            return _systems != null && _isInit;
         }
 
         /// <summary>
@@ -106,6 +120,9 @@ namespace EcsCore
         /// </summary>
         internal void RunPhysics()
         {
+            if (!_isActive) 
+                return;
+            
             foreach (var p in _systemsArr)
             {
                 p.RunPhysic();
@@ -117,6 +134,9 @@ namespace EcsCore
         /// </summary>
         internal void Run()
         {
+            if (!_isActive) 
+                return;
+            
             CheckException();
             foreach (var p in _systemsArr)
             {
@@ -130,10 +150,36 @@ namespace EcsCore
         /// </summary>
         internal void PostRun()
         {
+            if (!_isActive) 
+                return;
+            
             foreach (var p in _systemsArr)
             {
                 p.PostRun();
             }
+        }
+
+        /// <summary>
+        /// Create one data container
+        /// </summary>
+        /// <typeparam name="T">Type of data in container</typeparam>
+        /// <seealso cref="CreateOneData{T}(T)"/>
+        protected void CreateOneData<T>() where T : struct
+        {
+            OneDataDict[typeof(T)] = new EcsOneData<T>();
+        }
+
+        /// <summary>
+        /// Create one data container and set data
+        /// </summary>
+        /// <param name="data">Data that will be set in container</param>
+        /// <typeparam name="T">Type of data in container</typeparam>
+        /// <seealso cref="CreateOneData{T}()"/>
+        protected void CreateOneData<T>(T data) where T : struct
+        {
+            var oneData = new EcsOneData<T>();
+            oneData.SetDataIfNotExist(data);
+            OneDataDict[typeof(T)] = oneData;
         }
 
         /// <summary>
@@ -142,11 +188,12 @@ namespace EcsCore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Deactivate()
         {
-            if (!_isActive) return;
+            _isActive = false;
+            if (!_isInit) return;
             OnDeactivate();
             if (_systems != null)
                 DestroySystems();
-            _isActive = false;
+            _isInit = false;
         }
 
         /// <summary>
@@ -203,6 +250,13 @@ namespace EcsCore
                 if (_globalDependencies.ContainsKey(kvp.Key))
                     continue;
                 _globalDependencies.Add(kvp.Key, kvp.Value);
+            }
+
+            foreach (var (type, data) in OneDataDict)
+            {
+                if (GlobalOneDataDict.ContainsKey(type))
+                    continue;
+                GlobalOneDataDict.Add(type, data);
             }
         }
 
@@ -269,6 +323,7 @@ namespace EcsCore
                     field.SetValue(system, world);
                     continue;
                 }
+
                 if (_globalDependencies.ContainsKey(t))
                     field.SetValue(system, _globalDependencies[t]);
                 if (dependencies.ContainsKey(t))
@@ -304,6 +359,9 @@ namespace EcsCore
             var dataType = t.GetGenericArguments()[0];
             if (OneDataDict.ContainsKey(dataType))
                 return OneDataDict[dataType];
+
+            if (GlobalOneDataDict.ContainsKey(dataType))
+                return GlobalOneDataDict[dataType];
 
             if (parent != null && parent.OneDataDict.ContainsKey(dataType))
                 return parent.OneDataDict[dataType];
@@ -358,5 +416,4 @@ namespace EcsCore
             return null;
         }
     }
-
 }

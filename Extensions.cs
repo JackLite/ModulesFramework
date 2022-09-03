@@ -7,31 +7,37 @@ namespace EcsCore
     public static class Extensions
     {
         /// <summary>
-        /// Activate module: call Setup() and GetDependencies()
+        /// Init module: call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
         /// </summary>
         /// <param name="world"></param>
         /// <typeparam name="T">Type of module that you want to activate</typeparam>
-        public static void ActivateModule<T>(this DataWorld world) where T : EcsModule
+        /// <seealso cref="ActivateModule{T}"/>
+        /// <seealso cref="InitModule{T, T}"/>
+        public static void InitModule<T>(this DataWorld world) where T : EcsModule
         {
             world.NewEntity()
-                 .AddComponent(new ModuleActivationSignal
+                 .AddComponent(new ModuleInitSignal
                  {
                      moduleType = typeof(T)
                  });
         }
 
         /// <summary>
-        /// Activate module: call Setup() and GetDependencies()
+        /// Initialize module: call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
         /// </summary>
         /// <param name="world"></param>
-        /// <typeparam name="TModule">Type of module that you want to activate</typeparam>
+        /// <typeparam name="TModule">Type of module that you want to initialize</typeparam>
         /// <typeparam name="TParent">Parent module. TModule get dependencies from parent</typeparam>
-        public static void ActivateModule<TModule, TParent>(this DataWorld world) 
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="ActivateModule{T}"/>
+        public static void InitModule<TModule, TParent>(this DataWorld world) 
             where TModule : EcsModule
             where TParent : EcsModule
         {
             world.NewEntity()
-                 .AddComponent(new ModuleActivationSignal
+                 .AddComponent(new ModuleInitSignal
                  {
                      moduleType = typeof(TModule),
                      dependenciesModule = typeof(TParent)
@@ -39,13 +45,47 @@ namespace EcsCore
         }
 
         /// <summary>
-        /// Deactivate module: calls Deactivate() in module
+        /// Destroy module: calls Deactivate() in module and Destroy() in IDestroy systems
         /// </summary>
         /// <param name="world"></param>
-        /// <typeparam name="T">Type of module that you want to deactivate</typeparam>
+        /// <typeparam name="T">Type of module that you want to destroy</typeparam>
+        public static void DestroyModule<T>(this DataWorld world) where T : EcsModule
+        {
+            world.NewEntity().AddComponent(new ModuleDestroySignal { ModuleType = typeof(T) });
+        }
+
+        /// <summary>
+        /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
+        /// </summary>
+        /// <param name="world"></param>
+        /// <typeparam name="T">Type of module for activate</typeparam>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="DeactivateModule{T}"/>
+        public static void ActivateModule<T>(this DataWorld world) where T : EcsModule
+        {
+            world.NewEntity()
+                .AddComponent(new ModuleChangeStateSignal
+                {
+                    state = true, 
+                    moduleType = typeof(T)
+                });
+        }
+        
+        /// <summary>
+        /// Deactivate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will stop update
+        /// </summary>
+        /// <param name="world"></param>
+        /// <typeparam name="T">Type of module for deactivate</typeparam>
+        /// <seealso cref="DestroyModule{T}"/>
+        /// <seealso cref="ActivateModule{T}"/>
         public static void DeactivateModule<T>(this DataWorld world) where T : EcsModule
         {
-            world.NewEntity().AddComponent(new ModuleDeactivationSignal { ModuleType = typeof(T) });
+            world.NewEntity()
+                .AddComponent(new ModuleChangeStateSignal
+                {
+                    state = false, 
+                    moduleType = typeof(T)
+                });
         }
 
         /// <summary>
