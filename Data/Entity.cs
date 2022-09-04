@@ -14,6 +14,7 @@ namespace Core
             return this;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponent<T>() where T : struct
         {
             return ref World.GetComponent<T>(Id);
