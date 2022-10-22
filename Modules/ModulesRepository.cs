@@ -35,6 +35,15 @@ namespace EcsCore
         {
             return GetModule<T>(_globalModules);
         }
+        
+        /// <summary>
+        /// Return module by type
+        /// </summary>
+        /// <returns>Module or null</returns>
+        internal T GetModule<T>() where T : EcsModule
+        {
+            return GetModule<T>(_localModules);
+        }
 
         private static T GetModule<T>(IReadOnlyDictionary<Type, EcsModule> modules) where T : EcsModule
         {

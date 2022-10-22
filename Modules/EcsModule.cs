@@ -415,5 +415,12 @@ namespace EcsCore
                 return dependencies[typeof(TDependency)] as TDependency;
             return null;
         }
+
+        protected EcsOneData<T> GetOneData<T, TModule>() where T : struct where TModule : EcsModule
+        {
+            var module = _repository.GetModule<TModule>();
+            if (module == null) throw new ArgumentException("Can't find module " + typeof(TModule));
+            return (EcsOneData<T>) module.OneDataDict[typeof(T)];
+        }
     }
 }
