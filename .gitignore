@@ -1,1 +1,3 @@
-*.meta
+*.csproj
+.idea
+Properties

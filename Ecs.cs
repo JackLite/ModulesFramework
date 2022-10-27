@@ -31,6 +31,7 @@ namespace Core
             foreach (var module in _globalModules)
             {
                 await module.Init(_world);
+                module.SetActive(true);
             }
 
             _isInitialized = true;
@@ -84,6 +85,7 @@ namespace Core
 
             foreach (var module in _globalModules)
             {
+                module.SetActive(false);
                 module.Destroy();
             }
         }
