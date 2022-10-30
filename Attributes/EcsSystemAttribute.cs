@@ -1,6 +1,7 @@
 ﻿using System;
+using ModulesFramework.Modules;
 
-namespace EcsCore
+namespace ModulesFramework.Attributes
 {
     /// <summary>
     /// Mark system for auto-creation in concrete module

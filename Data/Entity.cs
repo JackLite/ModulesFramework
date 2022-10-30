@@ -1,6 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 
-namespace Core
+namespace ModulesFramework.Data
 {
     public struct Entity
     {

@@ -4,11 +4,12 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-using Core;
-using EcsCore.DependencyInjection;
-using ModulesFramework.Modules;
+using ModulesFramework.Attributes;
+using ModulesFramework.Data;
+using ModulesFramework.DependencyInjection;
+using ModulesFramework.Systems;
 
-namespace EcsCore
+namespace ModulesFramework.Modules
 {
     /// <summary>
     /// Base class for every module
@@ -32,9 +33,12 @@ namespace EcsCore
 
         private Type ConcreteType => GetType();
         public bool IsGlobal { get; }
+        public bool IsActive => _isActive;
 
         public Dictionary<Type, OneData> OneDataDict { get; private set; } = new Dictionary<Type, OneData>();
-        public static Dictionary<Type, OneData> GlobalOneDataDict { get; private set; } = new Dictionary<Type, OneData>();
+
+        private static Dictionary<Type, OneData> GlobalOneDataDict { get; } =
+            new Dictionary<Type, OneData>();
 
         protected EcsModule()
         {
@@ -91,8 +95,21 @@ namespace EcsCore
         /// If false, IRunSystem, IRunPhysicSystem and IPostRunSystem will to be updated
         /// </summary>
         /// <param name="isActive">Flag to turn on/off the module</param>
-        public void SetActive(bool isActive)
+        internal void SetActive(bool isActive)
         {
+            if (isActive && !_isActive)
+            {
+                OnActivate();
+                foreach (var p in _systems)
+                    p.Value.Activate();
+            }
+            else if (_isActive)
+            {
+                OnDeactivate();
+                foreach (var p in _systems)
+                    p.Value.Deactivate();
+            }
+
             _isActive = isActive;
         }
 
@@ -120,9 +137,10 @@ namespace EcsCore
         /// </summary>
         internal void RunPhysics()
         {
-            if (!_isActive) 
+            if (!_isActive)
                 return;
-            
+
+            CheckException();
             foreach (var p in _systemsArr)
             {
                 p.RunPhysic();
@@ -134,9 +152,9 @@ namespace EcsCore
         /// </summary>
         internal void Run()
         {
-            if (!_isActive) 
+            if (!_isActive)
                 return;
-            
+
             CheckException();
             foreach (var p in _systemsArr)
             {
@@ -150,9 +168,10 @@ namespace EcsCore
         /// </summary>
         internal void PostRun()
         {
-            if (!_isActive) 
+            if (!_isActive)
                 return;
-            
+
+            CheckException();
             foreach (var p in _systemsArr)
             {
                 p.PostRun();
@@ -190,17 +209,33 @@ namespace EcsCore
         {
             _isActive = false;
             if (!_isInit) return;
-            OnDeactivate();
+            OnDestroy();
             if (_systems != null)
                 DestroySystems();
             _isInit = false;
         }
 
         /// <summary>
+        /// Calls before activate module and IActivateSystem
+        /// </summary>
+        public virtual void OnActivate()
+        {
+        }
+
+        /// <summary>
+        /// Calls before deactivate module and IDeactivateSystem
+        /// When module destroy it calls OnDeactivate before
+        /// If module was inactive, it will not be called
+        /// </summary>
+        public virtual void OnDeactivate()
+        {
+        }
+
+        /// <summary>
         /// Calls before destroy systems in the module
         /// You can clear something here, like release some resources
         /// </summary>
-        public virtual void OnDeactivate()
+        public virtual void OnDestroy()
         {
         }
 
@@ -220,7 +255,11 @@ namespace EcsCore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Destroy()
         {
-            Deactivate();
+            if (!_isInit) return;
+            OnDestroy();
+            if (_systems != null)
+                DestroySystems();
+            _isInit = false;
         }
 
         /// <summary>
@@ -420,7 +459,7 @@ namespace EcsCore
         {
             var module = _repository.GetModule<TModule>();
             if (module == null) throw new ArgumentException("Can't find module " + typeof(TModule));
-            return (EcsOneData<T>) module.OneDataDict[typeof(T)];
+            return (EcsOneData<T>)module.OneDataDict[typeof(T)];
         }
     }
 }

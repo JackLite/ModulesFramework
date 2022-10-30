@@ -1,6 +1,6 @@
-﻿using EcsCore;
+﻿using ModulesFramework.Data;
 
-namespace Core
+namespace ModulesFramework
 {
     internal class EcsOneFrameSystem
     {

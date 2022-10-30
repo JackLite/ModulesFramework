@@ -1,8 +1,8 @@
 ﻿using System.Linq;
-using EcsCore;
+using ModulesFramework.Data;
 using ModulesFramework.Modules;
 
-namespace Core
+namespace ModulesFramework
 {
     public class Ecs
     {
@@ -18,7 +18,7 @@ namespace Core
         public Ecs()
         {
             _modulesRepository = new ModulesRepository();
-            _world = new DataWorld();
+            _world = new DataWorld(_modulesRepository);
             _moduleSystem = new ModuleSystem(_world, _modulesRepository);
             _oneFrameSystem = new EcsOneFrameSystem(_world);
         }

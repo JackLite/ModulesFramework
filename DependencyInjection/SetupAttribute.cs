@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace EcsCore.DependencyInjection
+namespace ModulesFramework.DependencyInjection
 {
     [AttributeUsage(AttributeTargets.Method)]
     public class SetupAttribute : Attribute

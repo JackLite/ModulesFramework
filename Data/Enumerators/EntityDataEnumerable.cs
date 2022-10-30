@@ -1,4 +1,4 @@
-﻿namespace Core.Enumerators
+﻿namespace ModulesFramework.Data.Enumerators
 {
     public readonly struct EntityDataEnumerable
     {

@@ -1,6 +1,6 @@
 using System;
 
-namespace EcsCore
+namespace ModulesFramework.Modules.Components
 {
     /// <summary>
     /// Simple signal for turn on/off module

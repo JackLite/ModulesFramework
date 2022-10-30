@@ -1,4 +1,4 @@
-﻿namespace EcsCore
+﻿namespace ModulesFramework
 {
     public struct EcsOneFrame
     {

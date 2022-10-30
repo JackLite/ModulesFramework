@@ -1,15 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 
-namespace EcsCore
+namespace ModulesFramework.Modules
 {
     /// <summary>
     /// Encapsulate creation of modules and let take them by type
     /// Only for internal usage
     /// </summary>
-    internal class ModulesRepository
+    public class ModulesRepository
     {
         private readonly Dictionary<Type, EcsModule> _globalModules;
         private readonly Dictionary<Type, EcsModule> _localModules;
@@ -60,6 +59,11 @@ namespace EcsCore
                                               .Where(t => t.IsSubclassOf(typeof(EcsModule)) && !t.IsAbstract)
                                               .Select(t => (EcsModule) Activator.CreateInstance(t)));
             ;
+        }
+
+        public bool IsModuleActive<TModule>() where TModule : EcsModule
+        {
+            return GetModule<TModule>().IsActive;
         }
     }
 }

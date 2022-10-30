@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 
-namespace Core
+namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {

@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
-using Core.Enumerators;
+using ModulesFramework.Data.Enumerators;
 
-namespace Core
+namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {

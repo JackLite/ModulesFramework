@@ -1,4 +1,4 @@
-﻿namespace Core
+﻿namespace ModulesFramework.Systems
 {
     public interface IPreInitSystem : ISystem
     {

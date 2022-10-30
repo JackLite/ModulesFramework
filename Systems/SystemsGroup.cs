@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Core
+namespace ModulesFramework.Systems
 {
     public class SystemsGroup : IPreInitSystem, IInitSystem, IRunSystem, IRunPhysicSystem, IPostRunSystem, IDestroySystem
     {
@@ -10,9 +10,11 @@ namespace Core
         {
             typeof(IPreInitSystem),
             typeof(IInitSystem),
+            typeof(IActivateSystem),
             typeof(IRunSystem),
             typeof(IRunPhysicSystem),
             typeof(IPostRunSystem),
+            typeof(IDeactivateSystem),
             typeof(IDestroySystem)
         };
 
@@ -35,6 +37,12 @@ namespace Core
             foreach (var s in _systems[typeof(IInitSystem)])
                 ((IInitSystem) s).Init();
         }
+
+        public void Activate()
+        {
+            foreach (var s in _systems[typeof(IActivateSystem)])
+                ((IActivateSystem) s).Activate();
+        }
         
         public void Run()
         {
@@ -47,11 +55,19 @@ namespace Core
             foreach (var s in _systems[typeof(IRunPhysicSystem)])
                 ((IRunPhysicSystem) s).RunPhysic();
         }
+        
         public void PostRun()
         {
             foreach (var s in _systems[typeof(IPostRunSystem)])
                 ((IPostRunSystem) s).PostRun();
         }
+        
+        public void Deactivate()
+        {
+            foreach (var s in _systems[typeof(IDeactivateSystem)])
+                ((IDeactivateSystem) s).Deactivate();
+        }
+        
         public void Destroy()
         {
             foreach (var s in _systems[typeof(IDestroySystem)])

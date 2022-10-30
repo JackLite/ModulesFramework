@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Core.Enumerators
+namespace ModulesFramework.Data.Enumerators
 {
     public struct EntityDataEnumerator
     {

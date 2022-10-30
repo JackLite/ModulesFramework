@@ -1,4 +1,4 @@
-﻿namespace EcsCore
+﻿namespace ModulesFramework
 {
     public class EcsOneData<T> : OneData where T : struct
     {

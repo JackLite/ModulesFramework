@@ -1,7 +1,9 @@
 ﻿using System.Linq;
-using Core;
+using ModulesFramework.Data;
+using ModulesFramework.Modules.Components;
+using ModulesFramework.Systems;
 
-namespace EcsCore
+namespace ModulesFramework.Modules
 {
     /// <summary>
     /// Internal system for controlling activation and deactivation of modules
@@ -54,6 +56,7 @@ namespace EcsCore
         {
             foreach (var module in _modules)
             {
+                module.SetActive(false);
                 module.Destroy();
             }
         }
@@ -113,7 +116,11 @@ namespace EcsCore
                 var type = entity.GetComponent<ModuleDestroySignal>().ModuleType;
                 var module = _modules.FirstOrDefault(m => m.GetType() == type);
                 if (module != null && module.IsInitialized())
-                    module.Deactivate();
+                {
+                    module.SetActive(false);
+                    module.Destroy();
+                }
+
                 entity.Destroy();
             }
         }

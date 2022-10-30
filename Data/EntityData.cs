@@ -1,4 +1,4 @@
-﻿namespace Core
+﻿namespace ModulesFramework.Data
 {
     public struct EntityData
     {

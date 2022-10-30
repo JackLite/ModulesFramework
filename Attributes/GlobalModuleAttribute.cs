@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace EcsCore
+namespace ModulesFramework.Attributes
 {
     /// <summary>
     /// Mark by this attribute modules will init at start
