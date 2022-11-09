@@ -15,6 +15,11 @@ namespace ModulesFramework.Data
             {
                 _world = world;
                 _entityFilter = table.GetEntitiesFilter();
+                for (var i = 0; i < _entityFilter.Length; ++i)
+                {
+                    ref var ed = ref _entityFilter[i];
+                    ed.exclude = false;
+                }
             }
 
             public Query<T> With<TW>() where TW : struct

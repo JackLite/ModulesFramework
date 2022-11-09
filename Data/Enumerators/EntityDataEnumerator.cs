@@ -28,7 +28,7 @@ namespace ModulesFramework.Data.Enumerators
         {
             ++_index;
             if (_pool == null) return false;
-            while (_index <= _pool.Length && (!_pool[_index - 1].isActive ||_pool[_index - 1].exclude))
+            while (_index <= _pool.Length && (!_pool[_index - 1].isActive || _pool[_index - 1].exclude))
                 ++_index;
             return _pool != null && _pool.Length >= _index;
         }
