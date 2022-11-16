@@ -30,7 +30,7 @@ namespace ModulesFramework.Data
             {
                 Array.Resize(ref _table, _table.Length * 2);
             }
-            if (eid >= _tableMap.Length)
+            while (eid >= _tableMap.Length)
             {
                 Array.Resize(ref _tableMap, _tableMap.Length * 2);
                 Array.Resize(ref _entityData, _tableMap.Length);
@@ -51,6 +51,8 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Remove(int eid)
         {
+            if (eid >= _tableMap.Length)
+                return;
             _tableMap[eid] = int.MaxValue;
             ref var ed = ref _entityData[eid];
             ed.isActive = false;
