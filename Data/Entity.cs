@@ -20,15 +20,23 @@ namespace ModulesFramework.Data
             return ref World.GetComponent<T>(Id);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity RemoveComponent<T>() where T : struct
         {
             World.RemoveComponent<T>(Id);
             return this;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Destroy()
         {
             World.DestroyEntity(Id);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool HasComponent<T>() where T : struct
+        {
+            return World.HasComponent<T>(Id);
         }
     }
 }

@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
-using ModulesFramework.Modules.Components;
+using BindingFlags = System.Reflection.BindingFlags;
 
 namespace ModulesFramework.Data
 {
@@ -11,12 +13,12 @@ namespace ModulesFramework.Data
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
         private int _entityCount;
-        private readonly Stack<int> _freeEid = new Stack<int>();
-        private readonly ModulesRepository _modules;
+        private readonly Stack<int> _freeEid = new Stack<int>(64);
+        private readonly Dictionary<Type, EcsModule> _modules;
 
-        public DataWorld(ModulesRepository modulesRepository)
+        public DataWorld()
         {
-            _modules = modulesRepository;
+            _modules = CreateAllEcsModules().ToDictionary(m => m.GetType(), m => m);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -112,6 +114,11 @@ namespace ModulesFramework.Data
             return _entitiesTable.GetData(id);
         }
 
+        public bool HasComponent<T>(int id) where T : struct
+        {
+            return GetEscTable<T>().Contains(id);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DestroyEntity(int id)
         {
@@ -131,33 +138,36 @@ namespace ModulesFramework.Data
         /// <typeparam name="T">Type of module that you want to activate</typeparam>
         /// <seealso cref="ActivateModule{T}"/>
         /// <seealso cref="InitModule{T, T}"/>
-        public void InitModule<T>() where T : EcsModule
+        public void InitModule<T>(bool activateImmediately = false) where T : EcsModule
         {
-            NewEntity()
-                .AddComponent(new ModuleInitSignal
-                {
-                    moduleType = typeof(T)
-                });
+            var module = GetModule<T>();
+            #if MODULES_DEBUG
+            if (module == null) throw new ModuleNotFoundException<T>();
+            #endif
+            module.Init(this, activateImmediately).Forget();
         }
 
         /// <summary>
         /// Initialize module: call Setup() and GetDependencies()
         /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// ATTENTION! Only local modules can be parent. Dependency from global modules
+        /// available in all systems by default
         /// </summary>
         /// <typeparam name="TModule">Type of module that you want to initialize</typeparam>
         /// <typeparam name="TParent">Parent module. TModule get dependencies from parent</typeparam>
         /// <seealso cref="InitModule{T}"/>
         /// <seealso cref="ActivateModule{T}"/>
-        public void InitModule<TModule, TParent>()
+        public void InitModule<TModule, TParent>(bool activateImmediately = false)
             where TModule : EcsModule
             where TParent : EcsModule
         {
-            NewEntity()
-                .AddComponent(new ModuleInitSignal
-                {
-                    moduleType = typeof(TModule),
-                    dependenciesModule = typeof(TParent)
-                });
+            var module = GetModule<TModule>();
+            var parent = GetModule<TParent>();
+            #if MODULES_DEBUG
+            if (module == null) throw new ModuleNotFoundException<TModule>();
+            if (parent == null) throw new ModuleNotFoundException<TParent>();
+            #endif
+            module.Init(this, activateImmediately, parent).Forget();
         }
 
         /// <summary>
@@ -166,7 +176,11 @@ namespace ModulesFramework.Data
         /// <typeparam name="T">Type of module that you want to destroy</typeparam>
         public void DestroyModule<T>() where T : EcsModule
         {
-            NewEntity().AddComponent(new ModuleDestroySignal { ModuleType = typeof(T) });
+            var module = GetModule<T>();
+            #if MODULES_DEBUG
+            if (module == null) throw new ModuleNotFoundException<T>();
+            #endif
+            module.Destroy();
         }
 
         /// <summary>
@@ -177,12 +191,11 @@ namespace ModulesFramework.Data
         /// <seealso cref="DeactivateModule{T}"/>
         public void ActivateModule<T>() where T : EcsModule
         {
-            NewEntity()
-                .AddComponent(new ModuleChangeStateSignal
-                {
-                    state = true,
-                    moduleType = typeof(T)
-                });
+            var module = GetModule<T>();
+            #if MODULES_DEBUG
+            if (module == null) throw new ModuleNotFoundException<T>();
+            #endif
+            module.SetActive(true);
         }
 
         /// <summary>
@@ -193,12 +206,11 @@ namespace ModulesFramework.Data
         /// <seealso cref="ActivateModule{T}"/>
         public void DeactivateModule<T>() where T : EcsModule
         {
-            NewEntity()
-                .AddComponent(new ModuleChangeStateSignal
-                {
-                    state = false,
-                    moduleType = typeof(T)
-                });
+            var module = GetModule<T>();
+            #if MODULES_DEBUG
+            if (module == null) throw new ModuleNotFoundException<T>();
+            #endif
+            module.SetActive(false);
         }
 
         /// <summary>
@@ -216,7 +228,34 @@ namespace ModulesFramework.Data
 
         public bool IsModuleActive<TModule>() where TModule : EcsModule
         {
-            return _modules.IsModuleActive<TModule>();
+            var localModule = GetModule<TModule>();
+            return localModule is { IsActive: true };
+        }
+
+        internal EcsModule? GetModule<T>() where T : EcsModule
+        {
+            if (_modules.TryGetValue(typeof(T), out var module))
+                return module;
+            return null;
+        }
+
+#nullable disable
+        private IEnumerable<EcsModule> CreateAllEcsModules()
+        {
+            var modules = AppDomain.CurrentDomain.GetAssemblies()
+                .SelectMany(a => a.GetTypes()
+                .Where(t => t.IsSubclassOf(typeof(EcsModule)) && !t.IsAbstract)
+                .Select(t => (EcsModule)Activator.CreateInstance(t)));
+            foreach (var module in modules)
+            {
+                module.InjectWorld(this);
+                yield return module;
+            }
+        }
+#nullable restore
+        public IEnumerable<EcsModule> GetAllModules()
+        {
+            return _modules.Select(kvp => kvp.Value);
         }
     }
 }

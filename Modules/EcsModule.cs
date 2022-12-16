@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using ModulesFramework.Attributes;
 using ModulesFramework.Data;
 using ModulesFramework.DependencyInjection;
+using ModulesFramework.Exceptions;
 using ModulesFramework.Systems;
 
 namespace ModulesFramework.Modules
@@ -20,22 +21,20 @@ namespace ModulesFramework.Modules
     /// <seealso cref="GlobalModuleAttribute"/>
     public abstract class EcsModule
     {
-        private SortedDictionary<int, SystemsGroup> _systems;
-        private SystemsGroup[] _systemsArr;
+        private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
+        private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
         private bool _isInit;
         private bool _isActive;
         private static readonly Dictionary<Type, object> _globalDependencies = new Dictionary<Type, object>();
-        private static Exception _exception;
-        private ModulesRepository _repository;
+        private static Exception? _exception;
 
-        [Obsolete]
-        protected virtual Type Type => GetType();
+        protected DataWorld world;
 
         private Type ConcreteType => GetType();
         public bool IsGlobal { get; }
         public bool IsActive => _isActive;
 
-        public Dictionary<Type, OneData> OneDataDict { get; private set; } = new Dictionary<Type, OneData>();
+        public Dictionary<Type, OneData> OneDataDict { get; } = new Dictionary<Type, OneData>();
 
         private static Dictionary<Type, OneData> GlobalOneDataDict { get; } =
             new Dictionary<Type, OneData>();
@@ -45,13 +44,19 @@ namespace ModulesFramework.Modules
             IsGlobal = ConcreteType.GetCustomAttribute<GlobalModuleAttribute>() != null;
         }
 
+        internal void InjectWorld(DataWorld world)
+        {
+            this.world = world;
+        }
+
         /// <summary>
         /// Activate concrete module: call and await EcsModule.Setup(), create all systems and insert dependencies
         /// </summary>
         /// <param name="world">The world where systems and entities will live</param>
+        /// <param name="activateImmediately">Activate module after initialization?</param>
         /// <param name="parent">Parent module, when you need dependencies from other module</param>
         /// <seealso cref="Setup"/>
-        public async Task Init(DataWorld world, EcsModule parent = null)
+        public async Task Init(DataWorld world, bool activateImmediately = false, EcsModule? parent = null)
         {
             try
             {
@@ -59,7 +64,6 @@ namespace ModulesFramework.Modules
 
                 UpdateGlobalDependencies();
 
-                _systems = new SortedDictionary<int, SystemsGroup>();
                 var systemOrder = GetSystemsOrder();
                 foreach (var system in EcsUtilities.CreateSystems(ConcreteType))
                 {
@@ -82,6 +86,8 @@ namespace ModulesFramework.Modules
 
                 _systemsArr = _systems.Values.ToArray();
                 _isInit = true;
+                if (activateImmediately)
+                    SetActive(true);
             }
             catch (Exception e)
             {
@@ -97,6 +103,8 @@ namespace ModulesFramework.Modules
         /// <param name="isActive">Flag to turn on/off the module</param>
         internal void SetActive(bool isActive)
         {
+            if (!_isInit) 
+                throw new ModuleNotInitializedException(ConcreteType);
             if (isActive && !_isActive)
             {
                 OnActivate();
@@ -129,7 +137,7 @@ namespace ModulesFramework.Modules
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsInitialized()
         {
-            return _systems != null && _isInit;
+            return _isInit;
         }
 
         /// <summary>
@@ -202,20 +210,6 @@ namespace ModulesFramework.Modules
         }
 
         /// <summary>
-        /// For internal usage only
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void Deactivate()
-        {
-            _isActive = false;
-            if (!_isInit) return;
-            OnDestroy();
-            if (_systems != null)
-                DestroySystems();
-            _isInit = false;
-        }
-
-        /// <summary>
         /// Calls before activate module and IActivateSystem
         /// </summary>
         public virtual void OnActivate()
@@ -246,7 +240,7 @@ namespace ModulesFramework.Modules
                 p.Value.Destroy();
             }
 
-            _systems = null;
+            _systems.Clear();
         }
 
         /// <summary>
@@ -256,9 +250,9 @@ namespace ModulesFramework.Modules
         internal void Destroy()
         {
             if (!_isInit) return;
+            SetActive(false);
             OnDestroy();
-            if (_systems != null)
-                DestroySystems();
+            DestroySystems();
             _isInit = false;
         }
 
@@ -299,7 +293,7 @@ namespace ModulesFramework.Modules
             }
         }
 
-        private void InsertDependencies(ISystem system, DataWorld world, EcsModule parent = null)
+        private void InsertDependencies(ISystem system, DataWorld world, EcsModule? parent = null)
         {
             var dependencies = GetDependencies();
             var parentDependencies = parent?.GetDependencies();
@@ -377,7 +371,7 @@ namespace ModulesFramework.Modules
             }
         }
 
-        private void InsertOneData(Type t, ISystem system, FieldInfo field, EcsModule parent = null)
+        private void InsertOneData(Type t, ISystem system, FieldInfo field, EcsModule? parent = null)
         {
             var oneData = GetOneData(t, parent);
 
@@ -393,7 +387,7 @@ namespace ModulesFramework.Modules
                 $"Type {t.GetGenericArguments()[0]} does not exist in {nameof(OneDataDict)}. Are you forget to add it in {GetType().Name} module?");
         }
 
-        private OneData GetOneData(Type t, EcsModule parent = null)
+        private OneData? GetOneData(Type t, EcsModule? parent = null)
         {
             var dataType = t.GetGenericArguments()[0];
             if (OneDataDict.ContainsKey(dataType))
@@ -430,11 +424,6 @@ namespace ModulesFramework.Modules
             return new Dictionary<Type, object>(0);
         }
 
-        internal void InjectRepository(ModulesRepository repository)
-        {
-            _repository = repository;
-        }
-
         /// <summary>
         /// Let you get global dependencies in local module.
         /// It can be useful when you create some local service that needs global dependency.
@@ -442,10 +431,10 @@ namespace ModulesFramework.Modules
         /// <typeparam name="TModule">Module from where you need dependency</typeparam>
         /// <typeparam name="TDependency">Dependency type</typeparam>
         /// <returns>Dependency or null</returns>
-        protected TDependency GetGlobalDependency<TModule, TDependency>()
+        protected TDependency? GetGlobalDependency<TModule, TDependency>()
             where TModule : EcsModule where TDependency : class
         {
-            var module = _repository.GetGlobalModule<TModule>();
+            var module = world.GetModule<TModule>();
             if (module == null)
                 return null;
 
@@ -457,7 +446,7 @@ namespace ModulesFramework.Modules
 
         protected EcsOneData<T> GetOneData<T, TModule>() where T : struct where TModule : EcsModule
         {
-            var module = _repository.GetModule<TModule>();
+            var module = world.GetModule<TModule>();
             if (module == null) throw new ArgumentException("Can't find module " + typeof(TModule));
             return (EcsOneData<T>)module.OneDataDict[typeof(T)];
         }

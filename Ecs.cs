@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using ModulesFramework.Data;
 using ModulesFramework.Modules;
 
@@ -6,31 +7,26 @@ namespace ModulesFramework
 {
     public class Ecs
     {
-        private ModulesRepository _modulesRepository;
-        private EcsModule[] _globalModules;
-        private DataWorld _world;
+        private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
-        private ModuleSystem _moduleSystem;
-        private EcsOneFrameSystem _oneFrameSystem;
+        private readonly ModuleSystem _moduleSystem;
+        private readonly EcsOneFrameSystem _oneFrameSystem;
 
-        public DataWorld World => _world;
+        public DataWorld World { get; }
 
         public Ecs()
         {
-            _modulesRepository = new ModulesRepository();
-            _world = new DataWorld(_modulesRepository);
-            _moduleSystem = new ModuleSystem(_world, _modulesRepository);
-            _oneFrameSystem = new EcsOneFrameSystem(_world);
+            World = new DataWorld();
+            _moduleSystem = new ModuleSystem(World);
+            _oneFrameSystem = new EcsOneFrameSystem(World);
         }
 
         public async void Start()
         {
-            // находим все глобальные модули
-            _globalModules = _modulesRepository.GlobalModules.ToArray();
-            // активируем их
+            _globalModules = World.GetAllModules().Where(m => m.IsGlobal).ToArray();
             foreach (var module in _globalModules)
             {
-                await module.Init(_world);
+                await module.Init(World);
                 module.SetActive(true);
             }
 
@@ -44,11 +40,6 @@ namespace ModulesFramework
             if (ExceptionsPool.TryPop(out var e))
                 throw e;
             _moduleSystem.Run();
-
-            foreach (var module in _globalModules)
-            {
-                module.Run();
-            }
         }
 
         public void PostRun()
@@ -57,11 +48,6 @@ namespace ModulesFramework
                 return;
             _moduleSystem.PostRun();
 
-            foreach (var module in _globalModules)
-            {
-                module.PostRun();
-            }
-            
             _oneFrameSystem.PostRun();
         }
 
@@ -70,11 +56,6 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
             _moduleSystem.RunPhysic();
-
-            foreach (var module in _globalModules)
-            {
-                module.RunPhysics();
-            }
         }
 
         public void Destroy()
@@ -82,12 +63,6 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
             _moduleSystem.Destroy();
-
-            foreach (var module in _globalModules)
-            {
-                module.SetActive(false);
-                module.Destroy();
-            }
         }
     }
 }

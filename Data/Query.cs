@@ -6,11 +6,11 @@ namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
-        public readonly struct Query<T> where T : struct
+        public class Query<T> where T : struct
         {
             private readonly DataWorld _world;
             private readonly EntityData[] _entityFilter;
-
+            private int _count;
             public Query(DataWorld world, EcsTable<T> table)
             {
                 _world = world;
@@ -19,6 +19,8 @@ namespace ModulesFramework.Data
                 {
                     ref var ed = ref _entityFilter[i];
                     ed.exclude = false;
+                    if (ed.isActive) 
+                        _count++;
                 }
             }
 
@@ -29,7 +31,10 @@ namespace ModulesFramework.Data
                 {
                     ref var ed = ref _entityFilter[i];
                     if (!ed.isActive) continue;
-                    ed.exclude = ed.exclude || !table.Contains(ed.eid);
+                    var exclude = !table.Contains(ed.eid);
+                    ed.exclude |= exclude;
+                    if (exclude)
+                        _count--;
                 }
 
                 return this;
@@ -42,7 +47,10 @@ namespace ModulesFramework.Data
                 {
                     ref var ed = ref _entityFilter[i];
                     if (!ed.isActive) continue;
-                    ed.exclude = ed.exclude || table.Contains(ed.eid);
+                    var exclude = table.Contains(ed.eid);
+                    ed.exclude |= exclude;
+                    if (exclude)
+                        _count--;
                 }
 
                 return this;
@@ -55,7 +63,10 @@ namespace ModulesFramework.Data
                     ref var ed = ref _entityFilter[i];
                     if (!ed.isActive) continue;
                     ref var c = ref _world.GetComponent<TW>(ed.eid);
-                    ed.exclude = !customFilter.Invoke(c);
+                    var exclude = !customFilter.Invoke(c);
+                    ed.exclude |= exclude;
+                    if (exclude)
+                        _count--;
                 }
 
                 return this;
@@ -99,6 +110,11 @@ namespace ModulesFramework.Data
                 {
                     _world.DestroyEntity(eid);
                 }
+            }
+
+            public int Count()
+            {
+                return _count;
             }
         }
     }
