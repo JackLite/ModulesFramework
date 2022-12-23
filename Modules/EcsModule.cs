@@ -34,11 +34,6 @@ namespace ModulesFramework.Modules
         public bool IsGlobal { get; }
         public bool IsActive => _isActive;
 
-        public Dictionary<Type, OneData> OneDataDict { get; } = new Dictionary<Type, OneData>();
-
-        private static Dictionary<Type, OneData> GlobalOneDataDict { get; } =
-            new Dictionary<Type, OneData>();
-
         protected EcsModule()
         {
             IsGlobal = ConcreteType.GetCustomAttribute<GlobalModuleAttribute>() != null;
@@ -103,7 +98,7 @@ namespace ModulesFramework.Modules
         /// <param name="isActive">Flag to turn on/off the module</param>
         internal void SetActive(bool isActive)
         {
-            if (!_isInit) 
+            if (!_isInit)
                 throw new ModuleNotInitializedException(ConcreteType);
             if (isActive && !_isActive)
             {
@@ -187,29 +182,6 @@ namespace ModulesFramework.Modules
         }
 
         /// <summary>
-        /// Create one data container
-        /// </summary>
-        /// <typeparam name="T">Type of data in container</typeparam>
-        /// <seealso cref="CreateOneData{T}(T)"/>
-        protected void CreateOneData<T>() where T : struct
-        {
-            OneDataDict[typeof(T)] = new EcsOneData<T>();
-        }
-
-        /// <summary>
-        /// Create one data container and set data
-        /// </summary>
-        /// <param name="data">Data that will be set in container</param>
-        /// <typeparam name="T">Type of data in container</typeparam>
-        /// <seealso cref="CreateOneData{T}()"/>
-        protected void CreateOneData<T>(T data) where T : struct
-        {
-            var oneData = new EcsOneData<T>();
-            oneData.SetDataIfNotExist(data);
-            OneDataDict[typeof(T)] = oneData;
-        }
-
-        /// <summary>
         /// Calls before activate module and IActivateSystem
         /// </summary>
         public virtual void OnActivate()
@@ -284,13 +256,6 @@ namespace ModulesFramework.Modules
                     continue;
                 _globalDependencies.Add(kvp.Key, kvp.Value);
             }
-
-            foreach (var (type, data) in OneDataDict)
-            {
-                if (GlobalOneDataDict.ContainsKey(type))
-                    continue;
-                GlobalOneDataDict.Add(type, data);
-            }
         }
 
         private void InsertDependencies(ISystem system, DataWorld world, EcsModule? parent = null)
@@ -332,7 +297,7 @@ namespace ModulesFramework.Modules
 
                     if (t.BaseType == typeof(OneData))
                     {
-                        var data = GetOneData(t, parent);
+                        var data = world.GetOneData(t);
                         if (data == null)
                             ThrowOneDataException(t);
                         injections[i++] = data;
@@ -366,14 +331,14 @@ namespace ModulesFramework.Modules
 
                 if (t.BaseType == typeof(OneData))
                 {
-                    InsertOneData(t, system, field, parent);
+                    InsertOneData(t, system, field);
                 }
             }
         }
 
-        private void InsertOneData(Type t, ISystem system, FieldInfo field, EcsModule? parent = null)
+        private void InsertOneData(Type t, ISystem system, FieldInfo field)
         {
-            var oneData = GetOneData(t, parent);
+            var oneData = world.GetOneData(t);
 
             if (oneData == null)
                 ThrowOneDataException(t);
@@ -384,22 +349,7 @@ namespace ModulesFramework.Modules
         private void ThrowOneDataException(Type t)
         {
             throw new ApplicationException(
-                $"Type {t.GetGenericArguments()[0]} does not exist in {nameof(OneDataDict)}. Are you forget to add it in {GetType().Name} module?");
-        }
-
-        private OneData? GetOneData(Type t, EcsModule? parent = null)
-        {
-            var dataType = t.GetGenericArguments()[0];
-            if (OneDataDict.ContainsKey(dataType))
-                return OneDataDict[dataType];
-
-            if (GlobalOneDataDict.ContainsKey(dataType))
-                return GlobalOneDataDict[dataType];
-
-            if (parent != null && parent.OneDataDict.ContainsKey(dataType))
-                return parent.OneDataDict[dataType];
-
-            return null;
+                $"Type {t.GetGenericArguments()[0]} does not exist. Are you forget to add it in {GetType().Name} module?");
         }
 
         private MethodInfo GetSetupMethod(ISystem system)
@@ -442,13 +392,6 @@ namespace ModulesFramework.Modules
             if (dependencies.ContainsKey(typeof(TDependency)))
                 return dependencies[typeof(TDependency)] as TDependency;
             return null;
-        }
-
-        protected EcsOneData<T> GetOneData<T, TModule>() where T : struct where TModule : EcsModule
-        {
-            var module = world.GetModule<TModule>();
-            if (module == null) throw new ArgumentException("Can't find module " + typeof(TModule));
-            return (EcsOneData<T>)module.OneDataDict[typeof(T)];
         }
     }
 }

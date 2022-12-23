@@ -104,6 +104,16 @@ namespace ModulesFramework.Data
                 return false;
             }
 
+            public ref TRet SelectFirst<TRet>() where TRet : struct
+            {
+                foreach (var eid in GetEntitiesId())
+                {
+                    return ref _world.GetComponent<TRet>(eid);
+                }
+
+                throw new ArgumentOutOfRangeException();
+            }
+
             public void DestroyAll()
             {
                 foreach (var eid in GetEntitiesId())

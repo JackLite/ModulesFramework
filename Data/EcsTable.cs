@@ -5,6 +5,8 @@ namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
+        public abstract object GetDataObject(int eid);
+        public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
     }
 
@@ -49,6 +51,12 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public override object GetDataObject(int eid)
+        {
+            return _table[_tableMap[eid]];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Remove(int eid)
         {
             if (eid >= _tableMap.Length)
@@ -71,7 +79,7 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool Contains(int eid)
+        public override bool Contains(int eid)
         {
             if (eid >= _tableMap.Length)
                 return false;

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
-using BindingFlags = System.Reflection.BindingFlags;
 
 namespace ModulesFramework.Data
 {
@@ -15,6 +14,13 @@ namespace ModulesFramework.Data
         private int _entityCount;
         private readonly Stack<int> _freeEid = new Stack<int>(64);
         private readonly Dictionary<Type, EcsModule> _modules;
+        private Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
+
+        public event Action<int> OnEntityCreated; 
+        public event Action<int> OnEntityChanged; 
+        public event Action<int> OnEntityDestroyed;
+
+        internal event Action<Type, OneData> OnOneDataCreated;
 
         public DataWorld()
         {
@@ -41,6 +47,7 @@ namespace ModulesFramework.Data
                 World = this
             };
             _entitiesTable.AddData(id, entity);
+            OnEntityCreated?.Invoke(id);
             return entity;
         }
 
@@ -48,12 +55,14 @@ namespace ModulesFramework.Data
         public void AddComponent<T>(int eid, T component) where T : struct
         {
             GetEscTable<T>().AddData(eid, component);
+            OnEntityChanged?.Invoke(eid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void RemoveComponent<T>(int id) where T : struct
+        public void RemoveComponent<T>(int eid) where T : struct
         {
-            GetEscTable<T>().Remove(id);
+            GetEscTable<T>().Remove(eid);
+            OnEntityChanged?.Invoke(eid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -71,7 +80,9 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable<T> GetEscTable<T>() where T : struct
         {
+            #if !MODULES_FAST
             CreateTableIfNeed<T>();
+            #endif
             return (EcsTable<T>)_data[typeof(T)];
         }
 
@@ -118,6 +129,13 @@ namespace ModulesFramework.Data
         {
             return GetEscTable<T>().Contains(id);
         }
+        
+        public bool HasComponent(int eid, Type componentType)
+        {
+            if (!_data.ContainsKey(componentType))
+                return false;
+            return _data[componentType].Contains(eid);
+        }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DestroyEntity(int id)
@@ -129,6 +147,15 @@ namespace ModulesFramework.Data
 
             _entitiesTable.Remove(id);
             _freeEid.Push(id);
+            OnEntityDestroyed?.Invoke(id);
+        }
+
+        internal void MapTables(Action<Type, EcsTable> handler)
+        {
+            foreach (var kvp in _data)
+            {
+                handler.Invoke(kvp.Key, kvp.Value);
+            }
         }
 
         /// <summary>
@@ -256,6 +283,44 @@ namespace ModulesFramework.Data
         public IEnumerable<EcsModule> GetAllModules()
         {
             return _modules.Select(kvp => kvp.Value);
+        }
+
+        /// <summary>
+        /// Create one data container
+        /// </summary>
+        /// <typeparam name="T">Type of data in container</typeparam>
+        /// <seealso cref="CreateOneData{T}()"/>
+        public void CreateOneData<T>() where T : struct
+        {
+            _oneDatas[typeof(T)] = new EcsOneData<T>();
+        }
+
+        /// <summary>
+        /// Create one data container and set data
+        /// </summary>
+        /// <param name="data">Data that will be set in container</param>
+        /// <typeparam name="T">Type of data in container</typeparam>
+        /// <seealso cref="CreateOneData{T}(T)"/>
+        public void CreateOneData<T>(T data) where T : struct
+        {
+            var oneData = new EcsOneData<T>();
+            oneData.SetDataIfNotExist(data);
+            _oneDatas[typeof(T)] = oneData;
+            OnOneDataCreated?.Invoke(typeof(T), oneData);
+        }
+        
+        public OneData? GetOneData(Type t)
+        {
+            var dataType = t.GetGenericArguments()[0];
+            if (_oneDatas.ContainsKey(dataType))
+                return _oneDatas[dataType];
+
+            return null;
+        }
+
+        public EcsOneData<T>? GetOneData<T>() where T : struct
+        {
+            return (EcsOneData<T>)GetOneData(typeof(T));
         }
     }
 }

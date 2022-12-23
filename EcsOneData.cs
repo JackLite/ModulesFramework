@@ -32,9 +32,15 @@
         {
             return _isSet;
         }
+
+        internal override object GetDataObject()
+        {
+            return _data;
+        }
     }
 
     public abstract class OneData
     {
+        internal abstract object GetDataObject();
     }
 }
