@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
+#if MODULES_DEBUG
+using ModulesFramework.Exceptions;
+#endif
 using ModulesFramework.Modules;
 
 namespace ModulesFramework.Data
