@@ -1,5 +1,321 @@
 # ModulesFramework
 
+## Getting started
+
+All you need for start using ModulesFramework
+is this simple code:
+
+```csharp
+public void MyEntryPoint() 
+{
+    var ecs = new Ecs();
+    ecs.Start();
+}
+```
+
+Next steps depends on what you want to do. 
+Here example for simple server:
+
+```csharp
+public class MyServer
+{
+    private Ecs _ecs;
+    
+    public MyServer()
+    {
+        _ecs = new Ecs();
+    }
+    
+    public void StartServer()
+    {
+        _ecs.Start();
+    }
+    
+    public void Tick()
+    {
+        _ecs.Run();
+        _ecs.PostRun();
+    }
+    
+    public void StopServer()
+    {
+        _ecs.Destroy();
+    }
+}
+```
+
+##### Simple example
+
+Let's create some battle feature. We want to create one
+player and three enemy. Then we want to make some damage.
+Finally we want to destroy entities when they hp <= 0.
+
+First of all we need a global module that startup our simple example.
+
+**Note:** we do not want make all logic bind to global,
+because our battle may be part of complex game.
+
+So let's create global module:
+
+```csharp
+[GlobalModule]
+public class StartupModule : EcsModule
+{
+    protected override Task Setup()
+    {
+        return Task.CompletedTask;
+    }
+}
+```
+And create our battle module:
+
+```csharp
+public class BattleModule : EcsModule
+{
+}
+```
+Now we just init and activate battle module from startup.
+
+```csharp
+[GlobalModule]
+public class StartupModule : EcsModule
+{
+    protected override Task Setup()
+    {
+        World.InitModule<BattleModule>(true);
+        return Task.CompletedTask;
+    }
+}
+```
+
+Now let's create some components.
+
+```csharp
+public struct Hp
+{
+    public int current;
+    public int max; // just for example
+}
+
+public struct Damage
+{
+    public int damageValue;
+}
+
+public struct PlayerTag {}
+public struct EnemyTag {}
+public struct DeadTag {}
+```
+As you see all components is a struct.
+
+Now we ready to create our systems. 
+Let's start from creating player and enemies.
+
+```csharp
+[EcsSystem(typeof(BattleModule))] // bind system to module
+public class InitBattleSystem : IInitSystem
+{
+    private DataWorld _world;
+    
+    public void Init()
+    {
+        _world.NewEntity()
+            .AddComponent(new PlayerTag())
+            .AddComponent(new Hp() { 
+                maxValue = 100, 
+                current = 100 
+            });
+            
+        for (var i = 0; i < 3; ++i)
+        {
+             _world.NewEntity()
+                .AddComponent(new PlayerTag())
+                .AddComponent(new Hp() { 
+                    maxValue = 20, 
+                    current = 20 
+                });
+        }
+    }
+}
+```
+
+`Init()` called when module initialized. There is no 
+need to create system by your own. All systems creates
+when module initialized.
+
+Now damage!
+
+
+```csharp
+[EcsSystem(typeof(BattleModule))] // bind system to module
+public class DamageSystem : IRunSystem
+{
+    private DataWorld _world;
+    
+    public void Run()
+    {
+        // get all entities with hp and damage 
+        var query = _world.Select<Hp>()
+            .With<Damage>();
+            
+        foreach(var entity in query.GetEntities())
+        {
+            ref var hp = ref entity.GetComponent<Hp>();
+            ref var damage = ref entity.GetComponent<Damage>();
+            hp.current -= damage.value;
+            // we do not want apply same damage twice
+            entity.RemoveComponent<Damage>();
+            if (hp.current <= 0)
+                entity.AddComponent<DeadTag>();
+        }
+    }
+}
+```
+
+And finally death system.
+
+```csharp
+[EcsSystem(typeof(BattleModule))] // bind system to module
+public class DeathSystem : IPostRunSystem
+{
+    private DataWorld _world;
+    
+    public void PostRun()
+    {
+        // get dead entities
+        var query = _world.Select<DeadTag>();
+            
+        foreach(var entity in query.GetEntities())
+        {
+            if (entity.HasComponent<PlayerTag>())
+            {
+                // game over
+            }
+            entity.Destroy();
+        }
+    }
+}
+```
+This is a very simple example but it shows main 
+concepts of ModulesFramework and Ecs. Let's do a 
+couple more things.
+
+First off all let's create a settings so we able control
+count of enemies. We will do it by dependencies of module.
+
+```csharp
+public class Settings 
+{
+    public readonly int enemiesCount;
+}
+```
+
+```csharp
+[GlobalModule]
+public class StartupModule : EcsModule
+{
+    private readonly Dictionary<Type, object> _dependencies = new();
+    protected override Task Setup()
+    {
+        World.InitModule<BattleModule>(true);
+        // read settings from some JSON or anything else
+        _dependencies[typeof(Settings)] = settings;
+        return Task.CompletedTask;
+    }
+    
+    protected override Dictionary<Type, object> GetDependencies()
+    {
+        return _dependencies;
+    }
+}
+```
+Now we can do this.
+
+
+```csharp
+[EcsSystem(typeof(BattleModule))] // bind system to module
+public class InitBattleSystem : IInitSystem
+{
+    private DataWorld _world;
+    // it injects by creating system
+    private Settings _settings;
+    
+    public void Init()
+    {
+        // creating player
+            
+        for (var i = 0; i < _settings.enemiesCount; ++i)
+        {
+             // creating enemy
+        }
+    }
+}
+```
+You can create any dependencies and inject them in any
+system of your module. If module is global *all* systems
+can use it's dependencies.
+
+Now let's take a look on another thing. We want to
+give player a coin for every killed enemy. We could
+create new component `Wallet` and add it to some 
+entity that lives between battles. But it must live forever,
+must be created at start (to live between sessions)
+and take it by query too boilerplated. There is 
+better way - the one data concept.
+
+**OneData** is a struct that holds some information 
+that exists *only in one* copy. That's it you can 
+very simple controls it. Let's see the example.
+
+```csharp
+public struct Wallet
+{
+    public int coins;
+    public int someOtherResource;
+}
+```
+```csharp
+[GlobalModule]
+public class StartupModule : EcsModule
+{
+    private readonly Dictionary<Type, object> _dependencies = new();
+    protected override Task Setup()
+    {
+        // load wallet from save
+        World.CreateOneData(wallet);
+        World.InitModule<BattleModule>(true);
+       _dependencies[typeof(Settings)] = settings;
+        return Task.CompletedTask;
+    }
+    // other methods
+}
+```
+```csharp
+[EcsSystem(typeof(BattleModule))] 
+public class DeathSystem : IPostRunSystem
+{
+    private DataWorld _world;
+    
+    public void PostRun()
+    {
+        var query = _world.Select<DeadTag>();
+        // get one data similar to get component
+        ref var wallet = ref _world.OneData<Wallet>();
+        foreach(var entity in query.GetEntities())
+        {
+            if (entity.HasComponent<PlayerTag>())
+                // game over
+            entity.Destroy();
+            
+            if (entity.HasComponent<EnemyTag>())
+                wallet.coins++;
+        }
+    }
+}
+```
+As you see it's very simple.
+
+
 ## API
 
 ### EcsModule
