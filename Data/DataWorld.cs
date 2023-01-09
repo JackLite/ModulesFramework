@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using JetBrains.Annotations;
+#if MODULES_DEBUG
+using ModulesFramework.Exceptions;
+#endif
 using ModulesFramework.Modules;
 
 namespace ModulesFramework.Data
@@ -16,11 +18,11 @@ namespace ModulesFramework.Data
         private readonly Dictionary<Type, EcsModule> _modules;
         private Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
 
-        public event Action<int> OnEntityCreated; 
-        public event Action<int> OnEntityChanged; 
-        public event Action<int> OnEntityDestroyed;
+        public event Action<int>? OnEntityCreated; 
+        public event Action<int>? OnEntityChanged; 
+        public event Action<int>? OnEntityDestroyed;
 
-        internal event Action<Type, OneData> OnOneDataCreated;
+        internal event Action<Type, OneData>? OnOneDataCreated;
 
         public DataWorld()
         {
@@ -78,7 +80,7 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public EcsTable<T> GetEscTable<T>() where T : struct
+        private EcsTable<T> GetEscTable<T>() where T : struct
         {
             #if !MODULES_FAST
             CreateTableIfNeed<T>();
@@ -107,7 +109,7 @@ namespace ModulesFramework.Data
         {
             var table = GetEscTable<T>();
             var query = new Query<T>(this, table);
-            return query.TrySelectFirst<T>(out c);
+            return query.TrySelectFirst(out c);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

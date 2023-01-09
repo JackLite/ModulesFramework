@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
+using ModulesFramework.Exceptions;
 
 namespace ModulesFramework.Data
 {
@@ -108,10 +109,11 @@ namespace ModulesFramework.Data
             {
                 foreach (var eid in GetEntitiesId())
                 {
-                    return ref _world.GetComponent<TRet>(eid);
+                    if (_world.HasComponent<TRet>(eid))
+                        return ref _world.GetComponent<TRet>(eid);
                 }
 
-                throw new ArgumentOutOfRangeException();
+                throw new QuerySelectException<TRet>();
             }
 
             public void DestroyAll()
