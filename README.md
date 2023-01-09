@@ -155,7 +155,7 @@ public class DamageSystem : IRunSystem
     public void Run()
     {
         // get all entities with hp and damage 
-        var query = _world.Select<Hp>()
+        using var query = _world.Select<Hp>()
             .With<Damage>();
             
         foreach(var entity in query.GetEntities())
@@ -183,7 +183,7 @@ public class DeathSystem : IPostRunSystem
     public void PostRun()
     {
         // get dead entities
-        var query = _world.Select<DeadTag>();
+        using var query = _world.Select<DeadTag>();
             
         foreach(var entity in query.GetEntities())
         {
@@ -298,7 +298,7 @@ public class DeathSystem : IPostRunSystem
     
     public void PostRun()
     {
-        var query = _world.Select<DeadTag>();
+        using var query = _world.Select<DeadTag>();
         // get one data similar to get component
         ref var wallet = ref _world.OneData<Wallet>();
         foreach(var entity in query.GetEntities())
@@ -500,6 +500,10 @@ to query exists;
 - `bool TrySelectFirst<TRet>(out TRet)` - helper for
 get first component from first `Entity`. Be careful - 
 `TRet` not a reference;
+- `ref TRet SelectFirst<TRet>()` - another helper for
+get first component. It returns reference to component.
+If there is no entity with `TRet` component method throw
+`QuerySelectException<TRet>`;
 - `void DestroyAll()` - helper for destroy all entities
 from query;
 - `int Count()` - count of entities corresponds to query;

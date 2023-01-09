@@ -17,6 +17,7 @@ namespace ModulesFramework.Data
         private readonly Stack<int> _freeEid = new Stack<int>(64);
         private readonly Dictionary<Type, EcsModule> _modules;
         private Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
+        private Stack<Query> _queriesPool;
 
         public event Action<int>? OnEntityCreated; 
         public event Action<int>? OnEntityChanged; 
@@ -27,6 +28,8 @@ namespace ModulesFramework.Data
         public DataWorld()
         {
             _modules = CreateAllEcsModules().ToDictionary(m => m.GetType(), m => m);
+            _queriesPool = new Stack<Query>(128);
+            
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -89,18 +92,17 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Query<T> Select<T>() where T : struct
+        public Query Select<T>() where T : struct
         {
             var table = GetEscTable<T>();
-            var query = new Query<T>(this, table);
-            return query;
+            return GetQuery(table);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Exist<T>() where T : struct
         {
             var table = GetEscTable<T>();
-            var query = new Query<T>(this, table);
+            var query = GetQuery(table);
             return query.Any();
         }
 
@@ -108,10 +110,30 @@ namespace ModulesFramework.Data
         public bool TrySelectFirst<T>(out T c) where T : struct
         {
             var table = GetEscTable<T>();
-            var query = new Query<T>(this, table);
+            var query = GetQuery(table);
             return query.TrySelectFirst(out c);
         }
 
+        internal void ReturnQuery(Query query)
+        {
+            _queriesPool.Push(query);
+        }
+
+        private Query GetQuery<T>(EcsTable<T> table) where T : struct
+        {
+            if (_queriesPool.Count == 0)
+                FillQueriesPool();
+            var query = _queriesPool.Pop();
+            query.Init(table.GetEntitiesFilter());
+            return query;
+        }
+
+        private void FillQueriesPool()
+        {
+            while (_queriesPool.Count < 128)
+                _queriesPool.Push(new Query(this));
+        }
+        
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable<T> CreateTableIfNeed<T>() where T : struct
         {

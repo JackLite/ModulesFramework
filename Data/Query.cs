@@ -7,15 +7,24 @@ namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
-        public class Query<T> where T : struct
+        public sealed class Query : IDisposable
         {
             private readonly DataWorld _world;
-            private readonly EntityData[] _entityFilter;
+            private EntityData[] _entityFilter = Array.Empty<EntityData>();
             private int _count;
-            public Query(DataWorld world, EcsTable<T> table)
+            public Query(DataWorld world)
             {
                 _world = world;
-                _entityFilter = table.GetEntitiesFilter();
+            }
+
+            public void Dispose()
+            {
+                _world.ReturnQuery(this);
+            }
+
+            internal void Init(EntityData[] entityFilter)
+            {
+                _entityFilter = entityFilter;
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
@@ -25,9 +34,9 @@ namespace ModulesFramework.Data
                 }
             }
 
-            public Query<T> With<TW>() where TW : struct
+            public Query With<T>() where T : struct
             {
-                var table = _world.GetEscTable<TW>();
+                var table = _world.GetEscTable<T>();
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
@@ -41,9 +50,9 @@ namespace ModulesFramework.Data
                 return this;
             }
 
-            public Query<T> Without<TW>() where TW : struct
+            public Query Without<T>() where T : struct
             {
-                var table = _world.GetEscTable<TW>();
+                var table = _world.GetEscTable<T>();
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
@@ -57,13 +66,13 @@ namespace ModulesFramework.Data
                 return this;
             }
 
-            public Query<T> Where<TW>(Func<TW, bool> customFilter) where TW : struct
+            public Query Where<T>(Func<T, bool> customFilter) where T : struct
             {
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
                     if (!ed.isActive) continue;
-                    ref var c = ref _world.GetComponent<TW>(ed.eid);
+                    ref var c = ref _world.GetComponent<T>(ed.eid);
                     var exclude = !customFilter.Invoke(c);
                     ed.exclude |= exclude;
                     if (exclude)
