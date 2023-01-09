@@ -504,7 +504,6 @@ get first component from first `Entity`. Be careful -
 from query;
 - `int Count()` - count of entities corresponds to query;
 
-
 ### <a id="api-systems"></a>Systems
 
 Systems works with data: create data, change it and destroy.
