@@ -12,7 +12,8 @@ namespace ModulesFramework
 
         public void PostRun()
             {
-                var entities = _world.Select<EcsOneFrame>().GetEntities();
+                using var select = _world.Select<EcsOneFrame>();
+                var entities = select.GetEntities();
                 foreach (var e in entities)
                     e.Destroy();
             }
