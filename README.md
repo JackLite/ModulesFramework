@@ -305,10 +305,11 @@ public class DeathSystem : IPostRunSystem
         {
             if (entity.HasComponent<PlayerTag>())
                 // game over
-            entity.Destroy();
             
             if (entity.HasComponent<EnemyTag>())
                 wallet.coins++;
+
+            entity.Destroy();
         }
     }
 }
