@@ -223,9 +223,9 @@ public class StartupModule : EcsModule
         return Task.CompletedTask;
     }
     
-    protected override Dictionary<Type, object> GetDependencies()
+    public override Dictionary GetDependency(Type t)
     {
-        return _dependencies;
+        return _dependencies[t];
     }
 }
 ```
@@ -305,15 +305,76 @@ public class DeathSystem : IPostRunSystem
         {
             if (entity.HasComponent<PlayerTag>())
                 // game over
-            entity.Destroy();
             
             if (entity.HasComponent<EnemyTag>())
                 wallet.coins++;
+
+            entity.Destroy();
         }
     }
 }
 ```
 As you see it's very simple.
+
+### Events
+
+Let's do one more thing. We do not want that dead system shows game over UI or does
+something like this. It's good to keep such logic in separated system. Usually 
+event concept is using for such thing. Very often in pure ecs frameworks we create
+entity that exists only one frame (one frame entity) and try to find that entity
+in `Run()` or `PostRun()`. ModulesFramework introduces other way - event systems.
+
+Event is struct like an other components.
+```csharp
+public struct GameOverEvent 
+{
+    public GameOverReason reason; // enum why game is over
+}
+```
+Fire event is simple:
+```csharp
+[EcsSystem(typeof(BattleModule))] 
+public class DeathSystem : IPostRunSystem
+{
+    private DataWorld _world;
+    
+    public void PostRun()
+    {
+        // other code
+        foreach(var entity in query.GetEntities())
+        {
+            if (entity.HasComponent<PlayerTag>())
+                // if event is empty we can use _world.RiseEvent<EventType>()
+                _world.RiseEvent(new GameOverEvent { reason = GameOverReason.Dead };
+            
+            // other code
+        }
+    }
+}
+```
+And then we need *event* system:
+```csharp
+[EcsSystem(typeof(BattleModule))] 
+public class DeathSystem : IRunEventSystem<GameOverEvent>
+{
+    public void RunEvent(GameOverEvent ev)
+    {
+        // show game over and do some logic
+    }
+}
+```
+Method `RunEvent<T>(T ev)` calls only when there is event. 
+
+There is three types of event systems. Every calls in particular time:
+- `IRunEventSystem<T>` - calls **before** all `IRunSystem`s with the same order;
+- `IPostRunEventSystem<T>` - calls **after** all `IRunSystem`s (and `IRunEventSystem<T>`)
+and **before** all `IPostRunSystem`s with the same order;
+- `IFrameEndEventSystem<T>` - calls **after** all `IRunSystem`s and `IPostRunSystem`s
+systems.
+
+**Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()`
+so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
+**will not** be lost.
 
 ## FAQ
 
@@ -400,6 +461,11 @@ this method must return any dependencies that your
 system needs. If module is global dependencies will 
 be available in any systems. In over way they will 
 be available only for systems that belongs to the module.
+**Note:** if you have many global modules their systems will get dependency
+only from its module but not from other global modules;
+- `object GetDependency(Type t)` - this method like above but must return
+one dependency by type. You can override method above or this. You also can
+use some third-party IoC container to manage dependencies;
 - `void OnActivate(), void OnDeactivate` - virtual methods
 that calls when you activate or deactivate module 
 (see `EcsWorld.ActivateModule<T>` and `EcsWorld.DeactivateModule<T>` );
@@ -409,7 +475,7 @@ It should be used for release any resources initialized
 by `Setup()`;
 - `Dictionary<Type, int> GetSystemsOrder()` - allows to 
 set order to concrete system. By default all systems has
-0 order. Ordering by ascending;
+0 order. Ordering by ascending.
 
 ### DataWorld
 
@@ -423,6 +489,9 @@ retrieve and create any data.
 - `Entity CreateOneFrame()` - create `Entity` and add 
 `OneFrameComponent` to it. That `Entity` will be destroyed
 after all systems in `PostRun`;
+- `EcsTable<T> GetEcsTable<T>()` - return raw data container that allows
+iterate more fast. Should be used *only* if you iterate through thousands
+and thousands entities.
 
 ##### Queries
 
@@ -539,3 +608,26 @@ every `IPreInitSystem`s works;
 Takes one argument about to what module belongs the system;
 - `GlobalModuleAttribute` - mark that `EcsModule` is
 global;
+
+## Roadmap
+
+### v0.5.x
+
+- [x] Subscription systems `IEventSystem<T>`;
+- [x] Add `GetEcsTable<T>` for fast iterations;
+- [x] Add `GetDependency<T>` in module for more flexibility
+how you manage your dependencies. It allows to use third-party
+IoC container;
+
+### v0.6.x
+- [ ] Ability to turn on debug mode and add your logger
+to see what happening in runtime;
+- [ ] Add `Query.GetComponents<T>` and a couple overloads
+to iterate through components more fast;
+- [ ] Add `GetModule<TModule>` that makes possible get
+  dependencies from other module if they initialized;
+
+### v0.7.x
+- [ ] Add archetype support;
+- [ ] Remove one-frame-components support - use `IEventSystem<T>`
+instead of;

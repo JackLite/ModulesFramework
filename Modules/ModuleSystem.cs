@@ -11,9 +11,9 @@ namespace ModulesFramework.Modules
     {
         private readonly EcsModule[] _modules;
 
-        internal ModuleSystem(DataWorld world)
+        internal ModuleSystem(EcsModule[] modules)
         {
-            _modules = world.GetAllModules().ToArray();
+            _modules = modules;
         }
 
         public void Run()
