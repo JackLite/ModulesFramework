@@ -40,7 +40,7 @@ namespace ModulesFramework.Data
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
-                    if (!ed.isActive) continue;
+                    if (!ed.isActive || ed.exclude) continue;
                     var exclude = !table.Contains(ed.eid);
                     ed.exclude |= exclude;
                     if (exclude)
@@ -56,7 +56,7 @@ namespace ModulesFramework.Data
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
-                    if (!ed.isActive) continue;
+                    if (!ed.isActive || ed.exclude) continue;
                     var exclude = table.Contains(ed.eid);
                     ed.exclude |= exclude;
                     if (exclude)
@@ -71,7 +71,7 @@ namespace ModulesFramework.Data
                 for (var i = 0; i < _entityFilter.Length; ++i)
                 {
                     ref var ed = ref _entityFilter[i];
-                    if (!ed.isActive) continue;
+                    if (!ed.isActive || ed.exclude) continue;
                     ref var c = ref _world.GetComponent<T>(ed.eid);
                     var exclude = !customFilter.Invoke(c);
                     ed.exclude |= exclude;
@@ -123,6 +123,28 @@ namespace ModulesFramework.Data
                 }
 
                 throw new QuerySelectException<TRet>();
+            }
+
+            public bool TrySelectFirstEntity(out Entity e)
+            {
+                e = new Entity();
+                foreach (var entity in GetEntities())
+                {
+                    e = entity;
+                    return true;
+                }
+
+                return false;
+            }
+
+            public Entity SelectFirstEntity()
+            {
+                foreach (var entity in GetEntities())
+                {
+                    return entity;
+                }
+                
+                throw new QuerySelectEntityException();
             }
 
             public void DestroyAll()

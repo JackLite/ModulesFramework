@@ -571,8 +571,13 @@ get first component from first `Entity`. Be careful -
 `TRet` not a reference;
 - `ref TRet SelectFirst<TRet>()` - another helper for
 get first component. It returns reference to component.
-If there is no entity with `TRet` component method throw
+If there is no entity with `TRet` component method throws
 `QuerySelectException<TRet>`;
+- `bool TrySelectFirstEntity(out Entity)` - helper for 
+get first `Entity`;
+- `Entity SelectFirstEntity()` - another helper for get first
+`Entity`. If there is no `Entity` method throws 
+`QuerySelectEntityException`;
 - `void DestroyAll()` - helper for destroy all entities
 from query;
 - `int Count()` - count of entities corresponds to query;
