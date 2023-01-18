@@ -363,7 +363,8 @@ public class DeathSystem : IRunEventSystem<GameOverEvent>
     }
 }
 ```
-Method `RunEvent<T>(T ev)` calls only when there is event. 
+Method `RunEvent<T>(T ev)` calls only when there is event. Every event system
+subscribe when module activated and unsubscribe when deactivated.
 
 There is three types of event systems. Every calls in particular time:
 - `IRunEventSystem<T>` - calls **before** all `IRunSystem`s with the same order;
@@ -531,6 +532,13 @@ container. `T` is a struct;
 If `T` one data not exists method will create it with 
 default `T`. `T` is a struct;
 
+##### Events
+
+**Note**: event systems subscribes only after module activated.
+
+- `void RiseEvent<T>()` - create *event* `T` with default fields (`new T()`);
+- `void RiseEvent<T>(T)` - create *event* `T`;
+
 ### Entity
 
 - `Entity AddComponent(T)` - adds component `T` to `Entity`.
@@ -594,7 +602,12 @@ every `IPreInitSystem`s works;
 - `IDeactivateSystem` - calls once when module deactivated;
 - `IRunSystem` - calls every `Ecs.Run()`;
 - `IPostRunSystem` - calls every `Ecs.PostRun()`;
-- `IRunPhysicSystem` - calls every `RunPhysic()`'
+- `IRunPhysicSystem` - calls every `Ecs.RunPhysic()`;
+- `IRunEventSystem<T>` - calls *before* `IRunSystem` if event `T` was raised;
+- `IPostRunEventSystem<T>` - calls *after* `IRunSystem` and *before*
+`IPostRunSystem` if event `T` was raised;
+- `IFrameEndEventSystem<T>` - calls *after* `IPostRunSystem` if event `T` 
+was raised;
 - `IDestroySystem` - calls once when module destroyed; 
 
 ### Ecs
