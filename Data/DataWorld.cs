@@ -2,21 +2,25 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Data.Events;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
 #endif
 using ModulesFramework.Modules;
+using ModulesFramework.Systems;
+using ModulesFramework.Systems.Events;
 
 namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
+        private int _entityCount;
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
-        private int _entityCount;
         private readonly Stack<int> _freeEid = new Stack<int>(64);
         private readonly Dictionary<Type, EcsModule> _modules;
-        private Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
+        private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
+
         private Stack<Query> _queriesPool;
 
         public event Action<int>? OnEntityCreated; 
@@ -29,10 +33,8 @@ namespace ModulesFramework.Data
         {
             _modules = CreateAllEcsModules().ToDictionary(m => m.GetType(), m => m);
             _queriesPool = new Stack<Query>(128);
-            
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity NewEntity()
         {
             int id;
@@ -77,17 +79,9 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal int[] GetLinearData<T>() where T : struct
+        public EcsTable<T> GetEscTable<T>() where T : struct
         {
-            return GetEscTable<T>().GetEntitiesId();
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private EcsTable<T> GetEscTable<T>() where T : struct
-        {
-            #if !MODULES_FAST
             CreateTableIfNeed<T>();
-            #endif
             return (EcsTable<T>)_data[typeof(T)];
         }
 
@@ -114,7 +108,7 @@ namespace ModulesFramework.Data
             return query.TrySelectFirst(out c);
         }
 
-        internal void ReturnQuery(Query query)
+        private void ReturnQuery(Query query)
         {
             _queriesPool.Push(query);
         }
@@ -124,7 +118,7 @@ namespace ModulesFramework.Data
             if (_queriesPool.Count == 0)
                 FillQueriesPool();
             var query = _queriesPool.Pop();
-            query.Init(table.GetEntitiesFilter());
+            query.Init(table);
             return query;
         }
 
@@ -194,8 +188,10 @@ namespace ModulesFramework.Data
             var module = GetModule<T>();
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
+            if (module.IsInitialized())
+                throw new ModuleAlreadyInitializedException<T>();
             #endif
-            module.Init(this, activateImmediately).Forget();
+            module.Init(activateImmediately).Forget();
         }
 
         /// <summary>
@@ -217,8 +213,10 @@ namespace ModulesFramework.Data
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<TModule>();
             if (parent == null) throw new ModuleNotFoundException<TParent>();
+            if (module.IsInitialized())
+                throw new ModuleAlreadyInitializedException<TModule>();
             #endif
-            module.Init(this, activateImmediately, parent).Forget();
+            module.Init(activateImmediately, parent).Forget();
         }
 
         /// <summary>
@@ -265,13 +263,12 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        /// Allow to create one frame entity. That entity will be destroyed after all run systems processed (include IEcsRunLate)
-        /// WARNING: one frame creates immediately, but if some systems processed BEFORE creation one frame entity
-        /// they WILL NOT processed that entity. You can create one frame in RunSystem and processed them in RunLateSystem.
-        /// Also you can use GetSystemOrder() in your module for setting order of systems.
+        /// Old method for one frame entity. Use event systems instead. They makes special for
+        /// event-based logic 
         /// </summary>
         /// <returns>New entity</returns>
         /// <seealso cref="EcsModule.GetSystemsOrder"/>
+        [Obsolete("Use event systems instead")]
         public Entity CreateOneFrame()
         {
             return NewEntity().AddComponent(new EcsOneFrame());
@@ -306,7 +303,7 @@ namespace ModulesFramework.Data
 #nullable restore
         public IEnumerable<EcsModule> GetAllModules()
         {
-            return _modules.Select(kvp => kvp.Value);
+            return _modules.Values;
         }
 
         /// <summary>

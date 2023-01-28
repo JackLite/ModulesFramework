@@ -17,7 +17,7 @@ namespace ModulesFramework
         public Ecs()
         {
             World = new DataWorld();
-            _moduleSystem = new ModuleSystem(World);
+            _moduleSystem = new ModuleSystem(World.GetAllModules().ToArray());
             _oneFrameSystem = new EcsOneFrameSystem(World);
         }
 
@@ -26,7 +26,7 @@ namespace ModulesFramework
             _globalModules = World.GetAllModules().Where(m => m.IsGlobal).ToArray();
             foreach (var module in _globalModules)
             {
-                await module.Init(World);
+                await module.Init();
                 module.SetActive(true);
             }
 

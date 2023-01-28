@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
@@ -10,11 +11,21 @@ namespace ModulesFramework.Data
         public sealed class Query : IDisposable
         {
             private readonly DataWorld _world;
-            private EntityData[] _entityFilter = Array.Empty<EntityData>();
-            private int _count;
+
+            private EcsTable _mainTable;
+            private bool[] _inc;
+            
             public Query(DataWorld world)
             {
                 _world = world;
+            }
+
+            internal void Init(EcsTable table)
+            {
+                _mainTable = table;
+                _inc = new bool[_mainTable.EntitiesData.Length];
+                for (var i = 0; i < _inc.Length; ++i)
+                    _inc[i] = _mainTable.EntitiesData[i].isActive;
             }
 
             public void Dispose()
@@ -22,30 +33,11 @@ namespace ModulesFramework.Data
                 _world.ReturnQuery(this);
             }
 
-            internal void Init(EntityData[] entityFilter)
-            {
-                _entityFilter = entityFilter;
-                for (var i = 0; i < _entityFilter.Length; ++i)
-                {
-                    ref var ed = ref _entityFilter[i];
-                    ed.exclude = false;
-                    if (ed.isActive) 
-                        _count++;
-                }
-            }
-
             public Query With<T>() where T : struct
             {
                 var table = _world.GetEscTable<T>();
-                for (var i = 0; i < _entityFilter.Length; ++i)
-                {
-                    ref var ed = ref _entityFilter[i];
-                    if (!ed.isActive) continue;
-                    var exclude = !table.Contains(ed.eid);
-                    ed.exclude |= exclude;
-                    if (exclude)
-                        _count--;
-                }
+                for (var i = 0; i < _inc.Length; ++i)
+                    _inc[i] &= table.Contains(i);
 
                 return this;
             }
@@ -53,31 +45,17 @@ namespace ModulesFramework.Data
             public Query Without<T>() where T : struct
             {
                 var table = _world.GetEscTable<T>();
-                for (var i = 0; i < _entityFilter.Length; ++i)
-                {
-                    ref var ed = ref _entityFilter[i];
-                    if (!ed.isActive) continue;
-                    var exclude = table.Contains(ed.eid);
-                    ed.exclude |= exclude;
-                    if (exclude)
-                        _count--;
-                }
+                for (var i = 0; i < _inc.Length; ++i)
+                    _inc[i] &= !table.Contains(i);
 
                 return this;
             }
 
             public Query Where<T>(Func<T, bool> customFilter) where T : struct
             {
-                for (var i = 0; i < _entityFilter.Length; ++i)
-                {
-                    ref var ed = ref _entityFilter[i];
-                    if (!ed.isActive) continue;
-                    ref var c = ref _world.GetComponent<T>(ed.eid);
-                    var exclude = !customFilter.Invoke(c);
-                    ed.exclude |= exclude;
-                    if (exclude)
-                        _count--;
-                }
+                var table = _world.GetEscTable<T>();
+                for (var i = 0; i < _inc.Length; ++i)
+                    _inc[i] &= customFilter.Invoke(table.GetData(i));
 
                 return this;
             }
@@ -85,13 +63,13 @@ namespace ModulesFramework.Data
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntitiesEnumerable GetEntities()
             {
-                return new EntitiesEnumerable(_entityFilter, _world);
+                return new EntitiesEnumerable(_mainTable.EntitiesData, _inc, _world);
             }
-
+            
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntityDataEnumerable GetEntitiesId()
             {
-                return new EntityDataEnumerable(_entityFilter);
+                return new EntityDataEnumerable(_mainTable.EntitiesData, _inc);
             }
 
             public bool Any()
@@ -125,6 +103,28 @@ namespace ModulesFramework.Data
                 throw new QuerySelectException<TRet>();
             }
 
+            public bool TrySelectFirstEntity(out Entity e)
+            {
+                e = new Entity();
+                foreach (var entity in GetEntities())
+                {
+                    e = entity;
+                    return true;
+                }
+
+                return false;
+            }
+
+            public Entity SelectFirstEntity()
+            {
+                foreach (var entity in GetEntities())
+                {
+                    return entity;
+                }
+                
+                throw new QuerySelectEntityException();
+            }
+
             public void DestroyAll()
             {
                 foreach (var eid in GetEntitiesId())
@@ -135,7 +135,13 @@ namespace ModulesFramework.Data
 
             public int Count()
             {
-                return _count;
+                var count = 0;
+                foreach (var _ in GetEntitiesId())
+                {
+                    count++;
+                }
+                
+                return count;
             }
         }
     }

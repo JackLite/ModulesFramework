@@ -9,6 +9,7 @@ using ModulesFramework.Data;
 using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Systems;
+using ModulesFramework.Systems.Events;
 
 namespace ModulesFramework.Modules
 {
@@ -25,7 +26,7 @@ namespace ModulesFramework.Modules
         private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
         private bool _isInit;
         private bool _isActive;
-        private static readonly Dictionary<Type, object> _globalDependencies = new Dictionary<Type, object>();
+        private static readonly List<EcsModule> _globalModules = new List<EcsModule>();
         private static Exception? _exception;
 
         protected DataWorld world;
@@ -51,7 +52,7 @@ namespace ModulesFramework.Modules
         /// <param name="activateImmediately">Activate module after initialization?</param>
         /// <param name="parent">Parent module, when you need dependencies from other module</param>
         /// <seealso cref="Setup"/>
-        public async Task Init(DataWorld world, bool activateImmediately = false, EcsModule? parent = null)
+        public async Task Init(bool activateImmediately = false, EcsModule? parent = null)
         {
             try
             {
@@ -63,7 +64,7 @@ namespace ModulesFramework.Modules
                 foreach (var system in EcsUtilities.CreateSystems(ConcreteType))
                 {
                     var order = 0;
-                    if (systemOrder != null && systemOrder.ContainsKey(system.GetType()))
+                    if (systemOrder.ContainsKey(system.GetType()))
                         order = systemOrder[system.GetType()];
 
                     if (!_systems.ContainsKey(order))
@@ -104,13 +105,25 @@ namespace ModulesFramework.Modules
             {
                 OnActivate();
                 foreach (var p in _systems)
+                {
+                    foreach (var eventType in p.Value.EventTypes)
+                    {
+                        world.RegisterListener(eventType, p.Value);
+                    }
                     p.Value.Activate();
+                }
             }
             else if (_isActive)
             {
                 OnDeactivate();
                 foreach (var p in _systems)
+                {
                     p.Value.Deactivate();
+                    foreach (var eventType in p.Value.EventTypes)
+                    {
+                        world.UnregisterListener(eventType, p.Value);
+                    }
+                }
             }
 
             _isActive = isActive;
@@ -122,7 +135,7 @@ namespace ModulesFramework.Modules
         /// <returns>Dictionary with key - type of system and value - order</returns>
         protected virtual Dictionary<Type, int> GetSystemsOrder()
         {
-            return null;
+            return new Dictionary<Type, int>();
         }
 
         /// <summary>
@@ -161,6 +174,11 @@ namespace ModulesFramework.Modules
             CheckException();
             foreach (var p in _systemsArr)
             {
+                foreach (var eventType in p.EventTypes)
+                {
+                    var handler = world.GetHandlers(eventType);
+                    handler.Run<IRunEventSystem>();
+                }
                 p.Run();
             }
         }
@@ -177,7 +195,21 @@ namespace ModulesFramework.Modules
             CheckException();
             foreach (var p in _systemsArr)
             {
+                foreach (var eventType in p.EventTypes)
+                {
+                    var handler = world.GetHandlers(eventType);
+                    handler.Run<IPostRunEventSystem>();
+                }
                 p.PostRun();
+            }
+
+            foreach (var p in _systemsArr)
+            {
+                foreach (var eventType in p.EventTypes)
+                {
+                    var handler = world.GetHandlers(eventType);
+                    handler.Run<IFrameEndEventSystem>();
+                }
             }
         }
 
@@ -213,6 +245,7 @@ namespace ModulesFramework.Modules
             }
 
             _systems.Clear();
+            _isInit = false;
         }
 
         /// <summary>
@@ -250,18 +283,11 @@ namespace ModulesFramework.Modules
             if (!IsGlobal)
                 return;
 
-            foreach (var kvp in GetDependencies())
-            {
-                if (_globalDependencies.ContainsKey(kvp.Key))
-                    continue;
-                _globalDependencies.Add(kvp.Key, kvp.Value);
-            }
+            _globalModules.Add(this);
         }
 
         private void InsertDependencies(ISystem system, DataWorld world, EcsModule? parent = null)
         {
-            var dependencies = GetDependencies();
-            var parentDependencies = parent?.GetDependencies();
             var setupMethod = GetSetupMethod(system);
             if (setupMethod != null)
             {
@@ -276,25 +302,7 @@ namespace ModulesFramework.Modules
                         injections[i++] = world;
                         continue;
                     }
-
-                    if (_globalDependencies.ContainsKey(t))
-                    {
-                        injections[i++] = _globalDependencies[t];
-                        continue;
-                    }
-
-                    if (dependencies.ContainsKey(t))
-                    {
-                        injections[i++] = dependencies[t];
-                        continue;
-                    }
-
-                    if (parentDependencies != null && parentDependencies.ContainsKey(t))
-                    {
-                        injections[i++] = parentDependencies[t];
-                        continue;
-                    }
-
+                    
                     if (t.BaseType == typeof(OneData))
                     {
                         var data = world.GetOneData(t);
@@ -304,7 +312,25 @@ namespace ModulesFramework.Modules
                         continue;
                     }
 
-                    throw new Exception($"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}");
+                    object? dependency = null;
+                    foreach (var module in _globalModules)
+                    {
+                        dependency = module.GetDependency(t);
+                        if (dependency != null)
+                            break;
+                    }
+
+                    if (dependency == null)
+                    {
+                        dependency = GetDependency(t);
+                        if (dependency == null && parent != null)
+                            dependency = parent.GetDependency(t);
+                    }
+
+                    if (dependency == null)
+                        throw new Exception($"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}");
+                    
+                    injections[i++] = dependency;
                 }
 
                 setupMethod.Invoke(system, injections);
@@ -322,17 +348,28 @@ namespace ModulesFramework.Modules
                     continue;
                 }
 
-                if (_globalDependencies.ContainsKey(t))
-                    field.SetValue(system, _globalDependencies[t]);
-                if (dependencies.ContainsKey(t))
-                    field.SetValue(system, dependencies[t]);
-                if (parentDependencies != null && parentDependencies.ContainsKey(t))
-                    field.SetValue(system, parentDependencies[t]);
-
                 if (t.BaseType == typeof(OneData))
                 {
                     InsertOneData(t, system, field);
+                    continue;
                 }
+                
+                object? dependency = null;
+                foreach (var module in _globalModules)
+                {
+                    dependency = module.GetDependency(t);
+                    if (dependency != null)
+                        break;
+                }
+
+                if (dependency == null)
+                {
+                    dependency = GetDependency(t);
+                    if (dependency == null && parent != null)
+                        dependency = parent.GetDependency(t);
+                }
+
+                field.SetValue(system, dependency);
             }
         }
 
@@ -352,7 +389,7 @@ namespace ModulesFramework.Modules
                 $"Type {t.GetGenericArguments()[0]} does not exist. Are you forget to add it in {GetType().Name} module?");
         }
 
-        private MethodInfo GetSetupMethod(ISystem system)
+        private MethodInfo? GetSetupMethod(ISystem system)
         {
             var methods = system.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance);
             foreach (var methodInfo in methods)
@@ -374,6 +411,18 @@ namespace ModulesFramework.Modules
             return new Dictionary<Type, object>(0);
         }
 
+        public virtual object? GetDependency<T>() where T : class
+        {
+            return GetDependency(typeof(T));
+        }
+        
+        public virtual object? GetDependency(Type type)
+        {
+            if (GetDependencies().TryGetValue(type, out var dependency))
+                return dependency;
+            return null;
+        }
+
         /// <summary>
         /// Let you get global dependencies in local module.
         /// It can be useful when you create some local service that needs global dependency.
@@ -385,13 +434,8 @@ namespace ModulesFramework.Modules
             where TModule : EcsModule where TDependency : class
         {
             var module = world.GetModule<TModule>();
-            if (module == null)
-                return null;
 
-            var dependencies = module.GetDependencies();
-            if (dependencies.ContainsKey(typeof(TDependency)))
-                return dependencies[typeof(TDependency)] as TDependency;
-            return null;
+            return module?.GetDependency<TDependency>() as TDependency;
         }
     }
 }

@@ -1,11 +1,17 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Reflection;
+using ModulesFramework.Data;
+using ModulesFramework.Data.Events;
+using ModulesFramework.Systems.Events;
 
 namespace ModulesFramework.Systems
 {
-    public class SystemsGroup : IPreInitSystem, IInitSystem, IRunSystem, IRunPhysicSystem, IPostRunSystem, IDestroySystem
+    internal class SystemsGroup
     {
         private readonly Dictionary<Type, List<ISystem>> _systems = new Dictionary<Type, List<ISystem>>();
+        // Type is type of event
+        private readonly Dictionary<Type, EventSystems> _eventSystems = new Dictionary<Type, EventSystems>();
         private static readonly Type[] _systemTypes = new Type[]
         {
             typeof(IPreInitSystem),
@@ -18,7 +24,9 @@ namespace ModulesFramework.Systems
             typeof(IDestroySystem)
         };
 
-        public SystemsGroup()
+        internal IEnumerable<Type> EventTypes => _eventSystems.Keys;
+
+        internal SystemsGroup()
         {
             foreach (var type in _systemTypes)
             {
@@ -26,63 +34,94 @@ namespace ModulesFramework.Systems
             }
         }
 
-        public void PreInit()
+        internal void PreInit()
         {
             foreach (var s in _systems[typeof(IPreInitSystem)])
                 ((IPreInitSystem) s).PreInit();
         }
 
-        public void Init()
+        internal void Init()
         {
             foreach (var s in _systems[typeof(IInitSystem)])
                 ((IInitSystem) s).Init();
         }
 
-        public void Activate()
+        internal void Activate()
         {
             foreach (var s in _systems[typeof(IActivateSystem)])
                 ((IActivateSystem) s).Activate();
         }
         
-        public void Run()
+        internal void Run()
         {
             foreach (var s in _systems[typeof(IRunSystem)])
                 ((IRunSystem) s).Run();
         }
-        
-        public void RunPhysic()
+
+        internal void RunPhysic()
         {
             foreach (var s in _systems[typeof(IRunPhysicSystem)])
                 ((IRunPhysicSystem) s).RunPhysic();
         }
         
-        public void PostRun()
+        internal void PostRun()
         {
             foreach (var s in _systems[typeof(IPostRunSystem)])
                 ((IPostRunSystem) s).PostRun();
         }
         
-        public void Deactivate()
+        internal void Deactivate()
         {
             foreach (var s in _systems[typeof(IDeactivateSystem)])
                 ((IDeactivateSystem) s).Deactivate();
         }
         
-        public void Destroy()
+        internal void Destroy()
         {
             foreach (var s in _systems[typeof(IDestroySystem)])
                 ((IDestroySystem) s).Destroy();
         }
 
-        public void Add(ISystem s)
+        internal void Add(ISystem s)
         {
             foreach (var type in _systemTypes)
             {
                 if (type.IsInstanceOfType(s))
-                {
                     _systems[type].Add(s);
+            }
+
+            if (s is not IEventSystem eventSystem) return;
+            
+            var interfaces = eventSystem.GetType().GetInterfaces();
+            foreach (var type in interfaces)
+            {
+                if (!type.IsGenericType)
+                    continue;
+                var isRun = type.GetInterface(nameof(IRunEventSystem)) != null;
+                var isPostRun = type.GetInterface(nameof(IPostRunEventSystem)) != null;
+                var isFrameEnd = type.GetInterface(nameof(IFrameEndEventSystem)) != null;
+                if (isRun || isPostRun || isFrameEnd)
+                {
+                    var eventType = type.GetGenericArguments()[0];
+                    AddEventSystem(eventType, eventSystem);
                 }
             }
+        }
+
+        private void AddEventSystem(Type eventType, IEventSystem system)
+        {
+            if (!_eventSystems.ContainsKey(eventType))
+                _eventSystems[eventType] = new EventSystems();
+            _eventSystems[eventType].AddSystem(system);
+        }
+
+        internal void HandleEvent<T>(T ev, Type eventSystemType) where T : struct
+        {
+            var eventType = typeof(T);
+            if (!_eventSystems.TryGetValue(eventType, out var systems))
+                return;
+            
+            systems.HandleEvent(ev, eventSystemType);
         }
     }
 }
