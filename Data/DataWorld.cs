@@ -33,7 +33,6 @@ namespace ModulesFramework.Data
         {
             _modules = CreateAllEcsModules().ToDictionary(m => m.GetType(), m => m);
             _queriesPool = new Stack<Query>(128);
-            
         }
 
         public Entity NewEntity()
@@ -119,7 +118,7 @@ namespace ModulesFramework.Data
             if (_queriesPool.Count == 0)
                 FillQueriesPool();
             var query = _queriesPool.Pop();
-            query.Init(table.GetEntitiesFilter());
+            query.Init(table);
             return query;
         }
 

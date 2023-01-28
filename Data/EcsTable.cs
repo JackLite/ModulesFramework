@@ -5,6 +5,7 @@ namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
+        public abstract EntityData[] EntitiesData { get; }
         public abstract object GetDataObject(int eid);
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
@@ -16,6 +17,8 @@ namespace ModulesFramework.Data
         private int _index;
         private int[] _tableMap;
         private EntityData[] _entityData;
+
+        public override EntityData[] EntitiesData => _entityData;
 
         public EcsTable()
         {
@@ -64,18 +67,6 @@ namespace ModulesFramework.Data
             _tableMap[eid] = int.MaxValue;
             ref var ed = ref _entityData[eid];
             ed.isActive = false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int[] GetEntitiesId()
-        {
-            return _tableMap;
-        }
-        
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal EntityData[] GetEntitiesFilter()
-        {
-            return _entityData;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
