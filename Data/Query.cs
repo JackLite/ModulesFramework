@@ -37,7 +37,10 @@ namespace ModulesFramework.Data
             {
                 var table = _world.GetEscTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
-                    _inc[i] &= table.Contains(i);
+                {
+                    if (_inc[i])
+                        _inc[i] &= table.Contains(i);
+                }
 
                 return this;
             }
@@ -46,7 +49,10 @@ namespace ModulesFramework.Data
             {
                 var table = _world.GetEscTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
-                    _inc[i] &= !table.Contains(i);
+                {
+                    if (_inc[i])
+                        _inc[i] &= !table.Contains(i);
+                }
 
                 return this;
             }
@@ -55,7 +61,10 @@ namespace ModulesFramework.Data
             {
                 var table = _world.GetEscTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
-                    _inc[i] &= customFilter.Invoke(table.GetData(i));
+                {
+                    if (_inc[i])
+                        _inc[i] &= customFilter.Invoke(table.GetData(i));
+                }
 
                 return this;
             }
