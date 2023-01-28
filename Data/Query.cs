@@ -13,14 +13,6 @@ namespace ModulesFramework.Data
             private readonly DataWorld _world;
 
             private EcsTable _mainTable;
-            private Func<int, bool> _includeFunc = _ => true;
-            private Func<int, bool> _excludeFunc = _ => false;
-            private Func<int, bool> _whereFunc = _ => true;
-
-            private List<Func<int, bool>> _includes = new();
-            private List<Func<int, bool>> _excludes = new();
-            private List<Func<int, bool>> _wheres = new();
-
             private bool[] _inc;
             
             public Query(DataWorld world)
@@ -31,7 +23,6 @@ namespace ModulesFramework.Data
             internal void Init(EcsTable table)
             {
                 _mainTable = table;
-                _includeFunc = _mainTable.Contains;
                 _inc = new bool[_mainTable.EntitiesData.Length];
                 for (var i = 0; i < _inc.Length; ++i)
                     _inc[i] = _mainTable.EntitiesData[i].isActive;
