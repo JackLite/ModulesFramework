@@ -99,6 +99,7 @@ namespace ModulesFramework.Modules
         /// <param name="isActive">Flag to turn on/off the module</param>
         internal void SetActive(bool isActive)
         {
+            CheckException();
             if (!_isInit)
                 throw new ModuleNotInitializedException(ConcreteType);
             if (isActive && !_isActive)

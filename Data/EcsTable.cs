@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Exceptions;
 
 namespace ModulesFramework.Data
 {
@@ -50,9 +51,18 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetData(int eid)
         {
+            if (!Contains(eid))
+                throw new DataNotExistsInTableException<T>(eid);
             return ref _table[_tableMap[eid]];
         }
 
+        /// <summary>
+        /// Only for internal usage!
+        /// This method is for debugging. You should never use it in production code.
+        /// </summary>
+        /// <param name="eid">Id of Entity</param>
+        /// <returns>Boxed struct T</returns>
+        /// <seealso cref="GetData"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override object GetDataObject(int eid)
         {
