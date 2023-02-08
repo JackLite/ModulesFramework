@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -29,7 +30,9 @@ namespace ModulesFramework.Modules
         private static readonly List<EcsModule> _globalModules = new List<EcsModule>();
         private static Exception? _exception;
 
+#nullable disable
         protected DataWorld world;
+#nullable enable
 
         private Type ConcreteType => GetType();
         public bool IsGlobal { get; }
@@ -56,7 +59,15 @@ namespace ModulesFramework.Modules
         {
             try
             {
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Start init module {GetType().Name}", LogFilter.ModulesFull);
+                #endif
+
                 await Setup();
+
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Module {GetType().Name} setup is done", LogFilter.ModulesFull);
+                #endif
 
                 UpdateGlobalDependencies();
 
@@ -74,11 +85,19 @@ namespace ModulesFramework.Modules
                     _systems[order].Add(system);
                 }
 
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Module {GetType().Name} systems preinit", LogFilter.SystemsInit);
+                #endif
+
                 foreach (var p in _systems)
-                {
                     p.Value.PreInit();
+
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Module {GetType().Name} systems init", LogFilter.SystemsInit);
+                #endif
+
+                foreach (var p in _systems)
                     p.Value.Init();
-                }
 
                 _systemsArr = _systems.Values.ToArray();
                 _isInit = true;
@@ -99,24 +118,36 @@ namespace ModulesFramework.Modules
         /// <param name="isActive">Flag to turn on/off the module</param>
         internal void SetActive(bool isActive)
         {
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Activate module {GetType().Name}", LogFilter.ModulesFull);
+            #endif
             CheckException();
             if (!_isInit)
                 throw new ModuleNotInitializedException(ConcreteType);
             if (isActive && !_isActive)
             {
                 OnActivate();
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Activate systems in {GetType().Name}", LogFilter.SystemsInit);
+                #endif
                 foreach (var p in _systems)
                 {
                     foreach (var eventType in p.Value.EventTypes)
                     {
                         world.RegisterListener(eventType, p.Value);
                     }
+
                     p.Value.Activate();
                 }
             }
             else if (_isActive)
             {
                 OnDeactivate();
+
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Deactivate systems in {GetType().Name}", LogFilter.SystemsDestroy);
+                #endif
+
                 foreach (var p in _systems)
                 {
                     p.Value.Deactivate();
@@ -180,6 +211,7 @@ namespace ModulesFramework.Modules
                     var handler = world.GetHandlers(eventType);
                     handler.Run<IRunEventSystem>();
                 }
+
                 p.Run();
             }
         }
@@ -201,6 +233,7 @@ namespace ModulesFramework.Modules
                     var handler = world.GetHandlers(eventType);
                     handler.Run<IPostRunEventSystem>();
                 }
+
                 p.PostRun();
             }
 
@@ -240,6 +273,10 @@ namespace ModulesFramework.Modules
 
         private void DestroySystems()
         {
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Destroy systems in {GetType().Name}", LogFilter.SystemsDestroy);
+            #endif
+
             foreach (var p in _systems)
             {
                 p.Value.Destroy();
@@ -255,7 +292,14 @@ namespace ModulesFramework.Modules
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Destroy()
         {
-            if (!_isInit) return;
+            if (!_isInit)
+            {
+                world.Logger.LogWarning($"Destroy module {GetType().Name} that not initialized");
+                return;
+            }
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Destroy module {GetType().Name}", LogFilter.ModulesFull);
+            #endif
             SetActive(false);
             OnDestroy();
             DestroySystems();
@@ -303,13 +347,14 @@ namespace ModulesFramework.Modules
                         injections[i++] = world;
                         continue;
                     }
-                    
+
                     if (t.BaseType == typeof(OneData))
                     {
                         var data = world.GetOneData(t);
                         if (data == null)
                             ThrowOneDataException(t);
-                        injections[i++] = data;
+                        else
+                            injections[i++] = data;
                         continue;
                     }
 
@@ -329,8 +374,9 @@ namespace ModulesFramework.Modules
                     }
 
                     if (dependency == null)
-                        throw new Exception($"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}");
-                    
+                        throw new Exception(
+                            $"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}");
+
                     injections[i++] = dependency;
                 }
 
@@ -354,7 +400,7 @@ namespace ModulesFramework.Modules
                     InsertOneData(t, system, field);
                     continue;
                 }
-                
+
                 object? dependency = null;
                 foreach (var module in _globalModules)
                 {
@@ -387,7 +433,7 @@ namespace ModulesFramework.Modules
         private void ThrowOneDataException(Type t)
         {
             throw new ApplicationException(
-                $"Type {t.GetGenericArguments()[0]} does not exist. Are you forget to add it in {GetType().Name} module?");
+                $"Type {t.GetGenericArguments()[0]} does not exist. You should use {nameof(DataWorld.GetOneData)}");
         }
 
         private MethodInfo? GetSetupMethod(ISystem system)
@@ -412,11 +458,23 @@ namespace ModulesFramework.Modules
             return new Dictionary<Type, object>(0);
         }
 
-        public virtual object? GetDependency<T>() where T : class
+        /// <summary>
+        /// Return dependency from module by type
+        /// </summary>
+        /// <typeparam name="T">Type of dependency</typeparam>
+        /// <returns>Dependency or null if object not exists</returns>
+        public T? GetDependency<T>() where T : class
         {
-            return GetDependency(typeof(T));
+            return GetDependency(typeof(T)) as T;
         }
-        
+
+        /// <summary>
+        /// Return dependency from module by type
+        /// This method should be override by user's modules
+        /// You can use any IoC for that
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         public virtual object? GetDependency(Type type)
         {
             if (GetDependencies().TryGetValue(type, out var dependency))
@@ -436,7 +494,7 @@ namespace ModulesFramework.Modules
         {
             var module = world.GetModule<TModule>();
 
-            return module?.GetDependency<TDependency>() as TDependency;
+            return module?.GetDependency<TDependency>();
         }
     }
 }

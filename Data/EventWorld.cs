@@ -11,17 +11,37 @@ namespace ModulesFramework.Data
         private readonly Dictionary<Type, EventsHandler> _eventsHandlers = new Dictionary<Type, EventsHandler>();
         private readonly Dictionary<Type, List<SystemsGroup>> _eventListeners = new Dictionary<Type, List<SystemsGroup>>();
 
+        /// <summary>
+        /// Create default event T and rise it
+        /// The event will be handled by event systems
+        /// </summary>
+        /// <typeparam name="T">Type of event</typeparam>
+        /// <seealso cref="RiseEvent{T}(T)"/>
         public void RiseEvent<T>() where T : struct
         {
             var ev = new T();
             RiseEvent(ev);
         }
         
+        /// <summary>
+        /// Rise event that will be handled by event systems
+        /// </summary>
+        /// <param name="ev">Event</param>
+        /// <typeparam name="T">Type of event</typeparam>
+        /// <seealso cref="RiseEvent{T}()"/>
         public void RiseEvent<T>(T ev) where T : struct
         {
             var type = typeof(T);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Rising {typeof(T).Name} event", LogFilter.EventsFull);
+            #endif
             if (!_eventListeners.ContainsKey(type))
+            {
+                #if MODULES_DEBUG
+                Logger.LogWarning($"No listeners for {typeof(T).Name} event");
+                #endif
                 return;
+            }
 
             if (!_eventsHandlers.ContainsKey(type))
                 _eventsHandlers[type] = new EventsHandler();

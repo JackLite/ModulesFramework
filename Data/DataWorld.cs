@@ -1,14 +1,12 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
-using ModulesFramework.Data.Events;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
 #endif
 using ModulesFramework.Modules;
-using ModulesFramework.Systems;
-using ModulesFramework.Systems.Events;
 
 namespace ModulesFramework.Data
 {
@@ -21,10 +19,10 @@ namespace ModulesFramework.Data
         private readonly Dictionary<Type, EcsModule> _modules;
         private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
 
-        private Stack<Query> _queriesPool;
+        private readonly Stack<Query> _queriesPool;
 
-        public event Action<int>? OnEntityCreated; 
-        public event Action<int>? OnEntityChanged; 
+        public event Action<int>? OnEntityCreated;
+        public event Action<int>? OnEntityChanged;
         public event Action<int>? OnEntityDestroyed;
 
         internal event Action<Type, OneData>? OnOneDataCreated;
@@ -54,6 +52,11 @@ namespace ModulesFramework.Data
                 World = this
             };
             _entitiesTable.AddData(id, entity);
+
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Entity {id.ToString()} created", LogFilter.EntityLife);
+            #endif
+
             OnEntityCreated?.Invoke(id);
             return entity;
         }
@@ -61,7 +64,19 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddComponent<T>(int eid, T component) where T : struct
         {
-            GetEscTable<T>().AddData(eid, component);
+            var table = GetEscTable<T>();
+
+            #if !MODULES_OPT
+            if (table.Contains(eid))
+                Logger.LogWarning($"Component {typeof(T).Name} exists in {eid.ToString()} entity and will be replaced");
+            #endif
+
+            table.AddData(eid, component);
+
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Add to {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
+            #endif
+
             OnEntityChanged?.Invoke(eid);
         }
 
@@ -69,6 +84,9 @@ namespace ModulesFramework.Data
         public void RemoveComponent<T>(int eid) where T : struct
         {
             GetEscTable<T>().Remove(eid);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
+            #endif
             OnEntityChanged?.Invoke(eid);
         }
 
@@ -127,7 +145,7 @@ namespace ModulesFramework.Data
             while (_queriesPool.Count < 128)
                 _queriesPool.Push(new Query(this));
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable<T> CreateTableIfNeed<T>() where T : struct
         {
@@ -147,7 +165,7 @@ namespace ModulesFramework.Data
         {
             return GetEscTable<T>().Contains(id);
         }
-        
+
         public bool HasComponent(int eid, Type componentType)
         {
             if (!_data.ContainsKey(componentType))
@@ -165,6 +183,9 @@ namespace ModulesFramework.Data
 
             _entitiesTable.Remove(id);
             _freeEid.Push(id);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Entity {id.ToString()} destroyed", LogFilter.EntityLife);
+            #endif
             OnEntityDestroyed?.Invoke(id);
         }
 
@@ -228,6 +249,7 @@ namespace ModulesFramework.Data
             var module = GetModule<T>();
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
+            Logger.LogDebug($"Destroy module {typeof(T).Name}", LogFilter.ModulesFull);
             #endif
             module.Destroy();
         }
@@ -243,6 +265,7 @@ namespace ModulesFramework.Data
             var module = GetModule<T>();
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
+            Logger.LogDebug($"Activate module {typeof(T).Name}", LogFilter.ModulesFull);
             #endif
             module.SetActive(true);
         }
@@ -258,6 +281,7 @@ namespace ModulesFramework.Data
             var module = GetModule<T>();
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
+            Logger.LogDebug($"Deactivate module {typeof(T).Name}", LogFilter.ModulesFull);
             #endif
             module.SetActive(false);
         }
@@ -287,20 +311,19 @@ namespace ModulesFramework.Data
             return null;
         }
 
-#nullable disable
         private IEnumerable<EcsModule> CreateAllEcsModules()
         {
             var modules = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(a => a.GetTypes()
-                .Where(t => t.IsSubclassOf(typeof(EcsModule)) && !t.IsAbstract)
-                .Select(t => (EcsModule)Activator.CreateInstance(t)));
+                    .Where(t => t.IsSubclassOf(typeof(EcsModule)) && !t.IsAbstract)
+                    .Select(t => (EcsModule)Activator.CreateInstance(t)));
             foreach (var module in modules)
             {
                 module.InjectWorld(this);
                 yield return module;
             }
         }
-#nullable restore
+
         public IEnumerable<EcsModule> GetAllModules()
         {
             return _modules.Values;
@@ -353,6 +376,7 @@ namespace ModulesFramework.Data
             {
                 CreateOneData<T>();
             }
+
             return (EcsOneData<T>)_oneDatas[dataType];
         }
 
