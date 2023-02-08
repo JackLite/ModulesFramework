@@ -539,6 +539,15 @@ default `T`. `T` is a struct;
 - `void RiseEvent<T>()` - create *event* `T` with default fields (`new T()`);
 - `void RiseEvent<T>(T)` - create *event* `T`;
 
+##### Logs
+
+- `void SetLogger(IModulesLogger)` - allow to use your own logger. By 
+default `Console.WriteLine` is used;
+- `void SetLogFilter(LogFilter)` - set log filter in logger. It can help
+when you want see less logs. For example you may not need logs about
+creating/destroying entities because it happens too lot in your game.
+By default no logs filtered.
+
 ### Entity
 
 - `Entity AddComponent(T)` - adds component `T` to `Entity`.
@@ -638,11 +647,11 @@ how you manage your dependencies. It allows to use third-party
 IoC container;
 
 ### v0.6.x
-- [ ] Ability to turn on debug mode and add your logger
+- [X] Ability to turn on debug mode and add your logger
 to see what happening in runtime;
 - [ ] Add `Query.GetComponents<T>` and a couple overloads
 to iterate through components more fast;
-- [ ] Add `GetModule<TModule>` that makes possible get
+- [X] Add `GetModule<TModule>` that makes possible get
   dependencies from other module if they initialized;
 
 ### v0.7.x
