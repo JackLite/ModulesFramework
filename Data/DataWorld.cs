@@ -103,6 +103,11 @@ namespace ModulesFramework.Data
             return (EcsTable<T>)_data[typeof(T)];
         }
 
+        public Span<T> GetRawData<T>() where T : struct
+        {
+            return GetEscTable<T>().GetRawData();
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Query Select<T>() where T : struct
         {

@@ -505,6 +505,11 @@ with `T`. If there is no such entities return false.
 Be careful: out parameter is not a reference.
 `T` is a struct;
 
+##### Data
+
+- `Span<T> GetRawData<T>` - return raw span of components by
+type `T`. Use it for very fast iterations through components;
+
 ##### Modules
 
 - `void InitModule<T>(bool activateImmediately = false)`
@@ -598,6 +603,8 @@ get first `Entity`;
 - `void DestroyAll()` - helper for destroy all entities
 from query;
 - `int Count()` - count of entities corresponds to query;
+- `ComponentsEnumerable<T> GetComponents<T>` - return enumerable
+of components type `T` that filtered by query;
 
 ### <a id="api-systems"></a>Systems
 
@@ -649,7 +656,7 @@ IoC container;
 ### v0.6.x
 - [X] Ability to turn on debug mode and add your logger
 to see what happening in runtime;
-- [ ] Add `Query.GetComponents<T>` and a couple overloads
+- [x] Add `Query.GetComponents<T>` and a couple overloads
 to iterate through components more fast;
 - [X] Add `GetModule<TModule>` that makes possible get
   dependencies from other module if they initialized;
