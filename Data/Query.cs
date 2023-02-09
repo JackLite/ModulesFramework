@@ -81,6 +81,12 @@ namespace ModulesFramework.Data
                 return new EntityDataEnumerable(_mainTable.EntitiesData, _inc);
             }
 
+            public ComponentsEnumerable<T> GetComponents<T>() where T : struct
+            {
+                var table = _world.GetEscTable<T>();
+                return new ComponentsEnumerable<T>(table, _inc);
+            }
+
             public bool Any()
             {
                 foreach (var _ in GetEntitiesId())
