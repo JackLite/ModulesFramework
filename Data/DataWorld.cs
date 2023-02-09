@@ -38,8 +38,8 @@ namespace ModulesFramework.Data
             int id;
             if (_freeEid.Count == 0)
             {
-                ++_entityCount;
                 id = _entityCount;
+                ++_entityCount;
             }
             else
             {

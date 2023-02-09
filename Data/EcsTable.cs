@@ -16,6 +16,7 @@ namespace ModulesFramework.Data
     {
         private readonly DenseArray<T> _denseTable;
         private int[] _tableMap;
+        private int[] _tableReverseMap;
         private EntityData[] _entityData;
 
         public override EntityData[] EntitiesData => _entityData;
@@ -24,6 +25,7 @@ namespace ModulesFramework.Data
         {
             _denseTable = new DenseArray<T>();
             _tableMap = new int[64];
+            _tableReverseMap = new int[64];
             _entityData = new EntityData[64];
         }
 
@@ -37,6 +39,12 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _entityData, _tableMap.Length);
             }
 
+            if (index >= _tableReverseMap.Length)
+            {
+                Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
+            }
+
+            _tableReverseMap[index] = eid;
             _tableMap[eid] = index;
             _entityData[eid] = new EntityData { eid = eid, isActive = true };
         }
@@ -74,7 +82,11 @@ namespace ModulesFramework.Data
         {
             if (eid >= _tableMap.Length)
                 return;
-            _denseTable.RemoveData(_tableMap[eid]);
+            var index = _tableMap[eid];
+            _denseTable.RemoveData(index);
+            var updateEid = _tableReverseMap[_denseTable.Length];
+            _tableReverseMap[index] = updateEid;
+            _tableMap[updateEid] = index;
             _tableMap[eid] = int.MaxValue;
             ref var ed = ref _entityData[eid];
             ed.isActive = false;
