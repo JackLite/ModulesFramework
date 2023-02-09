@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace ModulesFramework.Data.Enumerators
+﻿namespace ModulesFramework.Data.Enumerators
 {
     public readonly struct EntitiesEnumerable
     {

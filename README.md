@@ -505,6 +505,11 @@ with `T`. If there is no such entities return false.
 Be careful: out parameter is not a reference.
 `T` is a struct;
 
+##### Data
+
+- `Span<T> GetRawData<T>` - return raw span of components by
+type `T`. Use it for very fast iterations through components;
+
 ##### Modules
 
 - `void InitModule<T>(bool activateImmediately = false)`
@@ -538,6 +543,15 @@ default `T`. `T` is a struct;
 
 - `void RiseEvent<T>()` - create *event* `T` with default fields (`new T()`);
 - `void RiseEvent<T>(T)` - create *event* `T`;
+
+##### Logs
+
+- `void SetLogger(IModulesLogger)` - allow to use your own logger. By 
+default `Console.WriteLine` is used;
+- `void SetLogFilter(LogFilter)` - set log filter in logger. It can help
+when you want see less logs. For example you may not need logs about
+creating/destroying entities because it happens too lot in your game.
+By default no logs filtered.
 
 ### Entity
 
@@ -589,6 +603,8 @@ get first `Entity`;
 - `void DestroyAll()` - helper for destroy all entities
 from query;
 - `int Count()` - count of entities corresponds to query;
+- `ComponentsEnumerable<T> GetComponents<T>` - return enumerable
+of components type `T` that filtered by query;
 
 ### <a id="api-systems"></a>Systems
 
@@ -638,11 +654,11 @@ how you manage your dependencies. It allows to use third-party
 IoC container;
 
 ### v0.6.x
-- [ ] Ability to turn on debug mode and add your logger
+- [X] Ability to turn on debug mode and add your logger
 to see what happening in runtime;
-- [ ] Add `Query.GetComponents<T>` and a couple overloads
+- [x] Add `Query.GetComponents<T>` and a couple overloads
 to iterate through components more fast;
-- [ ] Add `GetModule<TModule>` that makes possible get
+- [X] Add `GetModule<TModule>` that makes possible get
   dependencies from other module if they initialized;
 
 ### v0.7.x
