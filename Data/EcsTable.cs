@@ -14,8 +14,7 @@ namespace ModulesFramework.Data
 
     public class EcsTable<T> : EcsTable where T : struct
     {
-        private T[] _table;
-        private int _index;
+        private readonly DenseArray<T> _denseTable;
         private int[] _tableMap;
         private EntityData[] _entityData;
 
@@ -23,8 +22,7 @@ namespace ModulesFramework.Data
 
         public EcsTable()
         {
-            _table = new T[64];
-            _index = 0;
+            _denseTable = new DenseArray<T>();
             _tableMap = new int[64];
             _entityData = new EntityData[64];
         }
@@ -32,28 +30,30 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddData(int eid, in T data)
         {
-            if (_index >= _table.Length)
-            {
-                Array.Resize(ref _table, _table.Length * 2);
-            }
+            var index = _denseTable.AddData(data);
             while (eid >= _tableMap.Length)
             {
                 Array.Resize(ref _tableMap, _tableMap.Length * 2);
                 Array.Resize(ref _entityData, _tableMap.Length);
             }
-            
-            _table[_index] = data;
-            _tableMap[eid] = _index;
-            _entityData[eid] = new EntityData { eid = eid, isActive = true};
-            ++_index;
+
+            _tableMap[eid] = index;
+            _entityData[eid] = new EntityData { eid = eid, isActive = true };
         }
 
+        /// <summary>
+        /// Return component by entity id
+        /// Use this method when you need more fast iterations without using query
+        /// </summary>
+        /// <param name="eid">Entity id</param>
+        /// <returns></returns>
+        /// <exception cref="DataNotExistsInTableException{T}"></exception>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetData(int eid)
         {
             if (!Contains(eid))
                 throw new DataNotExistsInTableException<T>(eid);
-            return ref _table[_tableMap[eid]];
+            return ref _denseTable.At(_tableMap[eid]);
         }
 
         /// <summary>
@@ -66,7 +66,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override object GetDataObject(int eid)
         {
-            return _table[_tableMap[eid]];
+            return _denseTable.At(_tableMap[eid]);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -74,17 +74,33 @@ namespace ModulesFramework.Data
         {
             if (eid >= _tableMap.Length)
                 return;
+            _denseTable.RemoveData(_tableMap[eid]);
             _tableMap[eid] = int.MaxValue;
             ref var ed = ref _entityData[eid];
             ed.isActive = false;
         }
 
+        /// <summary>
+        /// Check if table contains entity
+        /// </summary>
+        /// <param name="eid">Entity id</param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Contains(int eid)
         {
             if (eid >= _tableMap.Length)
                 return false;
             return _entityData[eid].isActive;
+        }
+
+        /// <summary>
+        /// Return span of memory for fast iteration
+        /// </summary>
+        /// <returns>Span{T}</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<T> GetRawData()
+        {
+            return _denseTable.GetData();
         }
     }
 }
