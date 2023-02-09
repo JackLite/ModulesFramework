@@ -80,7 +80,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Remove(int eid)
         {
-            if (eid >= _tableMap.Length)
+            if (!Contains(eid))
                 return;
             var index = _tableMap[eid];
             _denseTable.RemoveData(index);
