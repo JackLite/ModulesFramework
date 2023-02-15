@@ -309,7 +309,7 @@ namespace ModulesFramework.Data
             return localModule is { IsActive: true };
         }
 
-        internal EcsModule? GetModule<T>() where T : EcsModule
+        public EcsModule? GetModule<T>() where T : EcsModule
         {
             if (_modules.TryGetValue(typeof(T), out var module))
                 return module;
