@@ -416,7 +416,13 @@ namespace ModulesFramework.Modules
                         dependency = parent.GetDependency(t);
                 }
 
-                field.SetValue(system, dependency);
+                if (dependency != null)
+                    field.SetValue(system, dependency);
+                else
+                    world.Logger.LogDebug(
+                        $"Can't inject dependency for {field.Name}. Ignore this message if you create field by yourself",
+                        LogFilter.ModulesFull
+                    );
             }
         }
 
