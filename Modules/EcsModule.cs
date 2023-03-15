@@ -126,7 +126,6 @@ namespace ModulesFramework.Modules
                 throw new ModuleNotInitializedException(ConcreteType);
             if (isActive && !_isActive)
             {
-                OnActivate();
                 #if MODULES_DEBUG
                 world.Logger.LogDebug($"Activate systems in {GetType().Name}", LogFilter.SystemsInit);
                 #endif
@@ -139,11 +138,10 @@ namespace ModulesFramework.Modules
 
                     p.Value.Activate();
                 }
+                OnActivate();
             }
             else if (_isActive)
             {
-                OnDeactivate();
-
                 #if MODULES_DEBUG
                 world.Logger.LogDebug($"Deactivate systems in {GetType().Name}", LogFilter.SystemsDestroy);
                 #endif
@@ -156,6 +154,7 @@ namespace ModulesFramework.Modules
                         world.UnregisterListener(eventType, p.Value);
                     }
                 }
+                OnDeactivate();
             }
 
             _isActive = isActive;
