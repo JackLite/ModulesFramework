@@ -4,6 +4,7 @@ namespace ModulesFramework.Data
 {
     public struct Entity
     {
+        public int generation;
         public int Id { get; set; }
         public DataWorld World { get; set; }
 
@@ -37,6 +38,11 @@ namespace ModulesFramework.Data
         public bool HasComponent<T>() where T : struct
         {
             return World.HasComponent<T>(Id);
+        }
+
+        public bool IsAlive()
+        {
+            return World.IsEntityAlive(this);
         }
     }
 }

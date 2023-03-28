@@ -15,6 +15,7 @@ namespace ModulesFramework.Data
         private int _entityCount;
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
+        private readonly EcsTable<EntityGeneration> _generationsTable = new EcsTable<EntityGeneration>();
         private readonly Stack<int> _freeEid = new Stack<int>(64);
         private readonly Dictionary<Type, EcsModule> _modules;
         private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
@@ -35,29 +36,32 @@ namespace ModulesFramework.Data
 
         public Entity NewEntity()
         {
-            int id;
+            var entity = new Entity
+            {
+                World = this
+            };
             if (_freeEid.Count == 0)
             {
-                id = _entityCount;
+                entity.Id = _entityCount;
+                _generationsTable.AddData(entity.Id, new EntityGeneration { generation = 0 });
+                entity.generation = 0;
                 ++_entityCount;
             }
             else
             {
-                id = _freeEid.Pop();
+                entity.Id = _freeEid.Pop();
+                ref var generation = ref _generationsTable.GetData(entity.Id);
+                generation.generation++;
+                entity.generation = generation.generation;
             }
 
-            var entity = new Entity
-            {
-                Id = id,
-                World = this
-            };
-            _entitiesTable.AddData(id, entity);
+            _entitiesTable.AddData(entity.Id, entity);
 
             #if MODULES_DEBUG
             Logger.LogDebug($"Entity {id.ToString()} created", LogFilter.EntityLife);
             #endif
 
-            OnEntityCreated?.Invoke(id);
+            OnEntityCreated?.Invoke(entity.Id);
             return entity;
         }
 
@@ -94,6 +98,20 @@ namespace ModulesFramework.Data
         public ref T GetComponent<T>(int id) where T : struct
         {
             return ref GetEscTable<T>().GetData(id);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsEntityExists(int eid)
+        {
+            return _entitiesTable.Contains(eid);
+        }
+
+        public bool IsEntityAlive(Entity entity)
+        {
+            if (!IsEntityExists(entity.Id))
+                return false;
+            var generation = _generationsTable.GetData(entity.Id);
+            return generation.generation == entity.generation;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
