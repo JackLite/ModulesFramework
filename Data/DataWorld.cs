@@ -392,7 +392,7 @@ namespace ModulesFramework.Data
         /// </summary>
         /// <typeparam name="T">Type of one data</typeparam>
         /// <returns>Generic container with one data</returns>
-        public EcsOneData<T> GetOneData<T>() where T : struct
+        private EcsOneData<T> GetOneData<T>() where T : struct
         {
             var dataType = typeof(T);
             if (!_oneDatas.ContainsKey(dataType))

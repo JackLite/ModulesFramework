@@ -438,7 +438,7 @@ namespace ModulesFramework.Modules
         private void ThrowOneDataException(Type t)
         {
             throw new ApplicationException(
-                $"Type {t.GetGenericArguments()[0]} does not exist. You should use {nameof(DataWorld.GetOneData)}");
+                $"Type {t.GetGenericArguments()[0]} does not exist. You should use {nameof(DataWorld.OneData)}");
         }
 
         private MethodInfo? GetSetupMethod(ISystem system)
