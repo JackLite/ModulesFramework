@@ -58,7 +58,7 @@ namespace ModulesFramework.Data
             _entitiesTable.AddData(entity.Id, entity);
 
             #if MODULES_DEBUG
-            Logger.LogDebug($"Entity {id.ToString()} created", LogFilter.EntityLife);
+            Logger.LogDebug($"Entity {entity.Id.ToString()} created", LogFilter.EntityLife);
             #endif
 
             OnEntityCreated?.Invoke(entity.Id);
