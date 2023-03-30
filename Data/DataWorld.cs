@@ -229,7 +229,18 @@ namespace ModulesFramework.Data
         /// <seealso cref="InitModule{T, T}"/>
         public void InitModule<T>(bool activateImmediately = false) where T : EcsModule
         {
-            var module = GetModule<T>();
+            InitModule(typeof(T), activateImmediately);
+        }
+
+        /// <summary>
+        /// Init module: call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// </summary>
+        /// <seealso cref="ActivateModule{T}"/>
+        /// <seealso cref="InitModule{T, T}"/>
+        public void InitModule(Type moduleType, bool activateImmediately = false)
+        {
+            var module = GetModule(moduleType);
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
             if (module.IsInitialized())
@@ -252,8 +263,21 @@ namespace ModulesFramework.Data
             where TModule : EcsModule
             where TParent : EcsModule
         {
-            var module = GetModule<TModule>();
-            var parent = GetModule<TParent>();
+            InitModule(typeof(TModule), typeof(TParent), activateImmediately);
+        }
+        
+        /// <summary>
+        /// Initialize module: call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// ATTENTION! Only local modules can be parent. Dependency from global modules
+        /// available in all systems by default
+        /// </summary>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="ActivateModule{T}"/>
+        public void InitModule(Type moduleType, Type parentType, bool activateImmediately = false)
+        {
+            var module = GetModule(moduleType);
+            var parent = GetModule(parentType);
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<TModule>();
             if (parent == null) throw new ModuleNotFoundException<TParent>();
@@ -269,14 +293,23 @@ namespace ModulesFramework.Data
         /// <typeparam name="T">Type of module that you want to destroy</typeparam>
         public void DestroyModule<T>() where T : EcsModule
         {
-            var module = GetModule<T>();
+            DestroyModule(typeof(T));
+        }
+
+        /// <summary>
+        /// Destroy module: calls Deactivate() in module and Destroy() in IDestroy systems
+        /// </summary>
+        /// <typeparam name="T">Type of module that you want to destroy</typeparam>
+        public void DestroyModule(Type moduleType)
+        {
+            var module = GetModule(moduleType);
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
             Logger.LogDebug($"Destroy module {typeof(T).Name}", LogFilter.ModulesFull);
             #endif
             module.Destroy();
         }
-
+        
         /// <summary>
         /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
         /// </summary>
@@ -285,7 +318,18 @@ namespace ModulesFramework.Data
         /// <seealso cref="DeactivateModule{T}"/>
         public void ActivateModule<T>() where T : EcsModule
         {
-            var module = GetModule<T>();
+            ActivateModule(typeof(T));
+        }
+        
+        
+        /// <summary>
+        /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
+        /// </summary>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="DeactivateModule{T}"/>
+        public void ActivateModule(Type moduleType)
+        {
+            var module = GetModule(moduleType);
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
             Logger.LogDebug($"Activate module {typeof(T).Name}", LogFilter.ModulesFull);
@@ -301,7 +345,17 @@ namespace ModulesFramework.Data
         /// <seealso cref="ActivateModule{T}"/>
         public void DeactivateModule<T>() where T : EcsModule
         {
-            var module = GetModule<T>();
+            DeactivateModule(typeof(T));
+        }
+        
+        /// <summary>
+        /// Deactivate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will stop update
+        /// </summary>
+        /// <seealso cref="DestroyModule{T}"/>
+        /// <seealso cref="ActivateModule{T}"/>
+        public void DeactivateModule(Type moduleType)
+        {
+            var module = GetModule(moduleType);
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException<T>();
             Logger.LogDebug($"Deactivate module {typeof(T).Name}", LogFilter.ModulesFull);
@@ -329,9 +383,7 @@ namespace ModulesFramework.Data
 
         public EcsModule? GetModule<T>() where T : EcsModule
         {
-            if (_modules.TryGetValue(typeof(T), out var module))
-                return module;
-            return null;
+            return GetModule(typeof(T));
         }
 
         private IEnumerable<EcsModule> CreateAllEcsModules()
@@ -350,6 +402,13 @@ namespace ModulesFramework.Data
         public IEnumerable<EcsModule> GetAllModules()
         {
             return _modules.Values;
+        }
+
+        public EcsModule? GetModule(Type moduleType)
+        {
+            if (_modules.TryGetValue(moduleType, out var module))
+                return module;
+            return null;
         }
 
         /// <summary>
@@ -392,7 +451,7 @@ namespace ModulesFramework.Data
         /// </summary>
         /// <typeparam name="T">Type of one data</typeparam>
         /// <returns>Generic container with one data</returns>
-        public EcsOneData<T> GetOneData<T>() where T : struct
+        private EcsOneData<T> GetOneData<T>() where T : struct
         {
             var dataType = typeof(T);
             if (!_oneDatas.ContainsKey(dataType))

@@ -36,6 +36,7 @@ namespace ModulesFramework.Modules
 
         private Type ConcreteType => GetType();
         public bool IsGlobal { get; }
+        public bool IsInitialized => _isInit;
         public bool IsActive => _isActive;
 
         protected EcsModule()
@@ -167,16 +168,6 @@ namespace ModulesFramework.Modules
         protected virtual Dictionary<Type, int> GetSystemsOrder()
         {
             return new Dictionary<Type, int>();
-        }
-
-        /// <summary>
-        /// Return true if systems was create and init
-        /// </summary>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsInitialized()
-        {
-            return _isInit;
         }
 
         /// <summary>
@@ -438,7 +429,7 @@ namespace ModulesFramework.Modules
         private void ThrowOneDataException(Type t)
         {
             throw new ApplicationException(
-                $"Type {t.GetGenericArguments()[0]} does not exist. You should use {nameof(DataWorld.GetOneData)}");
+                $"Type {t.GetGenericArguments()[0]} does not exist. You should use {nameof(DataWorld.OneData)}");
         }
 
         private MethodInfo? GetSetupMethod(ISystem system)

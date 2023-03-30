@@ -48,7 +48,7 @@ namespace ModulesFramework.Modules
                 if (module.IsActive)
                     module.SetActive(false);
 
-                if (module.IsInitialized())
+                if (module.IsInitialized)
                     module.Destroy();
             }
         }
