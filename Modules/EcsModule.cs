@@ -120,7 +120,8 @@ namespace ModulesFramework.Modules
         internal void SetActive(bool isActive)
         {
             #if MODULES_DEBUG
-            world.Logger.LogDebug($"Activate module {GetType().Name}", LogFilter.ModulesFull);
+            var logMsgStart = isActive ? "Activate" : "Deactivate";
+            world.Logger.LogDebug($"{logMsgStart} module {GetType().Name}", LogFilter.ModulesFull);
             #endif
             CheckException();
             if (!_isInit)
@@ -139,6 +140,9 @@ namespace ModulesFramework.Modules
 
                     p.Value.Activate();
                 }
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Call OnActivate in {GetType().Name}", LogFilter.ModulesFull);
+                #endif
                 OnActivate();
             }
             else if (_isActive)
@@ -155,6 +159,9 @@ namespace ModulesFramework.Modules
                         world.UnregisterListener(eventType, p.Value);
                     }
                 }
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Call OnDeactivate in {GetType().Name}", LogFilter.ModulesFull);
+                #endif
                 OnDeactivate();
             }
 
