@@ -242,9 +242,9 @@ namespace ModulesFramework.Data
         {
             var module = GetModule(moduleType);
             #if MODULES_DEBUG
-            if (module == null) throw new ModuleNotFoundException<T>();
-            if (module.IsInitialized())
-                throw new ModuleAlreadyInitializedException<T>();
+            if (module == null) throw new ModuleNotFoundException(moduleType);
+            if (module.IsInitialized)
+                throw new ModuleAlreadyInitializedException(moduleType);
             #endif
             module.Init(activateImmediately).Forget();
         }
@@ -279,10 +279,10 @@ namespace ModulesFramework.Data
             var module = GetModule(moduleType);
             var parent = GetModule(parentType);
             #if MODULES_DEBUG
-            if (module == null) throw new ModuleNotFoundException<TModule>();
-            if (parent == null) throw new ModuleNotFoundException<TParent>();
-            if (module.IsInitialized())
-                throw new ModuleAlreadyInitializedException<TModule>();
+            if (module == null) throw new ModuleNotFoundException(moduleType);
+            if (parent == null) throw new ModuleNotFoundException(parentType);
+            if (module.IsInitialized)
+                throw new ModuleAlreadyInitializedException(moduleType);
             #endif
             module.Init(activateImmediately, parent).Forget();
         }
@@ -304,8 +304,8 @@ namespace ModulesFramework.Data
         {
             var module = GetModule(moduleType);
             #if MODULES_DEBUG
-            if (module == null) throw new ModuleNotFoundException<T>();
-            Logger.LogDebug($"Destroy module {typeof(T).Name}", LogFilter.ModulesFull);
+            if (module == null) throw new ModuleNotFoundException(moduleType);
+            Logger.LogDebug($"Destroy module {moduleType.Name}", LogFilter.ModulesFull);
             #endif
             module.Destroy();
         }
@@ -331,8 +331,8 @@ namespace ModulesFramework.Data
         {
             var module = GetModule(moduleType);
             #if MODULES_DEBUG
-            if (module == null) throw new ModuleNotFoundException<T>();
-            Logger.LogDebug($"Activate module {typeof(T).Name}", LogFilter.ModulesFull);
+            if (module == null) throw new ModuleNotFoundException(moduleType);
+            Logger.LogDebug($"Activate module {moduleType.Name}", LogFilter.ModulesFull);
             #endif
             module.SetActive(true);
         }
@@ -357,8 +357,8 @@ namespace ModulesFramework.Data
         {
             var module = GetModule(moduleType);
             #if MODULES_DEBUG
-            if (module == null) throw new ModuleNotFoundException<T>();
-            Logger.LogDebug($"Deactivate module {typeof(T).Name}", LogFilter.ModulesFull);
+            if (module == null) throw new ModuleNotFoundException(moduleType);
+            Logger.LogDebug($"Deactivate module {moduleType.Name}", LogFilter.ModulesFull);
             #endif
             module.SetActive(false);
         }

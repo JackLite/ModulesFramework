@@ -3,9 +3,9 @@ using ModulesFramework.Modules;
 
 namespace ModulesFramework.Exceptions
 {
-    public sealed class ModuleNotFoundException<T> : Exception where T : EcsModule
+    public sealed class ModuleNotFoundException : Exception
     {
-        public ModuleNotFoundException() : base("Can't find module with type " + typeof(T))
+        public ModuleNotFoundException(Type moduleType) : base("Can't find module with type " + moduleType)
         {
         }
     }

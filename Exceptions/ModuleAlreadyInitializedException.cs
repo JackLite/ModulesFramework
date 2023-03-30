@@ -3,10 +3,10 @@ using ModulesFramework.Modules;
 
 namespace ModulesFramework.Exceptions
 {
-    public class ModuleAlreadyInitializedException<T> : Exception where T : EcsModule
+    public class ModuleAlreadyInitializedException : Exception
     {
-        public ModuleAlreadyInitializedException()
-            : base($"You try init {typeof(T)}, that already initialized")
+        public ModuleAlreadyInitializedException(Type moduleType)
+            : base($"You try init {moduleType}, that already initialized")
         {
         }
     }
