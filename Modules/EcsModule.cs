@@ -72,6 +72,8 @@ namespace ModulesFramework.Modules
 
                 UpdateGlobalDependencies();
 
+                OnSetupEnd();
+
                 var systemOrder = GetSystemsOrder();
                 foreach (var system in EcsUtilities.CreateSystems(ConcreteType))
                 {
@@ -244,6 +246,13 @@ namespace ModulesFramework.Modules
             }
         }
 
+        /// <summary>
+        /// Calls after setup finished and global dependencies list updated
+        /// </summary>
+        public virtual void OnSetupEnd()
+        {
+        }
+        
         /// <summary>
         /// Calls before activate module and IActivateSystem
         /// </summary>
