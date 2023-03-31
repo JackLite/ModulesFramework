@@ -112,10 +112,10 @@ namespace ModulesFramework.Systems
                         _eventSystems[eventType].AddRunEventSystem(eventSystem);
                     
                     if (isPostRun)
-                        _eventSystems[eventType].AddRunEventSystem(eventSystem);
+                        _eventSystems[eventType].AddPostRunEventSystem(eventSystem);
                     
                     if (isFrameEnd)
-                        _eventSystems[eventType].AddRunEventSystem(eventSystem);
+                        _eventSystems[eventType].AddFrameEndEventSystem(eventSystem);
                 }
             }
         }
