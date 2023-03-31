@@ -10,8 +10,10 @@ namespace ModulesFramework.Systems
     internal class SystemsGroup
     {
         private readonly Dictionary<Type, List<ISystem>> _systems = new Dictionary<Type, List<ISystem>>();
+
         // Type is type of event
         private readonly Dictionary<Type, EventSystems> _eventSystems = new Dictionary<Type, EventSystems>();
+
         private static readonly Type[] _systemTypes = new Type[]
         {
             typeof(IPreInitSystem),
@@ -37,49 +39,49 @@ namespace ModulesFramework.Systems
         internal void PreInit()
         {
             foreach (var s in _systems[typeof(IPreInitSystem)])
-                ((IPreInitSystem) s).PreInit();
+                ((IPreInitSystem)s).PreInit();
         }
 
         internal void Init()
         {
             foreach (var s in _systems[typeof(IInitSystem)])
-                ((IInitSystem) s).Init();
+                ((IInitSystem)s).Init();
         }
 
         internal void Activate()
         {
             foreach (var s in _systems[typeof(IActivateSystem)])
-                ((IActivateSystem) s).Activate();
+                ((IActivateSystem)s).Activate();
         }
-        
+
         internal void Run()
         {
             foreach (var s in _systems[typeof(IRunSystem)])
-                ((IRunSystem) s).Run();
+                ((IRunSystem)s).Run();
         }
 
         internal void RunPhysic()
         {
             foreach (var s in _systems[typeof(IRunPhysicSystem)])
-                ((IRunPhysicSystem) s).RunPhysic();
+                ((IRunPhysicSystem)s).RunPhysic();
         }
-        
+
         internal void PostRun()
         {
             foreach (var s in _systems[typeof(IPostRunSystem)])
-                ((IPostRunSystem) s).PostRun();
+                ((IPostRunSystem)s).PostRun();
         }
-        
+
         internal void Deactivate()
         {
             foreach (var s in _systems[typeof(IDeactivateSystem)])
-                ((IDeactivateSystem) s).Deactivate();
+                ((IDeactivateSystem)s).Deactivate();
         }
-        
+
         internal void Destroy()
         {
             foreach (var s in _systems[typeof(IDestroySystem)])
-                ((IDestroySystem) s).Destroy();
+                ((IDestroySystem)s).Destroy();
         }
 
         internal void Add(ISystem s)
@@ -91,7 +93,7 @@ namespace ModulesFramework.Systems
             }
 
             if (s is not IEventSystem eventSystem) return;
-            
+
             var interfaces = eventSystem.GetType().GetInterfaces();
             foreach (var type in interfaces)
             {
@@ -103,16 +105,19 @@ namespace ModulesFramework.Systems
                 if (isRun || isPostRun || isFrameEnd)
                 {
                     var eventType = type.GetGenericArguments()[0];
-                    AddEventSystem(eventType, eventSystem);
+                    if (!_eventSystems.ContainsKey(eventType))
+                        _eventSystems[eventType] = new EventSystems();
+                    
+                    if (isRun)
+                        _eventSystems[eventType].AddRunEventSystem(eventSystem);
+                    
+                    if (isPostRun)
+                        _eventSystems[eventType].AddRunEventSystem(eventSystem);
+                    
+                    if (isFrameEnd)
+                        _eventSystems[eventType].AddRunEventSystem(eventSystem);
                 }
             }
-        }
-
-        private void AddEventSystem(Type eventType, IEventSystem system)
-        {
-            if (!_eventSystems.ContainsKey(eventType))
-                _eventSystems[eventType] = new EventSystems();
-            _eventSystems[eventType].AddSystem(system);
         }
 
         internal void HandleEvent<T>(T ev, Type eventSystemType) where T : struct
@@ -120,7 +125,7 @@ namespace ModulesFramework.Systems
             var eventType = typeof(T);
             if (!_eventSystems.TryGetValue(eventType, out var systems))
                 return;
-            
+
             systems.HandleEvent(ev, eventSystemType);
         }
     }
