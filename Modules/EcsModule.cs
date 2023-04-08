@@ -247,7 +247,7 @@ namespace ModulesFramework.Modules
         }
 
         /// <summary>
-        /// Calls after setup finished and global dependencies list updated
+        /// Calls after setup finished and before IPreInit and IInit
         /// </summary>
         public virtual void OnSetupEnd()
         {
