@@ -18,6 +18,7 @@ namespace ModulesFramework
         SystemsDestroy = 1 << 5,
         SystemsLifetime = SystemsInit | SystemsDestroy,
         OneDataFull = 1 << 6,
-        Full = ModulesFull | EntityFull | EventsFull | SystemsLifetime | OneDataFull
+        Performance = 1 << 7,
+        Full = ModulesFull | EntityFull | EventsFull | SystemsLifetime | OneDataFull | Performance
     }
 }
