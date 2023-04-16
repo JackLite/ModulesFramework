@@ -642,26 +642,3 @@ was raised;
 Takes one argument about to what module belongs the system;
 - `GlobalModuleAttribute` - mark that `EcsModule` is
 global;
-
-## Roadmap
-
-### v0.5.x
-
-- [x] Subscription systems `IEventSystem<T>`;
-- [x] Add `GetEcsTable<T>` for fast iterations;
-- [x] Add `GetDependency<T>` in module for more flexibility
-how you manage your dependencies. It allows to use third-party
-IoC container;
-
-### v0.6.x
-- [X] Ability to turn on debug mode and add your logger
-to see what happening in runtime;
-- [x] Add `Query.GetComponents<T>` and a couple overloads
-to iterate through components more fast;
-- [X] Add `GetModule<TModule>` that makes possible get
-  dependencies from other module if they initialized;
-
-### v0.7.x
-- [ ] Add archetype support;
-- [ ] Remove one-frame-components support - use `IEventSystem<T>`
-instead of;
