@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Reflection;
 using ModulesFramework.Data;
 using ModulesFramework.Data.Events;
@@ -27,6 +28,9 @@ namespace ModulesFramework.Systems
         };
 
         internal IEnumerable<Type> EventTypes => _eventSystems.Keys;
+
+        internal IEnumerable<Type> AllSystems => _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()))
+            .Concat(_eventSystems.SelectMany(kvp => kvp.Value.AllSystems));
 
         internal SystemsGroup()
         {

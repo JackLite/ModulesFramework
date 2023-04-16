@@ -38,6 +38,7 @@ namespace ModulesFramework.Modules
         public bool IsGlobal { get; }
         public bool IsInitialized => _isInit;
         public bool IsActive => _isActive;
+        internal IEnumerable<Type> Systems => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
 
         protected EcsModule()
         {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace ModulesFramework.Systems.Events
 {
@@ -13,6 +14,7 @@ namespace ModulesFramework.Systems.Events
                 { typeof(IFrameEndEventSystem), new List<IEventSystem>(64) }
             };
 
+        internal IEnumerable<Type> AllSystems => _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()));
 
         internal void AddRunEventSystem(IEventSystem system)
         {
