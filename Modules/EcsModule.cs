@@ -52,7 +52,6 @@ namespace ModulesFramework.Modules
         /// <summary>
         /// Activate concrete module: call and await EcsModule.Setup(), create all systems and insert dependencies
         /// </summary>
-        /// <param name="world">The world where systems and entities will live</param>
         /// <param name="activateImmediately">Activate module after initialization?</param>
         /// <param name="parent">Parent module, when you need dependencies from other module</param>
         /// <seealso cref="Setup"/>
@@ -72,46 +71,55 @@ namespace ModulesFramework.Modules
 
                 UpdateGlobalDependencies();
 
-                OnSetupEnd();
+                await OnSetupEnd();
 
-                var systemOrder = GetSystemsOrder();
-                foreach (var system in EcsUtilities.CreateSystems(ConcreteType))
-                {
-                    var order = 0;
-                    if (systemOrder.ContainsKey(system.GetType()))
-                        order = systemOrder[system.GetType()];
-
-                    if (!_systems.ContainsKey(order))
-                        _systems[order] = new SystemsGroup();
-
-                    InsertDependencies(system, world, parent);
-                    _systems[order].Add(system);
-                }
-
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Module {GetType().Name} systems preinit", LogFilter.SystemsInit);
-                #endif
-
-                foreach (var p in _systems)
-                    p.Value.PreInit();
-
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Module {GetType().Name} systems init", LogFilter.SystemsInit);
-                #endif
-
-                foreach (var p in _systems)
-                    p.Value.Init();
-
-                _systemsArr = _systems.Values.ToArray();
-                _isInit = true;
-                if (activateImmediately)
-                    SetActive(true);
+                CreateSystems(parent);
+                InitSystems(activateImmediately);
             }
             catch (Exception e)
             {
                 _exception = new Exception(e.Message, e);
                 ExceptionsPool.AddException(_exception);
             }
+        }
+
+        private void CreateSystems(EcsModule? parent)
+        {
+            var systemOrder = GetSystemsOrder();
+            foreach (var system in EcsUtilities.CreateSystems(ConcreteType))
+            {
+                var order = 0;
+                if (systemOrder.ContainsKey(system.GetType()))
+                    order = systemOrder[system.GetType()];
+
+                if (!_systems.ContainsKey(order))
+                    _systems[order] = new SystemsGroup();
+
+                InsertDependencies(system, world, parent);
+                _systems[order].Add(system);
+            }
+        }
+
+        private void InitSystems(bool activateImmediately)
+        {
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Module {GetType().Name} systems preinit", LogFilter.SystemsInit);
+            #endif
+
+            foreach (var p in _systems)
+                p.Value.PreInit();
+
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Module {GetType().Name} systems init", LogFilter.SystemsInit);
+            #endif
+
+            foreach (var p in _systems)
+                p.Value.Init();
+
+            _systemsArr = _systems.Values.ToArray();
+            _isInit = true;
+            if (activateImmediately)
+                SetActive(true);
         }
 
         /// <summary>
@@ -249,8 +257,9 @@ namespace ModulesFramework.Modules
         /// <summary>
         /// Calls after setup finished and before IPreInit and IInit
         /// </summary>
-        public virtual void OnSetupEnd()
+        public virtual Task OnSetupEnd()
         {
+            return Task.CompletedTask;
         }
         
         /// <summary>
