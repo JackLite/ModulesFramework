@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
 #endif
@@ -240,13 +241,23 @@ namespace ModulesFramework.Data
         /// <seealso cref="InitModule{T, T}"/>
         public void InitModule(Type moduleType, bool activateImmediately = false)
         {
+            InitModuleAsync(moduleType, activateImmediately).Forget();
+        }
+
+        public async Task InitModuleAsync<T>(bool activateImmediately = false)
+        {
+            await InitModuleAsync(typeof(T), activateImmediately);
+        }
+        
+        public async Task InitModuleAsync(Type moduleType, bool activateImmediately = false)
+        {
             var module = GetModule(moduleType);
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
             if (module.IsInitialized)
                 throw new ModuleAlreadyInitializedException(moduleType);
             #endif
-            module.Init(activateImmediately).Forget();
+            await module.Init(activateImmediately);
         }
 
         /// <summary>
