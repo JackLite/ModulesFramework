@@ -100,7 +100,7 @@ namespace ModulesFramework.Data
         {
             return ref GetEscTable<T>().GetData(id);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsEntityExists(int eid)
         {
@@ -248,7 +248,7 @@ namespace ModulesFramework.Data
         {
             await InitModuleAsync(typeof(T), activateImmediately);
         }
-        
+
         public async Task InitModuleAsync(Type moduleType, bool activateImmediately = false)
         {
             var module = GetModule(moduleType);
@@ -276,7 +276,7 @@ namespace ModulesFramework.Data
         {
             InitModule(typeof(TModule), typeof(TParent), activateImmediately);
         }
-        
+
         /// <summary>
         /// Initialize module: call Setup() and GetDependencies()
         /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
@@ -320,7 +320,7 @@ namespace ModulesFramework.Data
             #endif
             module.Destroy();
         }
-        
+
         /// <summary>
         /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
         /// </summary>
@@ -331,8 +331,8 @@ namespace ModulesFramework.Data
         {
             ActivateModule(typeof(T));
         }
-        
-        
+
+
         /// <summary>
         /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
         /// </summary>
@@ -358,7 +358,7 @@ namespace ModulesFramework.Data
         {
             DeactivateModule(typeof(T));
         }
-        
+
         /// <summary>
         /// Deactivate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will stop update
         /// </summary>
@@ -372,18 +372,6 @@ namespace ModulesFramework.Data
             Logger.LogDebug($"Deactivate module {moduleType.Name}", LogFilter.ModulesFull);
             #endif
             module.SetActive(false);
-        }
-
-        /// <summary>
-        /// Old method for one frame entity. Use event systems instead. They makes special for
-        /// event-based logic 
-        /// </summary>
-        /// <returns>New entity</returns>
-        /// <seealso cref="EcsModule.GetSystemsOrder"/>
-        [Obsolete("Use event systems instead")]
-        public Entity CreateOneFrame()
-        {
-            return NewEntity().AddComponent(new EcsOneFrame());
         }
 
         public bool IsModuleActive<TModule>() where TModule : EcsModule
@@ -401,6 +389,7 @@ namespace ModulesFramework.Data
         {
             var modules = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(a => a.GetTypes()
+                    .Where(t => t != typeof(EmbeddedGlobalModule))
                     .Where(t => t.IsSubclassOf(typeof(EcsModule)) && !t.IsAbstract)
                     .Select(t => (EcsModule)Activator.CreateInstance(t)));
             foreach (var module in modules)

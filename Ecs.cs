@@ -10,7 +10,7 @@ namespace ModulesFramework
         private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
         private readonly ModuleSystem _moduleSystem;
-        private readonly EcsOneFrameSystem _oneFrameSystem;
+        private readonly EmbeddedGlobalModule _embeddedGlobalModule;
 
         public DataWorld World { get; }
 
@@ -18,16 +18,17 @@ namespace ModulesFramework
         {
             World = new DataWorld();
             _moduleSystem = new ModuleSystem(World.GetAllModules().ToArray());
-            _oneFrameSystem = new EcsOneFrameSystem(World);
+            _embeddedGlobalModule = new EmbeddedGlobalModule();
+            _embeddedGlobalModule.InjectWorld(World);
         }
 
         public async void Start()
         {
+            await _embeddedGlobalModule.Init(true);
             _globalModules = World.GetAllModules().Where(m => m.IsGlobal).ToArray();
             foreach (var module in _globalModules)
             {
-                await module.Init();
-                module.SetActive(true);
+                await module.Init(true);
             }
 
             _isInitialized = true;
@@ -39,6 +40,8 @@ namespace ModulesFramework
                 return;
             if (ExceptionsPool.TryPop(out var e))
                 throw e;
+            
+            _embeddedGlobalModule.Run();
             _moduleSystem.Run();
         }
 
@@ -46,15 +49,17 @@ namespace ModulesFramework
         {
             if (!_isInitialized)
                 return;
+            
+            _embeddedGlobalModule.PostRun();
             _moduleSystem.PostRun();
-
-            _oneFrameSystem.PostRun();
         }
 
         public void RunPhysic()
         {
             if (!_isInitialized)
                 return;
+            
+            _embeddedGlobalModule.RunPhysics();
             _moduleSystem.RunPhysic();
         }
 
@@ -62,6 +67,7 @@ namespace ModulesFramework
         {
             if (!_isInitialized)
                 return;
+            _embeddedGlobalModule.RunPhysics();
             _moduleSystem.Destroy();
         }
     }

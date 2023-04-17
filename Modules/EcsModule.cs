@@ -75,7 +75,7 @@ namespace ModulesFramework.Modules
                 OnSetupEnd();
 
                 var systemOrder = GetSystemsOrder();
-                foreach (var system in EcsUtilities.CreateSystems(ConcreteType))
+                foreach (var system in CreateSystems())
                 {
                     var order = 0;
                     if (systemOrder.ContainsKey(system.GetType()))
@@ -112,6 +112,11 @@ namespace ModulesFramework.Modules
                 _exception = new Exception(e.Message, e);
                 ExceptionsPool.AddException(_exception);
             }
+        }
+
+        internal virtual IEnumerable<ISystem> CreateSystems()
+        {
+            return EcsUtilities.CreateSystems(ConcreteType);
         }
 
         /// <summary>
