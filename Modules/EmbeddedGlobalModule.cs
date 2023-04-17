@@ -10,7 +10,7 @@ namespace ModulesFramework.Modules
     [GlobalModule]
     internal sealed class EmbeddedGlobalModule : EcsModule
     {
-        internal override IEnumerable<ISystem> CreateSystems()
+        protected override IEnumerable<ISystem> GetSystems()
         {
             var types = GetSystemTypes().ToArray();
             foreach (var type in types)
