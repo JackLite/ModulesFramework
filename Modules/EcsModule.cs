@@ -74,8 +74,43 @@ namespace ModulesFramework.Modules
 
                 await OnSetupEnd();
 
+<<<<<<< HEAD
                 CreateSystems(parent);
                 InitSystems(activateImmediately);
+=======
+                var systemOrder = GetSystemsOrder();
+                foreach (var system in CreateSystems())
+                {
+                    var order = 0;
+                    if (systemOrder.ContainsKey(system.GetType()))
+                        order = systemOrder[system.GetType()];
+
+                    if (!_systems.ContainsKey(order))
+                        _systems[order] = new SystemsGroup();
+
+                    InsertDependencies(system, world, parent);
+                    _systems[order].Add(system);
+                }
+
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Module {GetType().Name} systems preinit", LogFilter.SystemsInit);
+                #endif
+
+                foreach (var p in _systems)
+                    p.Value.PreInit();
+
+                #if MODULES_DEBUG
+                world.Logger.LogDebug($"Module {GetType().Name} systems init", LogFilter.SystemsInit);
+                #endif
+
+                foreach (var p in _systems)
+                    p.Value.Init();
+
+                _systemsArr = _systems.Values.ToArray();
+                _isInit = true;
+                if (activateImmediately)
+                    SetActive(true);
+>>>>>>> e376a30 (Global systems)
             }
             catch (Exception e)
             {
@@ -84,6 +119,7 @@ namespace ModulesFramework.Modules
             }
         }
 
+<<<<<<< HEAD
         private void CreateSystems(EcsModule? parent)
         {
             var systemOrder = GetSystemsOrder();
@@ -121,6 +157,11 @@ namespace ModulesFramework.Modules
             _isInit = true;
             if (activateImmediately)
                 SetActive(true);
+=======
+        internal virtual IEnumerable<ISystem> CreateSystems()
+        {
+            return EcsUtilities.CreateSystems(ConcreteType);
+>>>>>>> e376a30 (Global systems)
         }
 
         /// <summary>

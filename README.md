@@ -467,6 +467,8 @@ only from its module but not from other global modules;
 - `object GetDependency(Type t)` - this method like above but must return
 one dependency by type. You can override method above or this. You also can
 use some third-party IoC container to manage dependencies;
+- `void OnSetupEnd()` - virtual method, calls when all dependencies updated before
+any systems of module;
 - `void OnActivate(), void OnDeactivate` - virtual methods
 that calls when you activate or deactivate module 
 (see `EcsWorld.ActivateModule<T>` and `EcsWorld.DeactivateModule<T>` );
@@ -518,6 +520,10 @@ type `T`. Use it for very fast iterations through components;
 initialize module `T` as *submodule*. Submodule has the
 same dependencies as parent. But submodule do not 
 share lifecycle (activation, deactivation and destroying);
+- `void InitModuleAsync<T>(bool activateImmediately = false)` - async version
+of `InitModule<T>`;
+- `void InitModuleAsync<TModule, TParent>(bool activateImmediately = false)` -
+async version of `InitModule<TModule, TParent>`;
 - `void DestroyModule<T>()` - deactivate and destroy module.
 If module wasn't active deactivation will not be processed.
 - `void ActivateModule<T>()` - activate module. If module
@@ -642,3 +648,8 @@ was raised;
 Takes one argument about to what module belongs the system;
 - `GlobalModuleAttribute` - mark that `EcsModule` is
 global;
+
+## Roadmap
+
+### v0.8.x
+- [ ] Submodules
