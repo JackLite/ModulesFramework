@@ -106,6 +106,11 @@ namespace ModulesFramework.Modules
             }
         }
 
+        protected virtual IEnumerable<ISystem> GetSystems()
+        {
+            return EcsUtilities.CreateSystems(ConcreteType);
+        }
+
         private void InitSystems(bool activateImmediately)
         {
             #if MODULES_DEBUG
