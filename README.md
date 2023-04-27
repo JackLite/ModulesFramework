@@ -646,7 +646,14 @@ was raised;
 
 - `EcsSystemAttribute` - mark that class is system.
 Takes one argument about to what module belongs the system;
+<<<<<<< HEAD
 - `GlobalModuleAttribute` - mark that `EcsModule` is global;
 - `GlobalSystemAttribute` - mark that system not in module,
-so it will run all the time and can't contain any dependency 
-but DataWorld;
+so it will run all the time and can't contain any dependency but DataWorld;
+
+
+## Roadmap
+
+### v0.8.x
+- [ ] Submodules
+>>>>>>> @{-1}

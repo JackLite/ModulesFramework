@@ -73,7 +73,7 @@ namespace ModulesFramework.Modules
                 UpdateGlobalDependencies();
 
                 await OnSetupEnd();
-
+                
                 CreateSystems(parent);
                 InitSystems(activateImmediately);
             }
