@@ -84,11 +84,6 @@ namespace ModulesFramework.Modules
             }
         }
 
-        protected virtual IEnumerable<ISystem> GetSystems()
-        {
-            return EcsUtilities.CreateSystems(ConcreteType);
-        }
-
         private void CreateSystems(EcsModule? parent)
         {
             var systemOrder = GetSystemsOrder();
