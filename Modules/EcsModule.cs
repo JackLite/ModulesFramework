@@ -87,7 +87,7 @@ namespace ModulesFramework.Modules
         private void CreateSystems(EcsModule? parent)
         {
             var systemOrder = GetSystemsOrder();
-            foreach (var system in EcsUtilities.CreateSystems(ConcreteType))
+            foreach (var system in GetSystems())
             {
                 var order = 0;
                 if (systemOrder.ContainsKey(system.GetType()))
@@ -99,6 +99,11 @@ namespace ModulesFramework.Modules
                 InsertDependencies(system, world, parent);
                 _systems[order].Add(system);
             }
+        }
+
+        protected virtual IEnumerable<ISystem> GetSystems()
+        {
+            return EcsUtilities.CreateSystems(ConcreteType);
         }
 
         private void InitSystems(bool activateImmediately)
@@ -121,11 +126,6 @@ namespace ModulesFramework.Modules
             _isInit = true;
             if (activateImmediately)
                 SetActive(true);
-        }
-
-        internal virtual IEnumerable<ISystem> CreateSystems()
-        {
-            return EcsUtilities.CreateSystems(ConcreteType);
         }
 
         /// <summary>
