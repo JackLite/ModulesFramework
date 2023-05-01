@@ -129,7 +129,8 @@ namespace ModulesFramework.Modules
             InitSystems();
             foreach (var submodule in world.GetSubmodules(ConcreteType))
             {
-                submodule.ProcessSystems();
+                if(submodule.IsInitWithParent)
+                    submodule.ProcessSystems();
             }
 
             IsInitialized = true;
