@@ -5,7 +5,7 @@ namespace ModulesFramework.Modules
     /// <summary>
     /// Internal system for controlling activation and deactivation of modules
     /// </summary>
-    internal class ModuleSystem : IRunSystem, IRunPhysicSystem, IPostRunSystem, IDestroySystem
+    internal class ModuleSystem : IRunSystem, IRunPhysicSystem, IPostRunSystem
     {
         private readonly EcsModule[] _modules;
 
@@ -38,18 +38,6 @@ namespace ModulesFramework.Modules
             {
                 if (module.IsActive)
                     module.PostRun();
-            }
-        }
-
-        public void Destroy()
-        {
-            foreach (var module in _modules)
-            {
-                if (module.IsActive)
-                    module.SetActive(false);
-
-                if (module.IsInitialized)
-                    module.Destroy();
             }
         }
     }

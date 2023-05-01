@@ -67,8 +67,17 @@ namespace ModulesFramework
         {
             if (!_isInitialized)
                 return;
-            _embeddedGlobalModule.RunPhysics();
-            _moduleSystem.Destroy();
+            
+            foreach (var module in World.GetAllModules().Where(m => !m.IsSubmodule))
+            {
+                if (module.IsActive)
+                    module.SetActive(false);
+
+                if (module.IsInitialized)
+                    module.Destroy();
+            }
+            
+            _embeddedGlobalModule.Destroy();
         }
     }
 }

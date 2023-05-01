@@ -17,7 +17,6 @@ namespace ModulesFramework.Data
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
         private readonly EcsTable<EntityGeneration> _generationsTable = new EcsTable<EntityGeneration>();
         private readonly Stack<int> _freeEid = new Stack<int>(64);
-        private readonly Dictionary<Type, EcsModule> _modules;
         private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
 
         private readonly Stack<Query> _queriesPool;
@@ -30,7 +29,9 @@ namespace ModulesFramework.Data
 
         public DataWorld()
         {
-            _modules = CreateAllEcsModules().ToDictionary(m => m.GetType(), m => m);
+            _modules = new Dictionary<Type, EcsModule>();
+            _submodules = new Dictionary<Type, List<EcsModule>>();
+            CtorModules();
             _queriesPool = new Stack<Query>(128);
         }
 
