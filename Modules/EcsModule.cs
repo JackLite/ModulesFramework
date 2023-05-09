@@ -25,8 +25,6 @@ namespace ModulesFramework.Modules
     {
         private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
         private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
-        private bool _isInit;
-        private bool _isActive;
         private static readonly List<EcsModule> _globalModules = new List<EcsModule>();
         private static Exception? _exception;
 
@@ -36,8 +34,14 @@ namespace ModulesFramework.Modules
 
         private Type ConcreteType => GetType();
         public bool IsGlobal { get; }
-        public bool IsInitialized => _isInit;
-        public bool IsActive => _isActive;
+        public bool IsInitialized { get; private set; }
+        public bool IsActive { get; private set; }
+
+        public bool IsSubmodule { get; private set; }
+        public bool IsInitWithParent { get; private set; }
+        public bool IsActiveWithParent { get; private set; }
+        public EcsModule? Parent { get; private set; }
+
         internal IEnumerable<Type> Systems => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
 
         protected EcsModule()
@@ -54,28 +58,16 @@ namespace ModulesFramework.Modules
         /// Activate concrete module: call and await EcsModule.Setup(), create all systems and insert dependencies
         /// </summary>
         /// <param name="activateImmediately">Activate module after initialization?</param>
-        /// <param name="parent">Parent module, when you need dependencies from other module</param>
         /// <seealso cref="Setup"/>
-        public async Task Init(bool activateImmediately = false, EcsModule? parent = null)
+        public async Task Init(bool activateImmediately = false)
         {
             try
             {
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Start init module {GetType().Name}", LogFilter.ModulesFull);
-                #endif
+                await StartInit();
 
-                await Setup();
-
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Module {GetType().Name} setup is done", LogFilter.ModulesFull);
-                #endif
-
-                UpdateGlobalDependencies();
-
-                await OnSetupEnd();
-                
-                CreateSystems(parent);
-                InitSystems(activateImmediately);
+                ProcessSystems();
+                if (activateImmediately)
+                    SetActive(true);
             }
             catch (Exception e)
             {
@@ -83,8 +75,68 @@ namespace ModulesFramework.Modules
                 ExceptionsPool.AddException(_exception);
             }
         }
-        
-        private void CreateSystems(EcsModule? parent)
+
+        private async Task StartInit()
+        {
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Start init module {GetType().Name}", LogFilter.ModulesFull);
+            #endif
+
+            await Setup();
+
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Module {GetType().Name} setup is done", LogFilter.ModulesFull);
+            #endif
+
+            UpdateGlobalDependencies();
+            await SetupSubmodules();
+
+            await OnSetupEnd();
+        }
+
+        /// <summary>
+        /// Call when module activate
+        /// You can create here all dependencies and game objects, that you need
+        /// </summary>
+        protected virtual async Task Setup()
+        {
+            await Task.CompletedTask;
+        }
+
+        private async Task SetupSubmodules()
+        {
+            var tasks = new List<Task>();
+            foreach (var submodule in world.GetSubmodules(ConcreteType))
+            {
+                if (submodule.IsInitWithParent)
+                    tasks.Add(submodule.StartInit());
+            }
+
+            await Task.WhenAll(tasks);
+        }
+
+        private void UpdateGlobalDependencies()
+        {
+            if (!IsGlobal)
+                return;
+
+            _globalModules.Add(this);
+        }
+
+        private void ProcessSystems()
+        {
+            CreateSystems();
+            InitSystems();
+            foreach (var submodule in world.GetSubmodules(ConcreteType))
+            {
+                if(submodule.IsInitWithParent)
+                    submodule.ProcessSystems();
+            }
+
+            IsInitialized = true;
+        }
+
+        private void CreateSystems()
         {
             var systemOrder = GetSystemsOrder();
             foreach (var system in GetSystems())
@@ -96,7 +148,7 @@ namespace ModulesFramework.Modules
                 if (!_systems.ContainsKey(order))
                     _systems[order] = new SystemsGroup();
 
-                InsertDependencies(system, world, parent);
+                InsertDependencies(system, world);
                 _systems[order].Add(system);
             }
         }
@@ -106,7 +158,7 @@ namespace ModulesFramework.Modules
             return EcsUtilities.CreateSystems(ConcreteType);
         }
 
-        private void InitSystems(bool activateImmediately)
+        internal void InitSystems()
         {
             #if MODULES_DEBUG
             world.Logger.LogDebug($"Module {GetType().Name} systems preinit", LogFilter.SystemsInit);
@@ -123,9 +175,6 @@ namespace ModulesFramework.Modules
                 p.Value.Init();
 
             _systemsArr = _systems.Values.ToArray();
-            _isInit = true;
-            if (activateImmediately)
-                SetActive(true);
         }
 
         /// <summary>
@@ -136,76 +185,76 @@ namespace ModulesFramework.Modules
         internal void SetActive(bool isActive)
         {
             #if MODULES_DEBUG
-            var logMsgStart = isActive ? "Activate" : "Deactivate";
-            world.Logger.LogDebug($"{logMsgStart} module {GetType().Name}", LogFilter.ModulesFull);
+            var logMsgStart = isActive ? "activate" : "deactivate";
+            world.Logger.LogDebug($"Start {logMsgStart} module {GetType().Name}", LogFilter.ModulesFull);
             #endif
+
             CheckException();
-            if (!_isInit)
+
+            if (!IsInitialized)
                 throw new ModuleNotInitializedException(ConcreteType);
-            if (isActive && !_isActive)
-            {
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Activate systems in {GetType().Name}", LogFilter.SystemsInit);
-                #endif
-                foreach (var p in _systems)
-                {
-                    foreach (var eventType in p.Value.EventTypes)
-                    {
-                        world.RegisterListener(eventType, p.Value);
-                    }
 
-                    p.Value.Activate();
-                }
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Call OnActivate in {GetType().Name}", LogFilter.ModulesFull);
-                #endif
-                OnActivate();
+            if (isActive && !IsActive)
+            {
+                Activate();
+                SetSubmodulesActive(true);
             }
-            else if (_isActive)
+            else if (IsActive)
             {
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Deactivate systems in {GetType().Name}", LogFilter.SystemsDestroy);
-                #endif
-
-                foreach (var p in _systems)
-                {
-                    p.Value.Deactivate();
-                    foreach (var eventType in p.Value.EventTypes)
-                    {
-                        world.UnregisterListener(eventType, p.Value);
-                    }
-                }
-                #if MODULES_DEBUG
-                world.Logger.LogDebug($"Call OnDeactivate in {GetType().Name}", LogFilter.ModulesFull);
-                #endif
-                OnDeactivate();
+                SetSubmodulesActive(false);
+                Deactivate();
             }
 
-            _isActive = isActive;
+            IsActive = isActive;
         }
 
-        /// <summary>
-        /// Let you set order of systems. Default order is 0. Systems will be ordered by ascending 
-        /// </summary>
-        /// <returns>Dictionary with key - type of system and value - order</returns>
-        protected virtual Dictionary<Type, int> GetSystemsOrder()
+        private void SetSubmodulesActive(bool isActive)
         {
-            return new Dictionary<Type, int>();
+            foreach (var submodule in world.GetSubmodules(ConcreteType))
+            {
+                if (submodule.IsActiveWithParent)
+                    submodule.SetActive(isActive);
+            }
         }
 
-        /// <summary>
-        /// Just call RunPhysics at systems
-        /// </summary>
-        internal void RunPhysics()
+        private void Activate()
         {
-            if (!_isActive)
-                return;
-
-            CheckException();
-            foreach (var p in _systemsArr)
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Activate systems in {GetType().Name}", LogFilter.SystemsInit);
+            #endif
+            foreach (var p in _systems)
             {
-                p.RunPhysic();
+                foreach (var eventType in p.Value.EventTypes)
+                {
+                    world.RegisterListener(eventType, p.Value);
+                }
+
+                p.Value.Activate();
             }
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Call OnActivate in {GetType().Name}", LogFilter.ModulesFull);
+            #endif
+            OnActivate();
+        }
+
+        private void Deactivate()
+        {
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Deactivate systems in {GetType().Name}", LogFilter.SystemsDestroy);
+            #endif
+
+            foreach (var p in _systems)
+            {
+                p.Value.Deactivate();
+                foreach (var eventType in p.Value.EventTypes)
+                {
+                    world.UnregisterListener(eventType, p.Value);
+                }
+            }
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Call OnDeactivate in {GetType().Name}", LogFilter.ModulesFull);
+            #endif
+            OnDeactivate();
         }
 
         /// <summary>
@@ -213,7 +262,7 @@ namespace ModulesFramework.Modules
         /// </summary>
         internal void Run()
         {
-            if (!_isActive)
+            if (!IsActive)
                 return;
 
             CheckException();
@@ -229,13 +278,28 @@ namespace ModulesFramework.Modules
             }
         }
 
+        /// <summary>
+        /// Just call RunPhysics at systems
+        /// </summary>
+        internal void RunPhysics()
+        {
+            if (!IsActive)
+                return;
+
+            CheckException();
+            foreach (var p in _systemsArr)
+            {
+                p.RunPhysic();
+            }
+        }
+
 
         /// <summary>
         /// Just call RunLate at systems
         /// </summary>
         internal void PostRun()
         {
-            if (!_isActive)
+            if (!IsActive)
                 return;
 
             CheckException();
@@ -267,7 +331,7 @@ namespace ModulesFramework.Modules
         {
             return Task.CompletedTask;
         }
-        
+
         /// <summary>
         /// Calls before activate module and IActivateSystem
         /// </summary>
@@ -304,7 +368,7 @@ namespace ModulesFramework.Modules
             }
 
             _systems.Clear();
-            _isInit = false;
+            IsInitialized = false;
         }
 
         /// <summary>
@@ -313,27 +377,36 @@ namespace ModulesFramework.Modules
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal void Destroy()
         {
-            if (!_isInit)
+            if (!IsInitialized)
             {
                 world.Logger.LogWarning($"Destroy module {GetType().Name} that not initialized");
                 return;
             }
+
             #if MODULES_DEBUG
-            world.Logger.LogDebug($"Destroy module {GetType().Name}", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Start destroy module {GetType().Name}", LogFilter.ModulesFull);
             #endif
+
+            // even if module was manually activate it still must be deactivated when parent module destroyed
+            foreach (var submodule in world.GetSubmodules(ConcreteType))
+            {
+                if (submodule.IsActive)
+                    submodule.SetActive(false);
+            }
+
             SetActive(false);
+
+            // any submodule must be destroyed with parent cause it has dependencies from it that may being destroyed
+            foreach (var submodule in world.GetSubmodules(ConcreteType))
+            {
+                submodule.OnDestroy();
+                submodule.DestroySystems();
+                submodule.IsInitialized = false;
+            }
+
             OnDestroy();
             DestroySystems();
-            _isInit = false;
-        }
-
-        /// <summary>
-        /// Call when module activate
-        /// You can create here all dependencies and game objects, that you need
-        /// </summary>
-        protected virtual async Task Setup()
-        {
-            await Task.CompletedTask;
+            IsInitialized = false;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -341,18 +414,12 @@ namespace ModulesFramework.Modules
         {
             if (_exception == null)
                 return;
-            throw _exception;
+            var exception = _exception;
+            _exception = null;
+            throw exception;
         }
 
-        private void UpdateGlobalDependencies()
-        {
-            if (!IsGlobal)
-                return;
-
-            _globalModules.Add(this);
-        }
-
-        private void InsertDependencies(ISystem system, DataWorld world, EcsModule? parent = null)
+        private void InsertDependencies(ISystem system, DataWorld world)
         {
             var setupMethod = GetSetupMethod(system);
             if (setupMethod != null)
@@ -390,8 +457,6 @@ namespace ModulesFramework.Modules
                     if (dependency == null)
                     {
                         dependency = GetDependency(t);
-                        if (dependency == null && parent != null)
-                            dependency = parent.GetDependency(t);
                     }
 
                     if (dependency == null)
@@ -416,12 +481,6 @@ namespace ModulesFramework.Modules
                     continue;
                 }
 
-                if (t.BaseType == typeof(OneData))
-                {
-                    InsertOneData(t, system, field);
-                    continue;
-                }
-
                 object? dependency = null;
                 foreach (var module in _globalModules)
                 {
@@ -433,8 +492,6 @@ namespace ModulesFramework.Modules
                 if (dependency == null)
                 {
                     dependency = GetDependency(t);
-                    if (dependency == null && parent != null)
-                        dependency = parent.GetDependency(t);
                 }
 
                 if (dependency != null)
@@ -445,16 +502,6 @@ namespace ModulesFramework.Modules
                         LogFilter.ModulesFull
                     );
             }
-        }
-
-        private void InsertOneData(Type t, ISystem system, FieldInfo field)
-        {
-            var oneData = world.GetOneData(t);
-
-            if (oneData == null)
-                ThrowOneDataException(t);
-
-            field.SetValue(system, oneData);
         }
 
         private void ThrowOneDataException(Type t)
@@ -506,6 +553,12 @@ namespace ModulesFramework.Modules
         {
             if (GetDependencies().TryGetValue(type, out var dependency))
                 return dependency;
+
+            if (IsSubmodule)
+            {
+                return  Parent.GetDependency(type);
+            }
+
             return null;
         }
 
@@ -522,6 +575,29 @@ namespace ModulesFramework.Modules
             var module = world.GetModule<TModule>();
 
             return module?.GetDependency<TDependency>();
+        }
+
+        /// <summary>
+        ///     Mark module as submodule of parent
+        /// </summary>
+        /// <param name="parent">Parent module</param>
+        /// <param name="initWithParent">Mark that module must initialized with parent</param>
+        /// <param name="activeWithParent">Mark that module must activated with parent</param>
+        internal void MarkSubmodule(EcsModule parent, bool initWithParent, bool activeWithParent)
+        {
+            IsSubmodule = true;
+            Parent = parent;
+            IsInitWithParent = initWithParent;
+            IsActiveWithParent = activeWithParent;
+        }
+
+        /// <summary>
+        /// Let you set order of systems. Default order is 0. Systems will be ordered by ascending 
+        /// </summary>
+        /// <returns>Dictionary with key - type of system and value - order</returns>
+        protected virtual Dictionary<Type, int> GetSystemsOrder()
+        {
+            return new Dictionary<Type, int>();
         }
     }
 }
