@@ -377,6 +377,35 @@ systems.
 so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
 **will not** be lost.
 
+### Submodules
+
+In the large project it will be good to keep thing as simple as possible. There is can be hundreds of dependencies and thousands of systems. To simplify complexity you can use submodules. 
+
+*Submodule* is just an another module but it has some differences. First of all submodule inherits dependencies from parent (and grandparent and so on).
+
+For creation of submodule you need just create module as usual and then add ```SubmoduleAttribute``` to it:
+
+```csharp
+[Submodule(typeof(ParentModule), initWithParent: true, activeWithParent: true)]
+public class LootModule : EcsModule {}
+```
+
+Parameters ```initWithParent``` and ```activeWithParent``` are optional and has ```true``` as default. So the second things about submodule is that they initialized and activated with parent module. You can turn off that behaviour by  ```initWithParent``` and ```activeWithParent```.
+
+The order of executing init and activate parent module and submodules below:
+1. Parent module calls setup;
+2. Submodule calls setup;
+3. Parent module ```IPreInitSystem``` and ```IInitSystem``` calls;
+4. Submodule ```IPreInitSystem``` and ```IInitSystem``` calls;
+5. Parent module activation (including ```IActivateSystem```);
+6. Submodule activation.
+
+The order of destroy:
+1. Submodule deactivation;
+2. Parent module deactivation;
+3. Submodule destroy;
+4. Parent module destroy.
+
 ## FAQ
 
 ##### How to create an instance of system?
