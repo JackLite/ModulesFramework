@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
+using ModulesFramework.Attributes;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 
@@ -9,6 +11,8 @@ namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
+        private readonly Dictionary<Type, EcsModule> _modules;
+        private readonly Dictionary<Type, List<EcsModule>> _submodules;
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
         /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
@@ -49,44 +53,6 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        /// Initialize module: call Setup() and GetDependencies()
-        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
-        /// ATTENTION! Only local modules can be parent. Dependency from global modules
-        /// available in all systems by default
-        /// </summary>
-        /// <typeparam name="TModule">Type of module that you want to initialize</typeparam>
-        /// <typeparam name="TParent">Parent module. TModule get dependencies from parent</typeparam>
-        /// <seealso cref="InitModule{T}"/>
-        /// <seealso cref="ActivateModule{T}"/>
-        public void InitModule<TModule, TParent>(bool activateImmediately = false)
-            where TModule : EcsModule
-            where TParent : EcsModule
-        {
-            InitModule(typeof(TModule), typeof(TParent), activateImmediately);
-        }
-
-        /// <summary>
-        /// Initialize module: call Setup() and GetDependencies()
-        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
-        /// ATTENTION! Only local modules can be parent. Dependency from global modules
-        /// available in all systems by default
-        /// </summary>
-        /// <seealso cref="InitModule{T}"/>
-        /// <seealso cref="ActivateModule{T}"/>
-        public void InitModule(Type moduleType, Type parentType, bool activateImmediately = false)
-        {
-            var module = GetModule(moduleType);
-            var parent = GetModule(parentType);
-            #if MODULES_DEBUG
-            if (module == null) throw new ModuleNotFoundException(moduleType);
-            if (parent == null) throw new ModuleNotFoundException(parentType);
-            if (module.IsInitialized)
-                throw new ModuleAlreadyInitializedException(moduleType);
-            #endif
-            module.Init(activateImmediately, parent).Forget();
-        }
-
-        /// <summary>
         /// Destroy module: calls Deactivate() in module and Destroy() in IDestroy systems
         /// </summary>
         /// <typeparam name="T">Type of module that you want to destroy</typeparam>
@@ -104,7 +70,6 @@ namespace ModulesFramework.Data
             var module = GetModule(moduleType);
             #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
-            Logger.LogDebug($"Destroy module {moduleType.Name}", LogFilter.ModulesFull);
             #endif
             module.Destroy();
         }
@@ -173,6 +138,27 @@ namespace ModulesFramework.Data
             return GetModule(typeof(T));
         }
 
+        private void CtorModules()
+        {
+            var modules = CreateAllEcsModules().ToDictionary(m => m.GetType(), m => m);
+            foreach (var (_, module) in modules)
+            {
+                _modules.Add(module.GetType(), module);
+                var submoduleAttr = module.GetType().GetCustomAttribute<SubmoduleAttribute>();
+                if (submoduleAttr != null)
+                {
+                    module.MarkSubmodule(
+                        modules[submoduleAttr.parent],
+                        submoduleAttr.initWithParent,
+                        submoduleAttr.activeWithParent
+                    );
+                    if (!_submodules.ContainsKey(submoduleAttr.parent))
+                        _submodules[submoduleAttr.parent] = new List<EcsModule>();
+                    _submodules[submoduleAttr.parent].Add(module);
+                }
+            }
+        }
+
         private IEnumerable<EcsModule> CreateAllEcsModules()
         {
             var modules = AppDomain.CurrentDomain.GetAssemblies()
@@ -198,5 +184,13 @@ namespace ModulesFramework.Data
                 return module;
             return null;
         }
+
+        internal IEnumerable<EcsModule> GetSubmodules(Type parent)
+        {
+            if (_submodules.ContainsKey(parent))
+                return _submodules[parent];
+            return Array.Empty<EcsModule>();
+        }
+        
     }
 }
