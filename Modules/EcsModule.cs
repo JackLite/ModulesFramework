@@ -198,11 +198,13 @@ namespace ModulesFramework.Modules
             {
                 Activate();
                 SetSubmodulesActive(true);
+                OnActivate();
             }
             else if (IsActive)
             {
                 SetSubmodulesActive(false);
                 Deactivate();
+                OnDeactivate();
             }
 
             IsActive = isActive;
@@ -234,7 +236,6 @@ namespace ModulesFramework.Modules
             #if MODULES_DEBUG
             world.Logger.LogDebug($"Call OnActivate in {GetType().Name}", LogFilter.ModulesFull);
             #endif
-            OnActivate();
         }
 
         private void Deactivate()
@@ -254,7 +255,6 @@ namespace ModulesFramework.Modules
             #if MODULES_DEBUG
             world.Logger.LogDebug($"Call OnDeactivate in {GetType().Name}", LogFilter.ModulesFull);
             #endif
-            OnDeactivate();
         }
 
         /// <summary>
