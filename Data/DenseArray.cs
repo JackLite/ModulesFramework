@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace ModulesFramework.Data
 {
     public class DenseArray<T> where T : struct
     {
         private Memory<T> _dataMem;
-
+        
         public int Length { get; private set; }
 
         public DenseArray(int capacity = 64)
@@ -46,6 +47,14 @@ namespace ModulesFramework.Data
         public Span<T> GetData()
         {
             return _dataMem.Slice(0, Length).Span;
+        }
+
+        internal IEnumerable<T> Enumerate()
+        {
+            for (var i = 0; i < Length; ++i)
+            {
+                yield return _dataMem.Span[i];
+            }
         }
     }
 }

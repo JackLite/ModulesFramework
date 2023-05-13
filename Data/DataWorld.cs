@@ -85,6 +85,19 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        public void AddNewComponent<T>(int eid, T component) where T : struct
+        {
+            var table = GetEscTable<T>();
+
+            table.AddNewData(eid, component);
+
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Add to {eid.ToString()} new {typeof(T).Name} component", LogFilter.EntityModifications);
+            #endif
+
+            OnEntityChanged?.Invoke(eid);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveComponent<T>(int eid) where T : struct
         {
@@ -95,10 +108,29 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        public void RemoveFirstComponent<T>(int eid) where T : struct
+        {
+            GetEscTable<T>().RemoveFirst(eid);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component", LogFilter.EntityModifications);
+            #endif
+            OnEntityChanged?.Invoke(eid);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponent<T>(int id) where T : struct
         {
             return ref GetEscTable<T>().GetData(id);
+        }
+
+        public Span<int> GetIndices<T>(int eid) where T : struct
+        {
+            return GetEscTable<T>().GetMultipleDataIndices(eid);
+        }
+
+        public ref T GetComponentAt<T>(int index) where T : struct
+        {
+            return ref GetEscTable<T>().At(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

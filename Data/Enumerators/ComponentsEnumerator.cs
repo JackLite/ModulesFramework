@@ -21,8 +21,9 @@ namespace ModulesFramework.Data.Enumerators
             {
                 if (_index == 0 || _table == null)
                     throw new InvalidOperationException();
-                
-                return ref _table.GetData(_table.EntitiesData[_index - 1].eid);
+
+                var eid = _table.EntitiesData[_index - 1].eid;
+                return ref _table.GetData(eid);
             }
         }
 

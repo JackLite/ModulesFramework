@@ -1,4 +1,6 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 
 namespace ModulesFramework.Data
 {
@@ -15,10 +17,26 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        public Entity AddNewComponent<T>(T component) where T : struct
+        {
+            World.AddNewComponent(Id, component);
+            return this;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponent<T>() where T : struct
         {
             return ref World.GetComponent<T>(Id);
+        }
+
+        public Span<int> GetIndices<T>() where T : struct
+        {
+            return World.GetIndices<T>(Id);
+        }
+
+        public ref T GetComponentAt<T>(int index) where T : struct
+        {
+            return ref World.GetComponentAt<T>(index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -28,12 +46,18 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        public Entity RemoveFirstComponent<T>() where T : struct
+        {
+            World.RemoveFirstComponent<T>(Id);
+            return this;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Destroy()
         {
             World.DestroyEntity(Id);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool HasComponent<T>() where T : struct
         {
