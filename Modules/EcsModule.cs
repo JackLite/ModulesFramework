@@ -200,7 +200,7 @@ namespace ModulesFramework.Modules
                 SetSubmodulesActive(true);
                 OnActivate();
             }
-            else if (IsActive)
+            else if (!isActive && IsActive)
             {
                 SetSubmodulesActive(false);
                 Deactivate();
