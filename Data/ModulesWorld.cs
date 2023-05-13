@@ -133,7 +133,7 @@ namespace ModulesFramework.Data
             return localModule is { IsActive: true };
         }
 
-        public EcsModule? GetModule<T>() where T : EcsModule
+        public EcsModule GetModule<T>() where T : EcsModule
         {
             return GetModule(typeof(T));
         }
@@ -178,11 +178,11 @@ namespace ModulesFramework.Data
             return _modules.Values;
         }
 
-        public EcsModule? GetModule(Type moduleType)
+        public EcsModule GetModule(Type moduleType)
         {
             if (_modules.TryGetValue(moduleType, out var module))
                 return module;
-            return null;
+            throw new ModuleNotFoundException(moduleType);
         }
 
         internal IEnumerable<EcsModule> GetSubmodules(Type parent)
