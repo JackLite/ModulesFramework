@@ -82,7 +82,7 @@ public class StartupModule : EcsModule
 {
     protected override Task Setup()
     {
-        World.InitModule<BattleModule>(true);
+        world.InitModule<BattleModule>(true);
         return Task.CompletedTask;
     }
 }
@@ -217,13 +217,13 @@ public class StartupModule : EcsModule
     private readonly Dictionary<Type, object> _dependencies = new();
     protected override Task Setup()
     {
-        World.InitModule<BattleModule>(true);
+        world.InitModule<BattleModule>(true);
         // read settings from some JSON or anything else
         _dependencies[typeof(Settings)] = settings;
         return Task.CompletedTask;
     }
     
-    public override Dictionary GetDependency(Type t)
+    public override object GetDependency(Type t)
     {
         return _dependencies[t];
     }
@@ -282,8 +282,8 @@ public class StartupModule : EcsModule
     protected override Task Setup()
     {
         // load wallet from save
-        World.CreateOneData(wallet);
-        World.InitModule<BattleModule>(true);
+        world.CreateOneData(wallet);
+        world.InitModule<BattleModule>(true);
        _dependencies[typeof(Settings)] = settings;
         return Task.CompletedTask;
     }
