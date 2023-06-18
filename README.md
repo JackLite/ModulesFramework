@@ -82,7 +82,7 @@ public class StartupModule : EcsModule
 {
     protected override Task Setup()
     {
-        World.InitModule<BattleModule>(true);
+        world.InitModule<BattleModule>(true);
         return Task.CompletedTask;
     }
 }
@@ -217,13 +217,13 @@ public class StartupModule : EcsModule
     private readonly Dictionary<Type, object> _dependencies = new();
     protected override Task Setup()
     {
-        World.InitModule<BattleModule>(true);
+        world.InitModule<BattleModule>(true);
         // read settings from some JSON or anything else
         _dependencies[typeof(Settings)] = settings;
         return Task.CompletedTask;
     }
     
-    public override Dictionary GetDependency(Type t)
+    public override object GetDependency(Type t)
     {
         return _dependencies[t];
     }
@@ -282,8 +282,8 @@ public class StartupModule : EcsModule
     protected override Task Setup()
     {
         // load wallet from save
-        World.CreateOneData(wallet);
-        World.InitModule<BattleModule>(true);
+        world.CreateOneData(wallet);
+        world.InitModule<BattleModule>(true);
        _dependencies[typeof(Settings)] = settings;
         return Task.CompletedTask;
     }
@@ -376,6 +376,35 @@ systems.
 **Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()`
 so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
 **will not** be lost.
+
+### Submodules
+
+In the large project it will be good to keep thing as simple as possible. There is can be hundreds of dependencies and thousands of systems. To simplify complexity you can use submodules. 
+
+*Submodule* is just an another module but it has some differences. First of all submodule inherits dependencies from parent (and grandparent and so on).
+
+For creation of submodule you need just create module as usual and then add ```SubmoduleAttribute``` to it:
+
+```csharp
+[Submodule(typeof(ParentModule), initWithParent: true, activeWithParent: true)]
+public class LootModule : EcsModule {}
+```
+
+Parameters ```initWithParent``` and ```activeWithParent``` are optional and has ```true``` as default. So the second things about submodule is that they initialized and activated with parent module. You can turn off that behaviour by  ```initWithParent``` and ```activeWithParent```.
+
+The order of executing init and activate parent module and submodules below:
+1. Parent module calls setup;
+2. Submodule calls setup;
+3. Parent module ```IPreInitSystem``` and ```IInitSystem``` calls;
+4. Submodule ```IPreInitSystem``` and ```IInitSystem``` calls;
+5. Parent module activation (including ```IActivateSystem```);
+6. Submodule activation.
+
+The order of destroy:
+1. Submodule deactivation;
+2. Parent module deactivation;
+3. Submodule destroy;
+4. Parent module destroy.
 
 ## FAQ
 
@@ -646,10 +675,6 @@ was raised;
 
 - `EcsSystemAttribute` - mark that class is system.
 Takes one argument about to what module belongs the system;
-- `GlobalModuleAttribute` - mark that `EcsModule` is
-global;
-
-## Roadmap
-
-### v0.8.x
-- [ ] Submodules
+- `GlobalModuleAttribute` - mark that `EcsModule` is global;
+- `GlobalSystemAttribute` - mark that system not in module,
+so it will run all the time and can't contain any dependency but DataWorld;
