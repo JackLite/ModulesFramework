@@ -9,26 +9,56 @@ namespace ModulesFramework
     {
         private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
-        private readonly ModuleSystem _moduleSystem;
-        private readonly EmbeddedGlobalModule _embeddedGlobalModule;
+        private ModuleSystem[] _moduleSystems;
+        private EmbeddedGlobalModule _embeddedGlobalModule;
 
-        public DataWorld World { get; }
+        private DataWorld[] _worlds;
+        public DataWorld MainWorld => _worlds[0];
 
         public Ecs()
         {
-            World = new DataWorld();
-            _moduleSystem = new ModuleSystem(World.GetAllModules().ToArray());
+            CreateWorlds(1);
+            CreateEmbedded();
+        }
+
+        public Ecs(int worldsCount)
+        {
+            CreateWorlds(worldsCount);
+            CreateEmbedded();
+        }
+        
+        public DataWorld GetWorld(int index)
+        {
+            return _worlds[index];
+        }
+
+        private void CreateEmbedded()
+        {
             _embeddedGlobalModule = new EmbeddedGlobalModule();
-            _embeddedGlobalModule.InjectWorld(World);
+            _embeddedGlobalModule.InjectWorld(MainWorld);
+        }
+
+        private void CreateWorlds(int count)
+        {
+            _worlds = new DataWorld[count];
+            _moduleSystems = new ModuleSystem[count];
+            for (var i = 0; i < count; i++)
+            {
+                _worlds[i] = new DataWorld(i);
+                _moduleSystems[i] = new ModuleSystem(_worlds[i].GetAllModules().ToArray());
+            }
         }
 
         public async void Start()
         {
             await _embeddedGlobalModule.Init(true);
-            _globalModules = World.GetAllModules().Where(m => m.IsGlobal).ToArray();
-            foreach (var module in _globalModules)
+            foreach (var world in _worlds)
             {
-                await module.Init(true);
+                _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
+                foreach (var module in _globalModules)
+                {
+                    await module.Init(true);
+                }
             }
 
             _isInitialized = true;
@@ -40,43 +70,55 @@ namespace ModulesFramework
                 return;
             if (ExceptionsPool.TryPop(out var e))
                 throw e;
-            
+
             _embeddedGlobalModule.Run();
-            _moduleSystem.Run();
+            foreach (var system in _moduleSystems)
+            {
+                system.Run();
+            }
         }
 
         public void PostRun()
         {
             if (!_isInitialized)
                 return;
-            
+
             _embeddedGlobalModule.PostRun();
-            _moduleSystem.PostRun();
+            foreach (var system in _moduleSystems)
+            {
+                system.PostRun();
+            }
         }
 
         public void RunPhysic()
         {
             if (!_isInitialized)
                 return;
-            
+
             _embeddedGlobalModule.RunPhysics();
-            _moduleSystem.RunPhysic();
+            foreach (var system in _moduleSystems)
+            {
+                system.RunPhysic();
+            }
         }
 
         public void Destroy()
         {
             if (!_isInitialized)
                 return;
-            
-            foreach (var module in World.GetAllModules().Where(m => !m.IsSubmodule))
-            {
-                if (module.IsActive)
-                    module.SetActive(false);
 
-                if (module.IsInitialized)
-                    module.Destroy();
+            foreach (var world in _worlds)
+            {
+                foreach (var module in world.GetAllModules().Where(m => !m.IsSubmodule))
+                {
+                    if (module.IsActive)
+                        module.SetActive(false);
+
+                    if (module.IsInitialized)
+                        module.Destroy();
+                }
             }
-            
+
             _embeddedGlobalModule.Destroy();
         }
     }

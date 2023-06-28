@@ -138,9 +138,9 @@ namespace ModulesFramework.Data
             return GetModule(typeof(T));
         }
 
-        private void CtorModules()
+        private void CtorModules(int worldIndex)
         {
-            var modules = CreateAllEcsModules().ToDictionary(m => m.GetType(), m => m);
+            var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
                 _modules.Add(module.GetType(), module);
@@ -159,7 +159,7 @@ namespace ModulesFramework.Data
             }
         }
 
-        private IEnumerable<EcsModule> CreateAllEcsModules()
+        private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex)
         {
             var modules = AppDomain.CurrentDomain.GetAssemblies()
                 .SelectMany(a => a.GetTypes()
@@ -168,6 +168,8 @@ namespace ModulesFramework.Data
                     .Select(t => (EcsModule)Activator.CreateInstance(t)));
             foreach (var module in modules)
             {
+                if(!module.WorldIndex.Contains(worldIndex))
+                    continue;
                 module.InjectWorld(this);
                 yield return module;
             }

@@ -27,11 +27,11 @@ namespace ModulesFramework.Data
 
         internal event Action<Type, OneData>? OnOneDataCreated;
 
-        public DataWorld()
+        public DataWorld(int worldIndex)
         {
             _modules = new Dictionary<Type, EcsModule>();
             _submodules = new Dictionary<Type, List<EcsModule>>();
-            CtorModules();
+            CtorModules(worldIndex);
             _queriesPool = new Stack<Query>(128);
         }
 

@@ -33,6 +33,13 @@ namespace ModulesFramework.Modules
 #nullable enable
 
         private Type ConcreteType => GetType();
+        /// <summary>
+        ///     Set that marks to what world belongs this module.
+        ///     Be careful cause all systems in module will run once per world
+        ///     Note: probably you will never need this, but for some complex multiplayer games it will be
+        ///     necessary in host mode
+        /// </summary>
+        public virtual HashSet<int> WorldIndex => new HashSet<int>{0};
         public bool IsGlobal { get; }
         public bool IsInitialized { get; private set; }
         public bool IsActive { get; private set; }
