@@ -117,6 +117,15 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        public void RemoveAll<T>(int eid) where T : struct
+        {
+            GetEscTable<T>().RemoveAll(eid);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}", LogFilter.EntityModifications);
+            #endif
+            OnEntityChanged?.Invoke(eid);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponent<T>(int id) where T : struct
         {
@@ -215,6 +224,11 @@ namespace ModulesFramework.Data
         public Entity GetEntity(int id)
         {
             return _entitiesTable.GetData(id);
+        }
+
+        public Entity GetEntityByDenseIndex<T>(int denseIndex) where T : struct 
+        {
+            return GetEntity(GetEscTable<T>().GetEidByIndex(denseIndex));
         }
 
         public bool HasComponent<T>(int id) where T : struct

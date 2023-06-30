@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Exceptions;
 
@@ -22,6 +21,10 @@ namespace ModulesFramework.Data
 
         private DenseArray<int>?[] _newTableMap;
 
+        #if MODULES_DEBUG
+        private bool _isMultiple;
+        #endif
+
         public override EntityData[] EntitiesData => _entityData;
 
         public EcsTable()
@@ -35,6 +38,10 @@ namespace ModulesFramework.Data
 
         public void AddData(int eid, in T data)
         {
+            #if MODULES_DEBUG
+            if (_isMultiple)
+                throw new TableMultipleWrongUseException<T>();
+            #endif
             var index = _denseTable.AddData(data);
             while (eid >= _tableMap.Length)
             {
@@ -49,11 +56,18 @@ namespace ModulesFramework.Data
 
             _tableReverseMap[index] = eid;
             _tableMap[eid] = index;
-            _entityData[eid] = new EntityData { eid = eid, isActive = true };
+            _entityData[eid] = new EntityData
+            {
+                eid = eid,
+                isActive = true
+            };
         }
 
         public void AddNewData(int eid, T data)
         {
+            #if MODULES_DEBUG
+            _isMultiple = true;
+            #endif
             var index = _denseTable.AddData(data);
             while (eid >= _newTableMap.Length)
             {
@@ -85,6 +99,10 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetData(int eid)
         {
+            #if MODULES_DEBUG
+            if (_isMultiple)
+                throw new TableMultipleWrongUseException<T>();
+            #endif
             if (!Contains(eid))
                 throw new DataNotExistsInTableException<T>(eid);
             return ref _denseTable.At(_tableMap[eid]);
@@ -92,7 +110,7 @@ namespace ModulesFramework.Data
 
         public Span<int> GetMultipleDataIndices(int eid)
         {
-            if (!ContainsMultiple(eid))
+            if (!Contains(eid))
                 return Span<int>.Empty;
 
             return _newTableMap[eid].GetData();
@@ -119,6 +137,10 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Remove(int eid)
         {
+            #if MODULES_DEBUG
+            if (_isMultiple)
+                throw new TableMultipleWrongUseException<T>();
+            #endif
             if (!Contains(eid))
                 return;
             var index = _tableMap[eid];
@@ -132,7 +154,7 @@ namespace ModulesFramework.Data
 
         public void RemoveFirst(int eid)
         {
-            if (!ContainsMultiple(eid))
+            if (!Contains(eid))
                 return;
 
             var indices = GetMultipleDataIndices(eid);
@@ -149,6 +171,21 @@ namespace ModulesFramework.Data
             }
         }
 
+        public void RemoveAll(int eid)
+        {
+            if (!Contains(eid))
+                return;
+
+            var indices = GetMultipleDataIndices(eid);
+            foreach (var index in indices)
+            {
+                _denseTable.RemoveData(index);
+            }
+            _newTableMap[eid] = null;
+            ref var ed = ref _entityData[eid];
+            ed.isActive = false;
+        }
+
         /// <summary>
         /// Check if table contains entity
         /// </summary>
@@ -157,16 +194,26 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Contains(int eid)
         {
-            if (eid >= _tableMap.Length)
+            if (!ContainsSingle(eid) && !ContainsMultiple(eid))
                 return false;
-            return _entityData[eid].isActive;
+            return IsActive(eid);
         }
 
-        public bool ContainsMultiple(int eid)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ContainsSingle(int eid)
         {
-            if (eid >= _newTableMap.Length)
-                return false;
+            return eid < _tableMap.Length;
+        }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ContainsMultiple(int eid)
+        {
+            return eid < _newTableMap.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsActive(int eid)
+        {
             return _entityData[eid].isActive;
         }
 
@@ -178,6 +225,15 @@ namespace ModulesFramework.Data
         public Span<T> GetRawData()
         {
             return _denseTable.GetData();
+        }
+        
+        public int GetEidByIndex(int denseIndex)
+        {
+            #if MODULES_DEBUG
+            if (_isMultiple)
+                throw new TableMultipleWrongUseException<T>();
+            #endif
+            return _tableReverseMap[denseIndex];
         }
     }
 }

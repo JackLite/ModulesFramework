@@ -52,6 +52,12 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        public Entity RemoveAll<T>() where T : struct
+        {
+            World.RemoveAll<T>(Id);
+            return this;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Destroy()
         {
