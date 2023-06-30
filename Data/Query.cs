@@ -14,7 +14,7 @@ namespace ModulesFramework.Data
 
             private EcsTable _mainTable;
             private bool[] _inc;
-            
+
             public Query(DataWorld world)
             {
                 _world = world;
@@ -69,12 +69,54 @@ namespace ModulesFramework.Data
                 return this;
             }
 
+            public Query WhereAny<T>(Func<T, bool> customFilter) where T : struct
+            {
+                var table = _world.GetEscTable<T>();
+                for (var i = 0; i < _inc.Length; ++i)
+                {
+                    if (!_inc[i])
+                        continue;
+
+                    var indices = table.GetMultipleDataIndices(i);
+                    var inc = false;
+                    foreach (var index in indices)
+                    {
+                        inc |= customFilter.Invoke(table.At(index));
+                    }
+
+                    _inc[i] &= inc;
+                }
+
+                return this;
+            }
+            
+            public Query WhereAll<T>(Func<T, bool> customFilter) where T : struct
+            {
+                var table = _world.GetEscTable<T>();
+                for (var i = 0; i < _inc.Length; ++i)
+                {
+                    if (!_inc[i])
+                        continue;
+
+                    var indices = table.GetMultipleDataIndices(i);
+                    var inc = true;
+                    foreach (var index in indices)
+                    {
+                        inc &= customFilter.Invoke(table.At(index));
+                    }
+
+                    _inc[i] &= inc;
+                }
+
+                return this;
+            }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntitiesEnumerable GetEntities()
             {
                 return new EntitiesEnumerable(_mainTable.EntitiesData, _inc, _world);
             }
-            
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntityDataEnumerable GetEntitiesId()
             {
@@ -86,7 +128,7 @@ namespace ModulesFramework.Data
                 var table = _world.GetEscTable<T>();
                 return new ComponentsEnumerable<T>(table, _inc);
             }
-            
+
             public MultipleComponentsEnumerable<T> GetMultipleComponents<T>() where T : struct
             {
                 var table = _world.GetEscTable<T>();
@@ -142,7 +184,7 @@ namespace ModulesFramework.Data
                 {
                     return entity;
                 }
-                
+
                 throw new QuerySelectEntityException();
             }
 
@@ -161,7 +203,7 @@ namespace ModulesFramework.Data
                 {
                     count++;
                 }
-                
+
                 return count;
             }
         }
