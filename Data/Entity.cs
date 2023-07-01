@@ -79,5 +79,10 @@ namespace ModulesFramework.Data
             #endif
             return World.IsEntityAlive(this);
         }
+
+        public int Count<T>() where T : struct
+        {
+            return World.CountComponentsAt<T>(Id);
+        }
     }
 }

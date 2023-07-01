@@ -341,5 +341,10 @@ namespace ModulesFramework.Data
             if (_oneDatas.ContainsKey(typeof(T)))
                 _oneDatas.Remove(typeof(T));
         }
+
+        public int CountComponentsAt<T>(int eid) where T : struct
+        {
+            return GetEscTable<T>().GetMultipleDataLength(eid);
+        }
     }
 }
