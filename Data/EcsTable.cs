@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Exceptions;
 
@@ -6,8 +7,10 @@ namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
-        public abstract EntityData[] EntitiesData { get; }
-        public abstract object GetDataObject(int eid);
+        internal abstract EntityData[] EntitiesData { get; }
+        internal abstract bool IsMultiple { get; }
+        internal abstract object GetDataObject(int eid);
+        internal abstract void GetDataObjects(int eid, List<object> result);
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
         internal abstract void RemoveInternal(int eid);
@@ -21,11 +24,13 @@ namespace ModulesFramework.Data
         private EntityData[] _entityData;
 
         private DenseArray<int>?[] _newTableMap;
-        
+
         private bool _isMultiple;
         private bool _isUsed;
 
-        public override EntityData[] EntitiesData => _entityData;
+        internal override bool IsMultiple => _isMultiple;
+
+        internal override EntityData[] EntitiesData => _entityData;
 
         public EcsTable()
         {
@@ -111,7 +116,7 @@ namespace ModulesFramework.Data
 
             return _newTableMap[eid].GetData();
         }
-        
+
         public int GetMultipleDataLength(int eid)
         {
             CheckMultiple();
@@ -134,9 +139,26 @@ namespace ModulesFramework.Data
         /// <returns>Boxed struct T</returns>
         /// <seealso cref="GetData"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override object GetDataObject(int eid)
+        internal override object GetDataObject(int eid)
         {
             return _denseTable.At(_tableMap[eid]);
+        }
+        
+        /// <summary>
+        /// Only for internal usage!
+        /// This method is for debugging. You should never use it in production code.
+        /// </summary>
+        /// <param name="eid">Id of Entity</param>
+        /// <returns>Boxed struct T</returns>
+        /// <seealso cref="GetData"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override void GetDataObjects(int eid, List<object> result)
+        {
+            var indices = GetMultipleDataIndices(eid);
+            for (int i = 0; i < indices.Length; i++)
+            {
+                result.Add(At(indices[i]));
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -251,7 +273,7 @@ namespace ModulesFramework.Data
             CheckSingle();
             return _tableReverseMap[denseIndex];
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckSingle()
         {
@@ -260,7 +282,7 @@ namespace ModulesFramework.Data
                 throw new TableMultipleWrongUseException<T>();
             #endif
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckMultiple()
         {

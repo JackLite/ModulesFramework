@@ -26,7 +26,6 @@ namespace ModulesFramework.Modules
         private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
         private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
         private static readonly List<EcsModule> _globalModules = new List<EcsModule>();
-        private static Exception? _exception;
 
 #nullable disable
         protected DataWorld world;
@@ -78,8 +77,7 @@ namespace ModulesFramework.Modules
             }
             catch (Exception e)
             {
-                _exception = new Exception(e.Message, e);
-                ExceptionsPool.AddException(_exception);
+                world.Logger.RethrowException(e);
             }
         }
 
@@ -196,8 +194,6 @@ namespace ModulesFramework.Modules
             world.Logger.LogDebug($"Start {logMsgStart} module {GetType().Name}", LogFilter.ModulesFull);
             #endif
 
-            CheckException();
-
             if (!IsInitialized)
                 throw new ModuleNotInitializedException(ConcreteType);
 
@@ -272,7 +268,6 @@ namespace ModulesFramework.Modules
             if (!IsActive)
                 return;
 
-            CheckException();
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
@@ -293,7 +288,6 @@ namespace ModulesFramework.Modules
             if (!IsActive)
                 return;
 
-            CheckException();
             foreach (var p in _systemsArr)
             {
                 p.RunPhysic();
@@ -309,7 +303,6 @@ namespace ModulesFramework.Modules
             if (!IsActive)
                 return;
 
-            CheckException();
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
@@ -414,16 +407,6 @@ namespace ModulesFramework.Modules
             OnDestroy();
             DestroySystems();
             IsInitialized = false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void CheckException()
-        {
-            if (_exception == null)
-                return;
-            var exception = _exception;
-            _exception = null;
-            throw exception;
         }
 
         private void InsertDependencies(ISystem system, DataWorld world)

@@ -13,6 +13,7 @@ namespace ModulesFramework.Data
     {
         private readonly Dictionary<Type, EcsModule> _modules;
         private readonly Dictionary<Type, List<EcsModule>> _submodules;
+
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
         /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
@@ -43,13 +44,20 @@ namespace ModulesFramework.Data
 
         public async Task InitModuleAsync(Type moduleType, bool activateImmediately = false)
         {
-            var module = GetModule(moduleType);
-            #if MODULES_DEBUG
-            if (module == null) throw new ModuleNotFoundException(moduleType);
-            if (module.IsInitialized)
-                throw new ModuleAlreadyInitializedException(moduleType);
-            #endif
-            await module.Init(activateImmediately);
+            try
+            {
+                var module = GetModule(moduleType);
+                #if MODULES_DEBUG
+                if (module == null) throw new ModuleNotFoundException(moduleType);
+                if (module.IsInitialized)
+                    throw new ModuleAlreadyInitializedException(moduleType);
+                #endif
+                await module.Init(activateImmediately);
+            }
+            catch (Exception e)
+            {
+                Logger.RethrowException(e);
+            }
         }
 
         /// <summary>
@@ -168,7 +176,7 @@ namespace ModulesFramework.Data
                     .Select(t => (EcsModule)Activator.CreateInstance(t)));
             foreach (var module in modules)
             {
-                if(!module.WorldIndex.Contains(worldIndex))
+                if (!module.WorldIndex.Contains(worldIndex))
                     continue;
                 module.InjectWorld(this);
                 yield return module;
@@ -193,6 +201,5 @@ namespace ModulesFramework.Data
                 return _submodules[parent];
             return Array.Empty<EcsModule>();
         }
-        
     }
 }
