@@ -248,7 +248,7 @@ namespace ModulesFramework.Data
         {
             foreach (var table in _data.Values)
             {
-                table.Remove(id);
+                table.RemoveInternal(id);
             }
 
             _entitiesTable.Remove(id);

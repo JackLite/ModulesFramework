@@ -10,6 +10,7 @@ namespace ModulesFramework.Data
         public abstract object GetDataObject(int eid);
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
+        internal abstract void RemoveInternal(int eid);
     }
 
     public class EcsTable<T> : EcsTable where T : struct
@@ -21,9 +22,7 @@ namespace ModulesFramework.Data
 
         private DenseArray<int>?[] _newTableMap;
 
-        #if MODULES_DEBUG
         private bool _isMultiple;
-        #endif
 
         public override EntityData[] EntitiesData => _entityData;
 
@@ -141,6 +140,20 @@ namespace ModulesFramework.Data
             if (_isMultiple)
                 throw new TableMultipleWrongUseException<T>();
             #endif
+
+            RemoveSingle(eid);
+        }
+
+        internal override void RemoveInternal(int eid)
+        {
+            if (_isMultiple)
+                RemoveAll(eid);
+            else
+                RemoveSingle(eid);
+        }
+
+        private void RemoveSingle(int eid)
+        {
             if (!Contains(eid))
                 return;
             var index = _tableMap[eid];
@@ -181,6 +194,7 @@ namespace ModulesFramework.Data
             {
                 _denseTable.RemoveData(index);
             }
+
             _newTableMap[eid] = null;
             ref var ed = ref _entityData[eid];
             ed.isActive = false;
@@ -226,7 +240,7 @@ namespace ModulesFramework.Data
         {
             return _denseTable.GetData();
         }
-        
+
         public int GetEidByIndex(int denseIndex)
         {
             #if MODULES_DEBUG
