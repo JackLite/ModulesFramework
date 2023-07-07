@@ -129,10 +129,10 @@ namespace ModulesFramework.Data
                 return new ComponentsEnumerable<T>(table, _inc);
             }
 
-            public MultipleComponentsEnumerable<T> GetMultipleComponents<T>() where T : struct
+            public MultipleComponentsQueryEnumerable<T> GetMultipleComponents<T>() where T : struct
             {
                 var table = _world.GetEscTable<T>();
-                return new MultipleComponentsEnumerable<T>(table, _inc);
+                return new MultipleComponentsQueryEnumerable<T>(table, _inc);
             }
 
             public bool Any()

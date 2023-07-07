@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
 
 namespace ModulesFramework.Data
@@ -23,7 +24,7 @@ namespace ModulesFramework.Data
         private int[] _tableReverseMap;
         private EntityData[] _entityData;
 
-        private DenseArray<int>?[] _newTableMap;
+        private DenseArray<int>?[] _multipleTableMap;
 
         private bool _isMultiple;
         private bool _isUsed;
@@ -38,7 +39,7 @@ namespace ModulesFramework.Data
             _tableMap = new int[64];
             _tableReverseMap = new int[64];
             _entityData = new EntityData[64];
-            _newTableMap = new DenseArray<int>[64];
+            _multipleTableMap = new DenseArray<int>[64];
         }
 
         public void AddData(int eid, in T data)
@@ -72,9 +73,9 @@ namespace ModulesFramework.Data
             _isUsed = true;
             _isMultiple = true;
             var index = _denseTable.AddData(data);
-            while (eid >= _newTableMap.Length)
+            while (eid >= _multipleTableMap.Length)
             {
-                Array.Resize(ref _newTableMap, _newTableMap.Length * 2);
+                Array.Resize(ref _multipleTableMap, _multipleTableMap.Length * 2);
             }
 
             while (eid >= _entityData.Length)
@@ -82,9 +83,9 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _entityData, _entityData.Length * 2);
             }
 
-            _newTableMap[eid] ??= new DenseArray<int>();
+            _multipleTableMap[eid] ??= new DenseArray<int>();
 
-            _newTableMap[eid].AddData(index);
+            _multipleTableMap[eid].AddData(index);
             _entityData[eid] = new EntityData
             {
                 eid = eid,
@@ -114,7 +115,7 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 return Span<int>.Empty;
 
-            return _newTableMap[eid].GetData();
+            return _multipleTableMap[eid].GetData();
         }
 
         public int GetMultipleDataLength(int eid)
@@ -123,7 +124,7 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 return 0;
 
-            return _newTableMap[eid].Length;
+            return _multipleTableMap[eid].Length;
         }
 
         public ref T At(int index)
@@ -190,6 +191,16 @@ namespace ModulesFramework.Data
             ed.isActive = false;
         }
 
+        public void RemoveAt(int eid, int index)
+        {
+            CheckMultiple();
+            if (!Contains(eid))
+                return;
+            
+            _denseTable.RemoveData(index);
+            RemoveMultipleFromTableMap(eid, index);
+        }
+
         public void RemoveFirst(int eid)
         {
             CheckMultiple();
@@ -197,17 +208,26 @@ namespace ModulesFramework.Data
                 return;
 
             var indices = GetMultipleDataIndices(eid);
-            _denseTable.RemoveData(indices[0]);
-            if (_newTableMap[eid].Length == 1)
-            {
-                _newTableMap[eid] = null;
-                ref var ed = ref _entityData[eid];
-                ed.isActive = false;
-            }
+            var index = indices[0];
+            _denseTable.RemoveData(index);
+            RemoveMultipleFromTableMap(eid, index);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RemoveMultipleFromTableMap(int eid, int index)
+        {
+            if (_multipleTableMap[eid].Length == 1)
+                ClearMultipleForEntity(eid);
             else
-            {
-                _newTableMap[eid].RemoveData(0);
-            }
+                _multipleTableMap[eid].RemoveData(index);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ClearMultipleForEntity(int eid)
+        {
+            _multipleTableMap[eid] = null;
+            ref var ed = ref _entityData[eid];
+            ed.isActive = false;
         }
 
         public void RemoveAll(int eid)
@@ -222,9 +242,7 @@ namespace ModulesFramework.Data
                 _denseTable.RemoveData(index);
             }
 
-            _newTableMap[eid] = null;
-            ref var ed = ref _entityData[eid];
-            ed.isActive = false;
+            ClearMultipleForEntity(eid);
         }
 
         /// <summary>
@@ -240,6 +258,15 @@ namespace ModulesFramework.Data
             return IsActive(eid);
         }
 
+        public MultipleComponentsEnumerable<T> GetMultipleForEntity(int eid)
+        {
+            #if MODULES_DEBUG
+            if (_isUsed && !_isMultiple)
+                throw new TableSingleWrongUseException<T>();
+            #endif
+            return new MultipleComponentsEnumerable<T>(this, eid);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ContainsSingle(int eid)
         {
@@ -249,7 +276,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool ContainsMultiple(int eid)
         {
-            return eid < _newTableMap.Length;
+            return eid < _multipleTableMap.Length;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

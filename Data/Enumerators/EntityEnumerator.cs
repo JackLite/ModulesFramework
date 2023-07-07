@@ -43,7 +43,7 @@ namespace ModulesFramework.Data.Enumerators
                 ++_index;
             }
 
-            return _index < _pool.Length;
+            return _index <= _pool.Length;
         }
 
         public void Reset()

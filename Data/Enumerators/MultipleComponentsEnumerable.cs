@@ -3,17 +3,17 @@
     public readonly struct MultipleComponentsEnumerable<T> where T : struct
     {
         private readonly EcsTable<T> _table;
-        private readonly bool[] _filter;
+        private readonly int _eid;
 
-        public MultipleComponentsEnumerable(EcsTable<T> table, bool[] filter)
+        public MultipleComponentsEnumerable(EcsTable<T> table, int eid)
         {
             _table = table;
-            _filter = filter;
+            _eid = eid;
         }
         
         public MultipleComponentsEnumerator<T> GetEnumerator()
         {
-            return new MultipleComponentsEnumerator<T>(_table, _filter);
+            return new MultipleComponentsEnumerator<T>(_table, _eid);
         }
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Data.Enumerators;
 
 namespace ModulesFramework.Data
 {
@@ -17,6 +17,7 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity AddNewComponent<T>(T component) where T : struct
         {
             World.AddNewComponent(Id, component);
@@ -29,14 +30,22 @@ namespace ModulesFramework.Data
             return ref World.GetComponent<T>(Id);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<int> GetIndices<T>() where T : struct
         {
             return World.GetIndices<T>(Id);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponentAt<T>(int index) where T : struct
         {
             return ref World.GetComponentAt<T>(index);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public MultipleComponentsEnumerable<T> GetAll<T>() where T : struct
+        {
+            return World.GetAllComponents<T>(Id);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -46,12 +55,21 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity RemoveFirstComponent<T>() where T : struct
         {
             World.RemoveFirstComponent<T>(Id);
             return this;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Entity RemoveAt<T>(int index) where T : struct
+        {
+            World.RemoveAt<T>(Id, index);
+            return this;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity RemoveAll<T>() where T : struct
         {
             World.RemoveAll<T>(Id);
@@ -80,6 +98,7 @@ namespace ModulesFramework.Data
             return World.IsEntityAlive(this);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Count<T>() where T : struct
         {
             return World.CountComponentsAt<T>(Id);

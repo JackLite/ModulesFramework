@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Data.Enumerators;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
 #endif
@@ -117,6 +118,15 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        public void RemoveAt<T>(int eid, int index) where T : struct
+        {
+            GetEscTable<T>().RemoveAt(eid, index);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} at {index}", LogFilter.EntityModifications);
+            #endif
+            OnEntityChanged?.Invoke(eid);
+        }
+
         public void RemoveAll<T>(int eid) where T : struct
         {
             GetEscTable<T>().RemoveAll(eid);
@@ -132,14 +142,22 @@ namespace ModulesFramework.Data
             return ref GetEscTable<T>().GetData(id);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<int> GetIndices<T>(int eid) where T : struct
         {
             return GetEscTable<T>().GetMultipleDataIndices(eid);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponentAt<T>(int index) where T : struct
         {
             return ref GetEscTable<T>().At(index);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public MultipleComponentsEnumerable<T> GetAllComponents<T>(int eid) where T : struct
+        {
+            return GetEscTable<T>().GetMultipleForEntity(eid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
