@@ -139,6 +139,10 @@ namespace ModulesFramework.Modules
             }
 
             IsInitialized = true;
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Call OnInit in {GetType().Name}", LogFilter.ModulesFull);
+            #endif
+            OnInit();
         }
 
         private void CreateSystems()
@@ -330,6 +334,13 @@ namespace ModulesFramework.Modules
         public virtual Task OnSetupEnd()
         {
             return Task.CompletedTask;
+        }
+        
+        /// <summary>
+        /// Calls after all <see cref="IPreInitSystem"/> and <see cref="IInitSystem"/> proceed
+        /// </summary>
+        public virtual void OnInit()
+        {
         }
 
         /// <summary>
