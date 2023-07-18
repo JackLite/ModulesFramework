@@ -4,11 +4,11 @@ namespace ModulesFramework.Data.Enumerators
 {
     public struct EntityDataEnumerator
     {
-        private readonly EntityData[] _pool;
+        private readonly bool[] _pool;
         private readonly bool[] _filter;
         private int _index;
 
-        internal EntityDataEnumerator(EntityData[] pool, bool[] filter)
+        internal EntityDataEnumerator(bool[] pool, bool[] filter)
         {
             _pool = pool;
             _filter = filter;
@@ -22,7 +22,7 @@ namespace ModulesFramework.Data.Enumerators
                 if (_pool == null || _index == 0)
                     throw new InvalidOperationException();
                 
-                return _pool[_index - 1].eid;
+                return _index - 1;
             }
         }
 
@@ -34,8 +34,8 @@ namespace ModulesFramework.Data.Enumerators
                 var outOfRange = _index > _pool.Length;
                 if (outOfRange)
                     break;
-                var isActive = _pool[_index - 1].isActive;
-                var eid = _pool[_index - 1].eid;
+                var isActive = _pool[_index - 1];
+                var eid = _index - 1;
                 if (isActive && _filter[eid])
                     break;
                 ++_index;

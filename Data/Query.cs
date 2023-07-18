@@ -13,7 +13,7 @@ namespace ModulesFramework.Data
             private readonly DataWorld _world;
 
             private EcsTable _mainTable;
-            private bool[] _inc;
+            private bool[] _inc = new bool[64];
 
             public Query(DataWorld world)
             {
@@ -23,9 +23,12 @@ namespace ModulesFramework.Data
             internal void Init(EcsTable table)
             {
                 _mainTable = table;
-                _inc = new bool[_mainTable.EntitiesData.Length];
                 for (var i = 0; i < _inc.Length; ++i)
-                    _inc[i] = _mainTable.EntitiesData[i].isActive;
+                    _inc[i] = false;
+
+                if (_inc.Length < _mainTable.ActiveEntities.Length)
+                    _inc = new bool[_mainTable.ActiveEntities.Length];
+                Array.Copy(_mainTable.ActiveEntities, _inc, _mainTable.ActiveEntities.Length);
             }
 
             public void Dispose()
@@ -89,7 +92,7 @@ namespace ModulesFramework.Data
 
                 return this;
             }
-            
+
             public Query WhereAll<T>(Func<T, bool> customFilter) where T : struct
             {
                 var table = _world.GetEscTable<T>();
@@ -114,13 +117,13 @@ namespace ModulesFramework.Data
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntitiesEnumerable GetEntities()
             {
-                return new EntitiesEnumerable(_mainTable.EntitiesData, _inc, _world);
+                return new EntitiesEnumerable(_mainTable.ActiveEntities, _inc, _world);
             }
 
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntityDataEnumerable GetEntitiesId()
             {
-                return new EntityDataEnumerable(_mainTable.EntitiesData, _inc);
+                return new EntityDataEnumerable(_mainTable.ActiveEntities, _inc);
             }
 
             public ComponentsEnumerable<T> GetComponents<T>() where T : struct

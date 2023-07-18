@@ -77,6 +77,7 @@ namespace ModulesFramework.Data
                 Logger.LogWarning($"Component {typeof(T).Name} exists in {eid.ToString()} entity and will be replaced");
             #endif
 
+            table.Remove(eid);
             table.AddData(eid, component);
 
             #if MODULES_DEBUG

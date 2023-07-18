@@ -8,7 +8,7 @@ namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
-        internal abstract EntityData[] EntitiesData { get; }
+        internal abstract bool[] ActiveEntities { get; }
         internal abstract bool IsMultiple { get; }
         internal abstract object GetDataObject(int eid);
         internal abstract void GetDataObjects(int eid, List<object> result);
@@ -22,7 +22,7 @@ namespace ModulesFramework.Data
         private readonly DenseArray<T> _denseTable;
         private int[] _tableMap;
         private int[] _tableReverseMap;
-        private EntityData[] _entityData;
+        private bool[] _entities;
 
         private DenseArray<int>?[] _multipleTableMap;
 
@@ -31,14 +31,14 @@ namespace ModulesFramework.Data
 
         internal override bool IsMultiple => _isMultiple;
 
-        internal override EntityData[] EntitiesData => _entityData;
+        internal override bool[] ActiveEntities => _entities;
 
         public EcsTable()
         {
             _denseTable = new DenseArray<T>();
             _tableMap = new int[64];
             _tableReverseMap = new int[64];
-            _entityData = new EntityData[64];
+            _entities = new bool[64];
             _multipleTableMap = new DenseArray<int>[64];
         }
 
@@ -50,7 +50,7 @@ namespace ModulesFramework.Data
             while (eid >= _tableMap.Length)
             {
                 Array.Resize(ref _tableMap, _tableMap.Length * 2);
-                Array.Resize(ref _entityData, _tableMap.Length);
+                Array.Resize(ref _entities, _tableMap.Length);
             }
 
             if (index >= _tableReverseMap.Length)
@@ -60,11 +60,7 @@ namespace ModulesFramework.Data
 
             _tableReverseMap[index] = eid;
             _tableMap[eid] = index;
-            _entityData[eid] = new EntityData
-            {
-                eid = eid,
-                isActive = true
-            };
+            _entities[eid] = true;
         }
 
         public void AddNewData(int eid, T data)
@@ -78,19 +74,15 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _multipleTableMap, _multipleTableMap.Length * 2);
             }
 
-            while (eid >= _entityData.Length)
+            while (eid >= _entities.Length)
             {
-                Array.Resize(ref _entityData, _entityData.Length * 2);
+                Array.Resize(ref _entities, _entities.Length * 2);
             }
 
             _multipleTableMap[eid] ??= new DenseArray<int>();
 
             _multipleTableMap[eid].AddData(index);
-            _entityData[eid] = new EntityData
-            {
-                eid = eid,
-                isActive = true
-            };
+            _entities[eid] = true;
         }
 
         /// <summary>
@@ -187,8 +179,7 @@ namespace ModulesFramework.Data
             var updateEid = _tableReverseMap[_denseTable.Length];
             _tableReverseMap[index] = updateEid;
             _tableMap[updateEid] = index;
-            ref var ed = ref _entityData[eid];
-            ed.isActive = false;
+            _entities[eid] = false;
         }
 
         public void RemoveAt(int eid, int index)
@@ -226,8 +217,7 @@ namespace ModulesFramework.Data
         private void ClearMultipleForEntity(int eid)
         {
             _multipleTableMap[eid] = null;
-            ref var ed = ref _entityData[eid];
-            ed.isActive = false;
+            _entities[eid] = false;
         }
 
         public void RemoveAll(int eid)
@@ -282,7 +272,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsActive(int eid)
         {
-            return _entityData[eid].isActive;
+            return _entities[eid];
         }
 
         /// <summary>

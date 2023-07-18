@@ -22,7 +22,7 @@ namespace ModulesFramework.Data.Enumerators
                 if (_index == 0 || _table == null)
                     throw new InvalidOperationException();
 
-                var eid = _table.EntitiesData[_index - 1].eid;
+                var eid = _index - 1;
                 return ref _table.GetData(eid);
             }
         }
@@ -32,17 +32,17 @@ namespace ModulesFramework.Data.Enumerators
             ++_index;
             while (true)
             {
-                var outOfRange = _index > _table.EntitiesData.Length;
+                var outOfRange = _index > _table.ActiveEntities.Length;
                 if (outOfRange)
                     break;
-                var isActive = _table.EntitiesData[_index - 1].isActive;
-                var eid = _table.EntitiesData[_index - 1].eid;
+                var isActive = _table.ActiveEntities[_index - 1];
+                var eid = _index - 1;
                 if (isActive && _filter[eid])
                     break;
                 ++_index;
             }
 
-            return _index <= _table.EntitiesData.Length;
+            return _index <= _table.ActiveEntities.Length;
         }
 
         public void Reset()
