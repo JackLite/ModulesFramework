@@ -37,6 +37,11 @@ namespace ModulesFramework
             LogDebug(msg);
         }
 
+        public void RethrowException(Exception e)
+        {
+            throw e;
+        }
+
         public void SetLogType(LogFilter logFilter)
         {
             _logFilter = logFilter;

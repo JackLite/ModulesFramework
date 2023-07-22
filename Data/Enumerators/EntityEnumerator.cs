@@ -7,9 +7,9 @@ namespace ModulesFramework.Data.Enumerators
         private readonly bool[] _filter;
         private readonly DataWorld _world;
         private int _index;
-        private readonly EntityData[] _pool;
+        private readonly bool[] _pool;
 
-        internal EntityEnumerator(EntityData[] entities, bool[] filter, DataWorld world)
+        internal EntityEnumerator(bool[] entities, bool[] filter, DataWorld world)
         {
             _pool = entities;
             _filter = filter;
@@ -24,7 +24,7 @@ namespace ModulesFramework.Data.Enumerators
                 if (_filter == null || _index == 0)
                     throw new InvalidOperationException();
                 
-                return _world.GetEntity(_pool[_index - 1].eid);
+                return _world.GetEntity(_index - 1);
             }
         }
 
@@ -36,14 +36,14 @@ namespace ModulesFramework.Data.Enumerators
                 var outOfRange = _index > _pool.Length;
                 if (outOfRange)
                     break;
-                var isActive = _pool[_index - 1].isActive;
-                var eid = _pool[_index - 1].eid;
+                var isActive = _pool[_index - 1];
+                var eid = _index - 1;
                 if (isActive && _filter[eid])
                     break;
                 ++_index;
             }
 
-            return _index < _pool.Length;
+            return _index <= _pool.Length;
         }
 
         public void Reset()

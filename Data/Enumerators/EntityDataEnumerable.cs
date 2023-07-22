@@ -2,10 +2,10 @@
 {
     public readonly struct EntityDataEnumerable
     {
-        private readonly EntityData[] _data;
+        private readonly bool[] _data;
         private readonly bool[] _filter;
 
-        public EntityDataEnumerable(EntityData[] data, bool[] filter)
+        public EntityDataEnumerable(bool[] data, bool[] filter)
         {
             _data = data;
             _filter = filter;

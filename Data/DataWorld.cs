@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Data.Enumerators;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
 #endif
@@ -27,11 +28,11 @@ namespace ModulesFramework.Data
 
         internal event Action<Type, OneData>? OnOneDataCreated;
 
-        public DataWorld()
+        public DataWorld(int worldIndex)
         {
             _modules = new Dictionary<Type, EcsModule>();
             _submodules = new Dictionary<Type, List<EcsModule>>();
-            CtorModules();
+            CtorModules(worldIndex);
             _queriesPool = new Stack<Query>(128);
         }
 
@@ -69,13 +70,14 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddComponent<T>(int eid, T component) where T : struct
         {
-            var table = GetEscTable<T>();
+            var table = GetEcsTable<T>();
 
             #if !MODULES_OPT
             if (table.Contains(eid))
                 Logger.LogWarning($"Component {typeof(T).Name} exists in {eid.ToString()} entity and will be replaced");
             #endif
 
+            table.Remove(eid);
             table.AddData(eid, component);
 
             #if MODULES_DEBUG
@@ -85,12 +87,52 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        public void AddNewComponent<T>(int eid, T component) where T : struct
+        {
+            var table = GetEcsTable<T>();
+
+            table.AddNewData(eid, component);
+
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Add to {eid.ToString()} new {typeof(T).Name} component", LogFilter.EntityModifications);
+            #endif
+
+            OnEntityChanged?.Invoke(eid);
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveComponent<T>(int eid) where T : struct
         {
-            GetEscTable<T>().Remove(eid);
+            GetEcsTable<T>().Remove(eid);
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
+            #endif
+            OnEntityChanged?.Invoke(eid);
+        }
+
+        public void RemoveFirstComponent<T>(int eid) where T : struct
+        {
+            GetEcsTable<T>().RemoveFirst(eid);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component", LogFilter.EntityModifications);
+            #endif
+            OnEntityChanged?.Invoke(eid);
+        }
+
+        public void RemoveAt<T>(int eid, int index) where T : struct
+        {
+            GetEcsTable<T>().RemoveAt(eid, index);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} at {index}", LogFilter.EntityModifications);
+            #endif
+            OnEntityChanged?.Invoke(eid);
+        }
+
+        public void RemoveAll<T>(int eid) where T : struct
+        {
+            GetEcsTable<T>().RemoveAll(eid);
+            #if MODULES_DEBUG
+            Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}", LogFilter.EntityModifications);
             #endif
             OnEntityChanged?.Invoke(eid);
         }
@@ -98,7 +140,25 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponent<T>(int id) where T : struct
         {
-            return ref GetEscTable<T>().GetData(id);
+            return ref GetEcsTable<T>().GetData(id);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Span<int> GetIndices<T>(int eid) where T : struct
+        {
+            return GetEcsTable<T>().GetMultipleDataIndices(eid);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T GetComponentAt<T>(int index) where T : struct
+        {
+            return ref GetEcsTable<T>().At(index);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public MultipleComponentsEnumerable<T> GetAllComponents<T>(int eid) where T : struct
+        {
+            return GetEcsTable<T>().GetMultipleForEntity(eid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -116,7 +176,7 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public EcsTable<T> GetEscTable<T>() where T : struct
+        public EcsTable<T> GetEcsTable<T>() where T : struct
         {
             CreateTableIfNeed<T>();
             return (EcsTable<T>)_data[typeof(T)];
@@ -124,20 +184,20 @@ namespace ModulesFramework.Data
 
         public Span<T> GetRawData<T>() where T : struct
         {
-            return GetEscTable<T>().GetRawData();
+            return GetEcsTable<T>().GetRawData();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Query Select<T>() where T : struct
         {
-            var table = GetEscTable<T>();
+            var table = GetEcsTable<T>();
             return GetQuery(table);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Exist<T>() where T : struct
         {
-            var table = GetEscTable<T>();
+            var table = GetEcsTable<T>();
             var query = GetQuery(table);
             return query.Any();
         }
@@ -145,7 +205,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool TrySelectFirst<T>(out T c) where T : struct
         {
-            var table = GetEscTable<T>();
+            var table = GetEcsTable<T>();
             var query = GetQuery(table);
             return query.TrySelectFirst(out c);
         }
@@ -185,9 +245,14 @@ namespace ModulesFramework.Data
             return _entitiesTable.GetData(id);
         }
 
+        internal Entity GetEntityByDenseIndex<T>(int denseIndex) where T : struct 
+        {
+            return GetEntity(GetEcsTable<T>().GetEidByIndex(denseIndex));
+        }
+
         public bool HasComponent<T>(int id) where T : struct
         {
-            return GetEscTable<T>().Contains(id);
+            return GetEcsTable<T>().Contains(id);
         }
 
         public bool HasComponent(int eid, Type componentType)
@@ -202,7 +267,7 @@ namespace ModulesFramework.Data
         {
             foreach (var table in _data.Values)
             {
-                table.Remove(id);
+                table.RemoveInternal(id);
             }
 
             _entitiesTable.Remove(id);
@@ -294,6 +359,11 @@ namespace ModulesFramework.Data
         {
             if (_oneDatas.ContainsKey(typeof(T)))
                 _oneDatas.Remove(typeof(T));
+        }
+
+        public int CountComponentsAt<T>(int eid) where T : struct
+        {
+            return GetEcsTable<T>().GetMultipleDataLength(eid);
         }
     }
 }

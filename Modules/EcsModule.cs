@@ -26,13 +26,19 @@ namespace ModulesFramework.Modules
         private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
         private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
         private static readonly List<EcsModule> _globalModules = new List<EcsModule>();
-        private static Exception? _exception;
 
 #nullable disable
         protected DataWorld world;
 #nullable enable
 
         private Type ConcreteType => GetType();
+        /// <summary>
+        ///     Set that marks to what world belongs this module.
+        ///     Be careful cause all systems in module will run once per world
+        ///     Note: probably you will never need this, but for some complex multiplayer games it will be
+        ///     necessary in host mode
+        /// </summary>
+        public virtual HashSet<int> WorldIndex => new HashSet<int>{0};
         public bool IsGlobal { get; }
         public bool IsInitialized { get; private set; }
         public bool IsActive { get; private set; }
@@ -71,8 +77,7 @@ namespace ModulesFramework.Modules
             }
             catch (Exception e)
             {
-                _exception = new Exception(e.Message, e);
-                ExceptionsPool.AddException(_exception);
+                world.Logger.RethrowException(e);
             }
         }
 
@@ -134,6 +139,10 @@ namespace ModulesFramework.Modules
             }
 
             IsInitialized = true;
+            #if MODULES_DEBUG
+            world.Logger.LogDebug($"Call OnInit in {GetType().Name}", LogFilter.ModulesFull);
+            #endif
+            OnInit();
         }
 
         private void CreateSystems()
@@ -188,8 +197,6 @@ namespace ModulesFramework.Modules
             var logMsgStart = isActive ? "activate" : "deactivate";
             world.Logger.LogDebug($"Start {logMsgStart} module {GetType().Name}", LogFilter.ModulesFull);
             #endif
-
-            CheckException();
 
             if (!IsInitialized)
                 throw new ModuleNotInitializedException(ConcreteType);
@@ -265,7 +272,6 @@ namespace ModulesFramework.Modules
             if (!IsActive)
                 return;
 
-            CheckException();
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
@@ -286,7 +292,6 @@ namespace ModulesFramework.Modules
             if (!IsActive)
                 return;
 
-            CheckException();
             foreach (var p in _systemsArr)
             {
                 p.RunPhysic();
@@ -302,7 +307,6 @@ namespace ModulesFramework.Modules
             if (!IsActive)
                 return;
 
-            CheckException();
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
@@ -330,6 +334,13 @@ namespace ModulesFramework.Modules
         public virtual Task OnSetupEnd()
         {
             return Task.CompletedTask;
+        }
+        
+        /// <summary>
+        /// Calls after all <see cref="IPreInitSystem"/> and <see cref="IInitSystem"/> proceed
+        /// </summary>
+        public virtual void OnInit()
+        {
         }
 
         /// <summary>
@@ -407,16 +418,6 @@ namespace ModulesFramework.Modules
             OnDestroy();
             DestroySystems();
             IsInitialized = false;
-        }
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void CheckException()
-        {
-            if (_exception == null)
-                return;
-            var exception = _exception;
-            _exception = null;
-            throw exception;
         }
 
         private void InsertDependencies(ISystem system, DataWorld world)

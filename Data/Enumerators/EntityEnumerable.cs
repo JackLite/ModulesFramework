@@ -2,20 +2,20 @@
 {
     public readonly struct EntitiesEnumerable
     {
-        private readonly EntityData[] _entities;
+        private readonly bool[] _active;
         private readonly bool[] _inc;
         private readonly DataWorld _world;
 
-        public EntitiesEnumerable(EntityData[] entities, bool[] inc, DataWorld world)
+        public EntitiesEnumerable(bool[] active, bool[] inc, DataWorld world)
         {
-            _entities = entities;
+            _active = active;
             _inc = inc;
             _world = world;
         }
         
         public EntityEnumerator GetEnumerator()
         {
-            return new EntityEnumerator(_entities, _inc, _world);
+            return new EntityEnumerator(_active, _inc, _world);
         }
     }
 }

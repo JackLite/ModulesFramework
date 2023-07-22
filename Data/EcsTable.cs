@@ -1,15 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
 
 namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
-        public abstract EntityData[] EntitiesData { get; }
-        public abstract object GetDataObject(int eid);
+        internal abstract bool[] ActiveEntities { get; }
+        internal abstract bool IsMultiple { get; }
+        internal abstract object GetDataObject(int eid);
+        internal abstract void GetDataObjects(int eid, List<object> result);
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
+        internal abstract void RemoveInternal(int eid);
     }
 
     public class EcsTable<T> : EcsTable where T : struct
@@ -17,36 +22,74 @@ namespace ModulesFramework.Data
         private readonly DenseArray<T> _denseTable;
         private int[] _tableMap;
         private int[] _tableReverseMap;
-        private EntityData[] _entityData;
+        private bool[] _entities;
 
-        public override EntityData[] EntitiesData => _entityData;
+        private DenseArray<int>?[] _multipleTableMap;
+
+        private bool _isMultiple;
+        private bool _isUsed;
+
+        internal override bool IsMultiple => _isMultiple;
+
+        internal override bool[] ActiveEntities => _entities;
 
         public EcsTable()
         {
             _denseTable = new DenseArray<T>();
             _tableMap = new int[64];
             _tableReverseMap = new int[64];
-            _entityData = new EntityData[64];
+            _entities = new bool[64];
+            _multipleTableMap = new DenseArray<int>[64];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        /// <summary>
+        ///     Add component to the entity by entity id
+        ///     If component exists it will NOT be replaced so be careful
+        /// </summary>
         public void AddData(int eid, in T data)
         {
+            CheckSingle();
+            _isUsed = true;
             var index = _denseTable.AddData(data);
             while (eid >= _tableMap.Length)
             {
                 Array.Resize(ref _tableMap, _tableMap.Length * 2);
-                Array.Resize(ref _entityData, _tableMap.Length);
+                Array.Resize(ref _entities, _tableMap.Length);
             }
 
-            if (index >= _tableReverseMap.Length)
+            while (index >= _tableReverseMap.Length)
             {
                 Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
             }
 
             _tableReverseMap[index] = eid;
             _tableMap[eid] = index;
-            _entityData[eid] = new EntityData { eid = eid, isActive = true };
+            _entities[eid] = true;
+        }
+
+        /// <summary>
+        ///     Add new multiple component to entity by entity id
+        /// </summary>
+        public void AddNewData(int eid, T data)
+        {
+            CheckMultiple();
+            _isUsed = true;
+            _isMultiple = true;
+            var index = _denseTable.AddData(data);
+            while (eid >= _multipleTableMap.Length)
+            {
+                Array.Resize(ref _multipleTableMap, _multipleTableMap.Length * 2);
+            }
+
+            while (eid >= _entities.Length)
+            {
+                Array.Resize(ref _entities, _entities.Length * 2);
+            }
+
+            _multipleTableMap[eid] ??= new DenseArray<int>();
+
+            _multipleTableMap[eid].AddData(index);
+            _entities[eid] = true;
         }
 
         /// <summary>
@@ -59,9 +102,46 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetData(int eid)
         {
+            CheckSingle();
             if (!Contains(eid))
                 throw new DataNotExistsInTableException<T>(eid);
             return ref _denseTable.At(_tableMap[eid]);
+        }
+
+        /// <summary>
+        ///     Returns indices of internal components array for entity id
+        ///     It allows to get data by <see cref="At"/>
+        ///     Note: only for multiple components
+        /// </summary>
+        /// <param name="eid">Id of entity</param>
+        /// <returns>Span of indices</returns>
+        public Span<int> GetMultipleDataIndices(int eid)
+        {
+            CheckMultiple();
+            if (!Contains(eid))
+                return Span<int>.Empty;
+
+            return _multipleTableMap[eid].GetData();
+        }
+
+        /// <summary>
+        ///     Returns counts of multiple components at entity
+        /// </summary>
+        public int GetMultipleDataLength(int eid)
+        {
+            CheckMultiple();
+            if (!Contains(eid))
+                return 0;
+
+            return _multipleTableMap[eid].Length;
+        }
+
+        /// <summary>
+        ///     Return component by internal index
+        /// </summary>
+        public ref T At(int index)
+        {
+            return ref _denseTable.At(index);
         }
 
         /// <summary>
@@ -72,14 +152,49 @@ namespace ModulesFramework.Data
         /// <returns>Boxed struct T</returns>
         /// <seealso cref="GetData"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public override object GetDataObject(int eid)
+        internal override object GetDataObject(int eid)
         {
             return _denseTable.At(_tableMap[eid]);
         }
+        
+        /// <summary>
+        /// Only for internal usage!
+        /// This method is for debugging. You should never use it in production code.
+        /// </summary>
+        /// <param name="eid">Id of Entity</param>
+        /// <returns>Boxed struct T</returns>
+        /// <seealso cref="GetData"/>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override void GetDataObjects(int eid, List<object> result)
+        {
+            var indices = GetMultipleDataIndices(eid);
+            for (int i = 0; i < indices.Length; i++)
+            {
+                result.Add(At(indices[i]));
+            }
+        }
 
+        /// <summary>
+        ///     Remove component from entity by entity id
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Remove(int eid)
         {
+            CheckSingle();
+            RemoveSingle(eid);
+        }
+
+        internal override void RemoveInternal(int eid)
+        {
+            if (_isMultiple)
+                RemoveAll(eid);
+            else
+                RemoveSingle(eid);
+        }
+
+        private void RemoveSingle(int eid)
+        {
+            CheckSingle();
             if (!Contains(eid))
                 return;
             var index = _tableMap[eid];
@@ -87,9 +202,69 @@ namespace ModulesFramework.Data
             var updateEid = _tableReverseMap[_denseTable.Length];
             _tableReverseMap[index] = updateEid;
             _tableMap[updateEid] = index;
-            _tableMap[eid] = int.MaxValue;
-            ref var ed = ref _entityData[eid];
-            ed.isActive = false;
+            _entities[eid] = false;
+        }
+
+        /// <summary>
+        ///     Remove multiple component from entity by specific index
+        /// </summary>
+        public void RemoveAt(int eid, int index)
+        {
+            CheckMultiple();
+            if (!Contains(eid))
+                return;
+            
+            _denseTable.RemoveData(index);
+            RemoveMultipleFromTableMap(eid, index);
+        }
+
+        /// <summary>
+        ///     Remove first component from entity by entity id
+        /// </summary>
+        public void RemoveFirst(int eid)
+        {
+            CheckMultiple();
+            if (!Contains(eid))
+                return;
+
+            var indices = GetMultipleDataIndices(eid);
+            var index = indices[0];
+            _denseTable.RemoveData(index);
+            RemoveMultipleFromTableMap(eid, index);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RemoveMultipleFromTableMap(int eid, int index)
+        {
+            if (_multipleTableMap[eid].Length == 1)
+                ClearMultipleForEntity(eid);
+            else
+                _multipleTableMap[eid].RemoveData(index);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void ClearMultipleForEntity(int eid)
+        {
+            _multipleTableMap[eid] = null;
+            _entities[eid] = false;
+        }
+
+        /// <summary>
+        ///     Remove all multiple components from entity by entity id
+        /// </summary>
+        public void RemoveAll(int eid)
+        {
+            CheckMultiple();
+            if (!Contains(eid))
+                return;
+
+            var indices = GetMultipleDataIndices(eid);
+            foreach (var index in indices)
+            {
+                _denseTable.RemoveData(index);
+            }
+
+            ClearMultipleForEntity(eid);
         }
 
         /// <summary>
@@ -100,9 +275,39 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override bool Contains(int eid)
         {
-            if (eid >= _tableMap.Length)
+            if (!ContainsSingle(eid) && !ContainsMultiple(eid))
                 return false;
-            return _entityData[eid].isActive;
+            return IsActive(eid);
+        }
+
+        /// <summary>
+        ///     Return enumerable for iteration through multiple component at entity
+        /// </summary>
+        public MultipleComponentsEnumerable<T> GetMultipleForEntity(int eid)
+        {
+            #if MODULES_DEBUG
+            if (_isUsed && !_isMultiple)
+                throw new TableSingleWrongUseException<T>();
+            #endif
+            return new MultipleComponentsEnumerable<T>(this, eid);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ContainsSingle(int eid)
+        {
+            return eid < _tableMap.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool ContainsMultiple(int eid)
+        {
+            return eid < _multipleTableMap.Length;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private bool IsActive(int eid)
+        {
+            return _entities[eid];
         }
 
         /// <summary>
@@ -113,6 +318,30 @@ namespace ModulesFramework.Data
         public Span<T> GetRawData()
         {
             return _denseTable.GetData();
+        }
+
+        internal int GetEidByIndex(int denseIndex)
+        {
+            CheckSingle();
+            return _tableReverseMap[denseIndex];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CheckSingle()
+        {
+            #if MODULES_DEBUG
+            if (_isMultiple)
+                throw new TableMultipleWrongUseException<T>();
+            #endif
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void CheckMultiple()
+        {
+            #if MODULES_DEBUG
+            if (_isUsed && !_isMultiple)
+                throw new TableSingleWrongUseException<T>();
+            #endif
         }
     }
 }

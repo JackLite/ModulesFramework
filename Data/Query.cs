@@ -13,8 +13,8 @@ namespace ModulesFramework.Data
             private readonly DataWorld _world;
 
             private EcsTable _mainTable;
-            private bool[] _inc;
-            
+            private bool[] _inc = new bool[64];
+
             public Query(DataWorld world)
             {
                 _world = world;
@@ -23,9 +23,12 @@ namespace ModulesFramework.Data
             internal void Init(EcsTable table)
             {
                 _mainTable = table;
-                _inc = new bool[_mainTable.EntitiesData.Length];
                 for (var i = 0; i < _inc.Length; ++i)
-                    _inc[i] = _mainTable.EntitiesData[i].isActive;
+                    _inc[i] = false;
+
+                if (_inc.Length < _mainTable.ActiveEntities.Length)
+                    _inc = new bool[_mainTable.ActiveEntities.Length];
+                Array.Copy(_mainTable.ActiveEntities, _inc, _mainTable.ActiveEntities.Length);
             }
 
             public void Dispose()
@@ -35,7 +38,7 @@ namespace ModulesFramework.Data
 
             public Query With<T>() where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (_inc[i])
@@ -47,7 +50,7 @@ namespace ModulesFramework.Data
 
             public Query Without<T>() where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (_inc[i])
@@ -59,7 +62,7 @@ namespace ModulesFramework.Data
 
             public Query Where<T>(Func<T, bool> customFilter) where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (_inc[i])
@@ -69,22 +72,70 @@ namespace ModulesFramework.Data
                 return this;
             }
 
+            public Query WhereAny<T>(Func<T, bool> customFilter) where T : struct
+            {
+                var table = _world.GetEcsTable<T>();
+                for (var i = 0; i < _inc.Length; ++i)
+                {
+                    if (!_inc[i])
+                        continue;
+
+                    var indices = table.GetMultipleDataIndices(i);
+                    var inc = false;
+                    foreach (var index in indices)
+                    {
+                        inc |= customFilter.Invoke(table.At(index));
+                    }
+
+                    _inc[i] &= inc;
+                }
+
+                return this;
+            }
+
+            public Query WhereAll<T>(Func<T, bool> customFilter) where T : struct
+            {
+                var table = _world.GetEcsTable<T>();
+                for (var i = 0; i < _inc.Length; ++i)
+                {
+                    if (!_inc[i])
+                        continue;
+
+                    var indices = table.GetMultipleDataIndices(i);
+                    var inc = true;
+                    foreach (var index in indices)
+                    {
+                        inc &= customFilter.Invoke(table.At(index));
+                    }
+
+                    _inc[i] &= inc;
+                }
+
+                return this;
+            }
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntitiesEnumerable GetEntities()
             {
-                return new EntitiesEnumerable(_mainTable.EntitiesData, _inc, _world);
+                return new EntitiesEnumerable(_mainTable.ActiveEntities, _inc, _world);
             }
-            
+
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             public EntityDataEnumerable GetEntitiesId()
             {
-                return new EntityDataEnumerable(_mainTable.EntitiesData, _inc);
+                return new EntityDataEnumerable(_mainTable.ActiveEntities, _inc);
             }
 
             public ComponentsEnumerable<T> GetComponents<T>() where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 return new ComponentsEnumerable<T>(table, _inc);
+            }
+
+            public MultipleComponentsQueryEnumerable<T> GetMultipleComponents<T>() where T : struct
+            {
+                var table = _world.GetEcsTable<T>();
+                return new MultipleComponentsQueryEnumerable<T>(table, _inc);
             }
 
             public bool Any()
@@ -136,7 +187,7 @@ namespace ModulesFramework.Data
                 {
                     return entity;
                 }
-                
+
                 throw new QuerySelectEntityException();
             }
 
@@ -155,7 +206,7 @@ namespace ModulesFramework.Data
                 {
                     count++;
                 }
-                
+
                 return count;
             }
         }

@@ -1,4 +1,6 @@
-﻿namespace ModulesFramework
+﻿using System;
+
+namespace ModulesFramework
 {
     public interface IModulesLogger
     {
@@ -10,6 +12,7 @@
 
         public void LogError(string msg);
         public void LogError(object msg);
+        public void RethrowException(Exception e);
         void SetLogType(LogFilter logFilter);
     }
 }
