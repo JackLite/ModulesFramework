@@ -38,7 +38,7 @@ namespace ModulesFramework.Data
 
             public Query With<T>() where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (_inc[i])
@@ -50,7 +50,7 @@ namespace ModulesFramework.Data
 
             public Query Without<T>() where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (_inc[i])
@@ -62,7 +62,7 @@ namespace ModulesFramework.Data
 
             public Query Where<T>(Func<T, bool> customFilter) where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (_inc[i])
@@ -74,7 +74,7 @@ namespace ModulesFramework.Data
 
             public Query WhereAny<T>(Func<T, bool> customFilter) where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (!_inc[i])
@@ -95,7 +95,7 @@ namespace ModulesFramework.Data
 
             public Query WhereAll<T>(Func<T, bool> customFilter) where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (!_inc[i])
@@ -128,13 +128,13 @@ namespace ModulesFramework.Data
 
             public ComponentsEnumerable<T> GetComponents<T>() where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 return new ComponentsEnumerable<T>(table, _inc);
             }
 
             public MultipleComponentsQueryEnumerable<T> GetMultipleComponents<T>() where T : struct
             {
-                var table = _world.GetEscTable<T>();
+                var table = _world.GetEcsTable<T>();
                 return new MultipleComponentsQueryEnumerable<T>(table, _inc);
             }
 

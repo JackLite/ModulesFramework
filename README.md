@@ -406,13 +406,85 @@ The order of destroy:
 3. Submodule destroy;
 4. Parent module destroy.
 
+### Multiple Components
+What if you making the cool dynamic game with a lot of thins that happened simultaneously. Hundreds of entities fighting each other, long term effects continiously damage everyone. Base on who damage who the AI change the aggression or healing or buffing. And by the way the damage type can be different. So you need to know value of damage, it's type and source.
+
+```csharp
+public struct Damage 
+{
+    public float value;
+    public DamageType type;
+    public Entity source;
+}
+```
+
+Then you add this component to damaged entity. After that every frame you process alive entities with damage and health components. And everything seems fine. But what if more then one damage component will be added? In MF like in some other frameworks the damage component will be replaced by the new one. Thus previous damage will be lost. Sounds not good.
+
+You can find different ways to workaround. For example it's not a bad idea to convert component's fields to arrays. However the MF introduce concept of the Multiple Components.
+
+Please use this feature very accurate. Because it may overcomplicate the code you should use multiple components only when it has clear sense like with the damage or stacking buffs. 
+
+Multiple components have a different api in half of cases so you always know with what you work. Here is some examples:
+
+```csharp
+// add new components
+entity.AddNewComponent(damage1);
+entity.AddNewComponent(damage2);
+
+// get all multiple components from entity
+entity.GetAll<Damage>();
+
+// get indices of components at entity
+entity.GetIndices<Damage>();
+
+// remove component from entity by index
+entity.RemoveAt<Damage>(index);
+
+// remove all compnents
+entity.RemoveAll<Damage>();
+
+// iterate by query
+var query = world.Select<MultipleComponent>();
+foreach (ref var damage in query.GetMultipleComponents<Damage>()){}
+```
+In the cases like a `HasComponent<T>` multiple components behave like expected.
+
+### Multiple Worlds
+
+There are cases when you may want to have more then one worlds with their own modules or even with shared modules. For example for the host mode in online game. So all common logic will be in one world and local player logic in another. Anyway this feature is very rare need but because it's remove some unbreakable limits it's was added in core of MF.
+
+Here is example of working with worlds.
+```csharp
+// just pass number of worlds when creating Ecs object
+var ecs = new Ecs(2);
+
+// get second world
+var secondWorld = ecs.GetWorld(1); // 1 - index of world, starting from 0
+
+// get main world - it is the world on index 0
+var mainWorld = ecs.MainWorld
+var mainWorldOtherWay = ecs.GetWorld(0);
+```
+
+One module can be included in any count of worlds. By default modules include only in main world.
+
+```csharp
+public class SomeModule : EcsModule
+{
+    // here we override hash set of indices of worlds
+    public override HashSet<int> WorldIndex { get; } = new(){0, 1};
+}
+```
+
+**Note**: systems belong to module will run on every system. For example `IRunSystem`s run twice for module above. Same with all other systems. It allows to use same systems in different world making shared logic.
+
 ## FAQ
 
 ##### How to create an instance of system?
 
 You should never create instance of system by your own. 
 Just create a class, implement one ore more interfaces
-(see section [systems](#api-systems) in [API](#api)) and add `EcsSystem` attribute.
+(see section [systems](#api-systems) in [API](#z24api)) and add `EcsSystem` attribute.
 
 ```csharp
 [EcsSystem(typeof(MyModule))]
@@ -475,6 +547,44 @@ _world.CreateOneData(dataInstance);
 ref var data = ref _world.OneData<MyData>();
 ```
 
+## Best practice
+
+### Getting data
+
+Here's the range of speed of getting components:
+1. `GetRawData` - as fast as the simple array;
+2. getting ecs table and iterate through entities id from query - it is 7 times slower then first method but still very fast cause we get data from table itself;
+3. iterate through components by `Query.GetComponents<T>` - slightly slower then previous;
+4. iterate through entities and getting component from entity - this is teh slowest way cause every time we getting component from entity (or from world) MF checks if table exists.
+
+Note that this range has sense when there is thousands of components. In the other cases you can use any method.
+
+**Important**: you may want to workaround limit of `GetRawData` by storing entity inside of component. Still you can do this it's a very bad decision if you want to remove same component from this entity or destroy entity itself. Because components stores on dense array when some of them destroyed last component will be moved in place of removed. So you may miss some data. But even worse because `GetRawData` returns slide of dense array you may iterate some data twice! Consider using entities id and getting data from ecs table. It's safer and fast enough for the most cases. Still if you want to get access to entity and it's critical please let me know.
+
+### Multiple components
+
+Cause it may lead to very complex code you must use multiple components only when it simplify the way to make system. Do not use them when you not sure it's the best option.
+
+### Modules
+
+- follow "long initialization, fast activation" principle;
+- do not forget delete components when modules destroyed;
+- do not create very many small modules. Start with big one and separate them along project grow;
+- any global module must be strongly separated from any other global module;
+- feel free to expand module setup for your favorite DI; 
+
+### Systems
+
+- create OneData in IPreInit. Fill in IInit;
+- do not forget using IDeactivate when there is IActivate;
+- use services or static stateless utils for common logic;
+- make small systems (less then 100-200 code lines is good metric);
+
+### Query
+
+- use `using` keyword when you select components. It will safe memory and time;
+- start `Select<T>` from components with lesser count. It will reduce any `With<T>`, `Without<T>` and `Where` calls and iterations;
+
 ## <a id="api"></a>API
 
 ### EcsModule
@@ -496,8 +606,8 @@ only from its module but not from other global modules;
 - `object GetDependency(Type t)` - this method like above but must return
 one dependency by type. You can override method above or this. You also can
 use some third-party IoC container to manage dependencies;
-- `void OnSetupEnd()` - virtual method, calls when all dependencies updated before
-any systems of module;
+- `void OnSetupEnd()` - virtual method, calls when all dependencies updated before any systems of module;
+- `void OnInit()` - Calls after all `IPreInitSystem` and `IInitSystem` proceed but before activation if activated immediately;
 - `void OnActivate(), void OnDeactivate` - virtual methods
 that calls when you activate or deactivate module 
 (see `EcsWorld.ActivateModule<T>` and `EcsWorld.DeactivateModule<T>` );
@@ -539,7 +649,7 @@ Be careful: out parameter is not a reference.
 ##### Data
 
 - `Span<T> GetRawData<T>` - return raw span of components by
-type `T`. Use it for very fast iterations through components;
+type `T`. Use it for very fast iterations through components but do not allow to change entity.
 
 ##### Modules
 
@@ -590,7 +700,14 @@ By default no logs filtered.
 
 ### Entity
 
-- `Entity AddComponent(T)` - adds component `T` to `Entity`.
+- `int Id` - id of entity. You can always use entity id to get same things from world that you get from entity;
+- `bool IsAlive()` - checks if entity still exists. Use it when you stored the entity for a while;
+- `void Destroy()` - destroy entity;
+- `bool HasComponent<T>()` - return true if `T` bind to `Entity`;
+
+##### Add and remove single components
+
+- `Entity AddComponent(T)` - adds component `T` to `Entity`. If component exists this method removes old and add new;
   In fact it creates element in `EcsTable<T>` and bind it
   to entity by entity id. `T` is a struct;
 - `Entity RemoveComponent(T)` - removes component `T`
@@ -600,8 +717,17 @@ By default no logs filtered.
   at `Entity`. If there is no `T` returns `default`.
   Use `HasComponent<T>()` if you not sure. Also use
   more specific `Query` to avoid the case;
-- `bool HasComponent<T>()` - return true if `T` bind to `Entity`;
-- `void Destroy()` - destroy entity;
+
+##### Working with multiple components
+
+- `Entity AddNewComponent<T>(T component)` - adds component `T` to `Entity`. If component exists this method add one more component;
+- `Span<int> GetIndices<T>()` - returns indices of internal data where `T` components could be found for entity;
+- `ref T GetComponentAt<T>(int index)` - allows to get `T` component at the index;
+- `MultipleComponentsEnumerable<T> GetAll<T>()` - returns all `T` components from the entity;
+- `Entity RemoveFirstComponent<T>()` - removes first `T` component from entity. Helpful if you do not care about what exactly component need to remove;
+- `Entity RemoveAt<T>(int index)` - removes `T` component by given index;
+- `Entity RemoveAll<T>()` - removes all `T` components from entity;
+- `int Count<T>()` - returns count of `T` components for entity;
 
 ### Query
 
@@ -640,6 +766,9 @@ from query;
 - `int Count()` - count of entities corresponds to query;
 - `ComponentsEnumerable<T> GetComponents<T>` - return enumerable
 of components type `T` that filtered by query;
+- `MultipleComponentsQueryEnumerable<T> GetMultipleComponents<T>()` - returns enumerable to iterate through multiple components;
+- `Query WhereAll<T>(Func<T, bool> customFilter)` - allows to filter entities where all multiple components pass the filter;
+- `Query WhereAny<T>(Func<T, bool> customFilter)` - allows to filter entities where some of multiple components pass the filter;
 
 ### <a id="api-systems"></a>Systems
 
@@ -663,18 +792,21 @@ was raised;
 
 ### Ecs
 
-`Ecs` is a enter point to modules framework.
+`Ecs` is a entry point to modules framework.
 
-- `async void Start()` - init and activate all global modules;
+- `DataWorld MainWorld` - world at 0 index;
+- `async void Start()` - inits and activate all global modules (all exceptions checks internally);
 - `void Run()` - calls `Run()` on `IRunSystem`;
 - `void PostRun()` - calls `PostRun()` on `IPostRunSystem`;
 - `void RunPhysic()` - calls `RunPhysic()` on `IRunPhysicSystem`;
-- `void Destroy()` - destroy all modules;
+- `void Destroy()` - destroys all modules;
+- `DataWorld GetWorld(int index)` - returns world by index;
 
 ### Attributes
 
-- `EcsSystemAttribute` - mark that class is system.
+- `EcsSystemAttribute` - marks that class is system.
 Takes one argument about to what module belongs the system;
-- `GlobalModuleAttribute` - mark that `EcsModule` is global;
-- `GlobalSystemAttribute` - mark that system not in module,
+- `GlobalModuleAttribute` - marks that `EcsModule` is global;
+- `GlobalSystemAttribute` - marks that system not in module,
 so it will run all the time and can't contain any dependency but DataWorld;
+- `SubmoduleAttribute` - marks that module is a submodule of other module;

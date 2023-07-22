@@ -10,13 +10,20 @@ namespace ModulesFramework.Data
         public int Id { get; set; }
         public DataWorld World { get; set; }
 
+        /// <summary>
+        ///     Add component to entity
+        ///     If component exists it will be replaced
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity AddComponent<T>(T component) where T : struct
         {
             World.AddComponent(Id, component);
             return this;
         }
-
+        
+        /// <summary>
+        ///     Add new multiple component T to entity
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity AddNewComponent<T>(T component) where T : struct
         {
@@ -24,30 +31,47 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        /// <summary>
+        ///     Return component T from entity
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponent<T>() where T : struct
         {
             return ref World.GetComponent<T>(Id);
         }
 
+        /// <summary>
+        ///     Return internal indices of multiple components at entity
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<int> GetIndices<T>() where T : struct
         {
             return World.GetIndices<T>(Id);
         }
 
+        /// <summary>
+        ///     Get multiple component T from entity by internal index 
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponentAt<T>(int index) where T : struct
         {
             return ref World.GetComponentAt<T>(index);
         }
 
+        /// <summary>
+        ///     Return all T components from entity
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public MultipleComponentsEnumerable<T> GetAll<T>() where T : struct
         {
             return World.GetAllComponents<T>(Id);
         }
 
+        /// <summary>
+        ///     Remove T component from entity 
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity RemoveComponent<T>() where T : struct
         {
@@ -55,6 +79,9 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        /// <summary>
+        ///     Remove first multiple component from entity
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity RemoveFirstComponent<T>() where T : struct
         {
@@ -62,6 +89,9 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        /// <summary>
+        ///     Remove multiple component from entity by specific index
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity RemoveAt<T>(int index) where T : struct
         {
@@ -69,6 +99,9 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        /// <summary>
+        ///     Remove all T multiple components from entity
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity RemoveAll<T>() where T : struct
         {
@@ -76,18 +109,28 @@ namespace ModulesFramework.Data
             return this;
         }
 
+        /// <summary>
+        ///     Destroy entity and removes all it's components from tables
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Destroy()
         {
             World.DestroyEntity(Id);
         }
 
+        /// <summary>
+        ///     Return true if entity has component
+        ///     Note: it works the same way for multiple components
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool HasComponent<T>() where T : struct
         {
             return World.HasComponent<T>(Id);
         }
 
+        /// <summary>
+        ///     Return true if entity was not destroyed
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsAlive()
         {
@@ -98,6 +141,9 @@ namespace ModulesFramework.Data
             return World.IsEntityAlive(this);
         }
 
+        /// <summary>
+        ///     Returns count of T components on entity
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Count<T>() where T : struct
         {

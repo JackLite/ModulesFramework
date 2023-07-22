@@ -42,6 +42,10 @@ namespace ModulesFramework.Data
             _multipleTableMap = new DenseArray<int>[64];
         }
 
+        /// <summary>
+        ///     Add component to the entity by entity id
+        ///     If component exists it will NOT be replaced so be careful
+        /// </summary>
         public void AddData(int eid, in T data)
         {
             CheckSingle();
@@ -53,7 +57,7 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _entities, _tableMap.Length);
             }
 
-            if (index >= _tableReverseMap.Length)
+            while (index >= _tableReverseMap.Length)
             {
                 Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
             }
@@ -63,6 +67,9 @@ namespace ModulesFramework.Data
             _entities[eid] = true;
         }
 
+        /// <summary>
+        ///     Add new multiple component to entity by entity id
+        /// </summary>
         public void AddNewData(int eid, T data)
         {
             CheckMultiple();
@@ -101,6 +108,13 @@ namespace ModulesFramework.Data
             return ref _denseTable.At(_tableMap[eid]);
         }
 
+        /// <summary>
+        ///     Returns indices of internal components array for entity id
+        ///     It allows to get data by <see cref="At"/>
+        ///     Note: only for multiple components
+        /// </summary>
+        /// <param name="eid">Id of entity</param>
+        /// <returns>Span of indices</returns>
         public Span<int> GetMultipleDataIndices(int eid)
         {
             CheckMultiple();
@@ -110,6 +124,9 @@ namespace ModulesFramework.Data
             return _multipleTableMap[eid].GetData();
         }
 
+        /// <summary>
+        ///     Returns counts of multiple components at entity
+        /// </summary>
         public int GetMultipleDataLength(int eid)
         {
             CheckMultiple();
@@ -119,6 +136,9 @@ namespace ModulesFramework.Data
             return _multipleTableMap[eid].Length;
         }
 
+        /// <summary>
+        ///     Return component by internal index
+        /// </summary>
         public ref T At(int index)
         {
             return ref _denseTable.At(index);
@@ -154,6 +174,9 @@ namespace ModulesFramework.Data
             }
         }
 
+        /// <summary>
+        ///     Remove component from entity by entity id
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public override void Remove(int eid)
         {
@@ -182,6 +205,9 @@ namespace ModulesFramework.Data
             _entities[eid] = false;
         }
 
+        /// <summary>
+        ///     Remove multiple component from entity by specific index
+        /// </summary>
         public void RemoveAt(int eid, int index)
         {
             CheckMultiple();
@@ -192,6 +218,9 @@ namespace ModulesFramework.Data
             RemoveMultipleFromTableMap(eid, index);
         }
 
+        /// <summary>
+        ///     Remove first component from entity by entity id
+        /// </summary>
         public void RemoveFirst(int eid)
         {
             CheckMultiple();
@@ -220,6 +249,9 @@ namespace ModulesFramework.Data
             _entities[eid] = false;
         }
 
+        /// <summary>
+        ///     Remove all multiple components from entity by entity id
+        /// </summary>
         public void RemoveAll(int eid)
         {
             CheckMultiple();
@@ -248,6 +280,9 @@ namespace ModulesFramework.Data
             return IsActive(eid);
         }
 
+        /// <summary>
+        ///     Return enumerable for iteration through multiple component at entity
+        /// </summary>
         public MultipleComponentsEnumerable<T> GetMultipleForEntity(int eid)
         {
             #if MODULES_DEBUG
@@ -285,7 +320,7 @@ namespace ModulesFramework.Data
             return _denseTable.GetData();
         }
 
-        public int GetEidByIndex(int denseIndex)
+        internal int GetEidByIndex(int denseIndex)
         {
             CheckSingle();
             return _tableReverseMap[denseIndex];
