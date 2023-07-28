@@ -117,7 +117,8 @@ namespace ModulesFramework.Data
         {
             GetEcsTable<T>().RemoveFirst(eid);
             #if MODULES_DEBUG
-            Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component", LogFilter.EntityModifications);
+            Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component",
+                LogFilter.EntityModifications);
             #endif
             OnEntityChanged?.Invoke(eid);
         }
@@ -126,7 +127,10 @@ namespace ModulesFramework.Data
         {
             GetEcsTable<T>().RemoveAt(eid, mtmIndex);
             #if MODULES_DEBUG
-            Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} at {index}", LogFilter.EntityModifications);
+            Logger.LogDebug(
+                $"Remove from {eid.ToString()} {typeof(T).Name} at multiple index {mtmIndex}",
+                LogFilter.EntityModifications
+            );
             #endif
             OnEntityChanged?.Invoke(eid);
         }
@@ -135,7 +139,8 @@ namespace ModulesFramework.Data
         {
             GetEcsTable<T>().RemoveAll(eid);
             #if MODULES_DEBUG
-            Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}", LogFilter.EntityModifications);
+            Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}",
+                LogFilter.EntityModifications);
             #endif
             OnEntityChanged?.Invoke(eid);
         }
