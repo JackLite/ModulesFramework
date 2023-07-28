@@ -90,16 +90,6 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        ///     Remove multiple component from entity by specific index
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal Entity RemoveAt<T>(int mtmIndex) where T : struct
-        {
-            World.RemoveAt<T>(Id, mtmIndex);
-            return this;
-        }
-
-        /// <summary>
         ///     Remove all T multiple components from entity
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

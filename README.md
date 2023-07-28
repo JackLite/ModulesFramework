@@ -434,11 +434,11 @@ entity.AddNewComponent(damage2);
 // get all multiple components from entity
 entity.GetAll<Damage>();
 
-// get indices of components at entity
-entity.GetIndices<Damage>();
+// get indices iterator of components at entity
+var indicesIt = entity.GetIndices<Damage>();
 
 // remove component from entity by index
-entity.RemoveAt<Damage>(index);
+indicesIt.RemoveAt<Damage>(index);
 
 // remove all compnents
 entity.RemoveAll<Damage>();
@@ -724,8 +724,6 @@ By default no logs filtered.
 - `Span<int> GetIndices<T>()` - returns indices of internal data where `T` components could be found for entity;
 - `ref T GetComponentAt<T>(int index)` - allows to get `T` component at the index;
 - `MultipleComponentsEnumerable<T> GetAll<T>()` - returns all `T` components from the entity;
-- `Entity RemoveFirstComponent<T>()` - removes first `T` component from entity. Helpful if you do not care about what exactly component need to remove;
-- `Entity RemoveAt<T>(int index)` - removes `T` component by given index;
 - `Entity RemoveAll<T>()` - removes all `T` components from entity;
 - `int Count<T>()` - returns count of `T` components for entity;
 
