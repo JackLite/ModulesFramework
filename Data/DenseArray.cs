@@ -33,11 +33,17 @@ namespace ModulesFramework.Data
 
         public void RemoveData(int index)
         {
+            if(index >= Length)
+                throw new ArgumentOutOfRangeException(nameof(index));
             Length--;
             _dataMem.Span[index] = _dataMem.Span[Length];
         }
 
-        public T this[int i] => _dataMem.Span[i];
+        public T this[int i]
+        {
+            get => _dataMem.Span[i];
+            set => _dataMem.Span[i] = value;
+        }
 
         public ref T At(int i)
         {

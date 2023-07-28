@@ -80,7 +80,7 @@ namespace ModulesFramework.Data
                     if (!_inc[i])
                         continue;
 
-                    var indices = table.GetMultipleDataIndices(i);
+                    var indices = table.GetMultipleDenseIndices(i);
                     var inc = false;
                     foreach (var index in indices)
                     {
@@ -101,7 +101,7 @@ namespace ModulesFramework.Data
                     if (!_inc[i])
                         continue;
 
-                    var indices = table.GetMultipleDataIndices(i);
+                    var indices = table.GetMultipleDenseIndices(i);
                     var inc = true;
                     foreach (var index in indices)
                     {

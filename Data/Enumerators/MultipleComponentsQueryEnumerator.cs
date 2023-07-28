@@ -25,7 +25,7 @@ namespace ModulesFramework.Data.Enumerators
                     throw new InvalidOperationException();
 
                 var eid = _index - 1;
-                var indices = _table.GetMultipleDataIndices(eid);
+                var indices = _table.GetMultipleDenseIndices(eid);
                 return ref _table.At(indices[_innerIndex - 1]);
             }
         }
@@ -37,7 +37,7 @@ namespace ModulesFramework.Data.Enumerators
             {
                 ++_innerIndex;
                 var eid = _index - 1;
-                var indices = _table.GetMultipleDataIndices(eid);
+                var indices = _table.GetMultipleDenseIndices(eid);
                 if (_innerIndex <= indices.Length)
                     return true;
             }
