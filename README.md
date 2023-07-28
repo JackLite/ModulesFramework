@@ -438,7 +438,7 @@ entity.GetAll<Damage>();
 var indicesIt = entity.GetIndices<Damage>();
 
 // remove component from entity by index
-indicesIt.RemoveAt<Damage>(index);
+indicesIt.RemoveAt(index);
 
 // remove all compnents
 entity.RemoveAll<Damage>();
