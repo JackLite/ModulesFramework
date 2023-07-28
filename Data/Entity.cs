@@ -41,10 +41,10 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        ///     Return internal indices of multiple components at entity
+        ///     Return enumerable of inner indices for multiple components
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<int> GetIndices<T>() where T : struct
+        public  MultipleComponentsIndicesEnumerable<T> GetIndices<T>() where T : struct
         {
             return World.GetIndices<T>(Id);
         }
@@ -53,9 +53,9 @@ namespace ModulesFramework.Data
         ///     Get multiple component T from entity by internal index 
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T GetComponentAt<T>(int index) where T : struct
+        public ref T GetComponentAt<T>(int mtmIndex) where T : struct
         {
-            return ref World.GetComponentAt<T>(index);
+            return ref World.GetComponentAt<T>(Id, mtmIndex);
         }
 
         /// <summary>
@@ -93,9 +93,9 @@ namespace ModulesFramework.Data
         ///     Remove multiple component from entity by specific index
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Entity RemoveAt<T>(int index) where T : struct
+        internal Entity RemoveAt<T>(int mtmIndex) where T : struct
         {
-            World.RemoveAt<T>(Id, index);
+            World.RemoveAt<T>(Id, mtmIndex);
             return this;
         }
 

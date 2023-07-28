@@ -21,9 +21,17 @@ namespace ModulesFramework.Data
     {
         private readonly DenseArray<T> _denseTable;
         private int[] _tableMap;
+
+        /// <summary>
+        ///     Dense index -> eid
+        /// </summary>
         private int[] _tableReverseMap;
+
         private bool[] _entities;
 
+        /// <summary>
+        ///     Eid -> dense indices
+        /// </summary>
         private DenseArray<int>?[] _multipleTableMap;
 
         private bool _isMultiple;
@@ -79,16 +87,18 @@ namespace ModulesFramework.Data
             while (eid >= _multipleTableMap.Length)
             {
                 Array.Resize(ref _multipleTableMap, _multipleTableMap.Length * 2);
+                Array.Resize(ref _entities, _entities.Length * 2);
             }
 
-            while (eid >= _entities.Length)
+            while (index >= _tableReverseMap.Length)
             {
-                Array.Resize(ref _entities, _entities.Length * 2);
+                Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
             }
 
             _multipleTableMap[eid] ??= new DenseArray<int>();
 
             _multipleTableMap[eid].AddData(index);
+            _tableReverseMap[index] = eid;
             _entities[eid] = true;
         }
 
@@ -110,17 +120,29 @@ namespace ModulesFramework.Data
 
         /// <summary>
         ///     Returns indices of internal components array for entity id
+        ///     It allows to get data by <see cref="MultipleAt"/>
+        ///     Note: only for multiple components
+        /// </summary>
+        /// <param name="eid">Id of entity</param>
+        /// <returns>Enumerable of indices with ability to delete in cycle</returns>
+        public MultipleComponentsIndicesEnumerable<T> GetMultipleIndices(int eid)
+        {
+            CheckMultiple();
+            return new MultipleComponentsIndicesEnumerable<T>(this, eid);
+        }
+
+
+        /// <summary>
+        ///     Returns internal indices of components array for entity id
         ///     It allows to get data by <see cref="At"/>
         ///     Note: only for multiple components
         /// </summary>
         /// <param name="eid">Id of entity</param>
         /// <returns>Span of indices</returns>
-        public Span<int> GetMultipleDataIndices(int eid)
+        public Span<int> GetMultipleDenseIndices(int eid)
         {
-            CheckMultiple();
             if (!Contains(eid))
                 return Span<int>.Empty;
-
             return _multipleTableMap[eid].GetData();
         }
 
@@ -145,6 +167,15 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
+        ///     Return component by internal multiple index
+        /// </summary>
+        public ref T MultipleAt(int eid, int mtmIndex)
+        {
+            CheckMultiple();
+            return ref _denseTable.At(_multipleTableMap[eid][mtmIndex]);
+        }
+
+        /// <summary>
         /// Only for internal usage!
         /// This method is for debugging. You should never use it in production code.
         /// </summary>
@@ -156,7 +187,7 @@ namespace ModulesFramework.Data
         {
             return _denseTable.At(_tableMap[eid]);
         }
-        
+
         /// <summary>
         /// Only for internal usage!
         /// This method is for debugging. You should never use it in production code.
@@ -167,10 +198,10 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override void GetDataObjects(int eid, List<object> result)
         {
-            var indices = GetMultipleDataIndices(eid);
-            for (int i = 0; i < indices.Length; i++)
+            var components = GetMultipleForEntity(eid);
+            foreach (var comp in components)
             {
-                result.Add(At(indices[i]));
+                result.Add(comp);
             }
         }
 
@@ -206,42 +237,63 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        ///     Remove multiple component from entity by specific index
+        ///     Remove multiple component from entity by multiple index (NOT dense index)
+        ///     <para>Note: you can use it with <seealso cref="GetMultipleIndices"/></para>
         /// </summary>
-        public void RemoveAt(int eid, int index)
+        internal void RemoveAt(int eid, int mtmIndex)
         {
             CheckMultiple();
             if (!Contains(eid))
                 return;
+
+            var map = _multipleTableMap[eid];
+            var denseIndex = map[mtmIndex];
+            _denseTable.RemoveData(denseIndex);
+            RemoveMultipleFromTableMap(eid, mtmIndex);
+
+            var affectedEid = _tableReverseMap[_denseTable.Length];
+            var affectedMap = _multipleTableMap[affectedEid];
+
+            UpdateMultipleMap(affectedMap, denseIndex);
+            UpdateMultipleMap(_multipleTableMap[eid], denseIndex);
+        }
+        
+        private void UpdateMultipleMap(DenseArray<int>? map, int denseIndex)
+        {
+            if (map == null)
+                return;
             
-            _denseTable.RemoveData(index);
-            RemoveMultipleFromTableMap(eid, index);
+            for (var i = 0; i < map.Length; i++)
+            {
+                if (map[i] == _denseTable.Length)
+                {
+                    map[i] = denseIndex;
+                    break;
+                }
+            }
         }
 
         /// <summary>
         ///     Remove first component from entity by entity id
         /// </summary>
-        public void RemoveFirst(int eid)
+        internal void RemoveFirst(int eid)
         {
             CheckMultiple();
             if (!Contains(eid))
                 return;
 
-            var indices = GetMultipleDataIndices(eid);
-            var index = indices[0];
-            _denseTable.RemoveData(index);
-            RemoveMultipleFromTableMap(eid, index);
+            RemoveAt(eid, 0);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private void RemoveMultipleFromTableMap(int eid, int index)
+        private void RemoveMultipleFromTableMap(int eid, int mtmIndex)
         {
             if (_multipleTableMap[eid].Length == 1)
                 ClearMultipleForEntity(eid);
             else
-                _multipleTableMap[eid].RemoveData(index);
+                _multipleTableMap[eid].RemoveData(mtmIndex);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ClearMultipleForEntity(int eid)
         {
@@ -258,10 +310,10 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 return;
 
-            var indices = GetMultipleDataIndices(eid);
+            var indices = GetMultipleIndices(eid);
             foreach (var index in indices)
             {
-                _denseTable.RemoveData(index);
+                indices.RemoveAt(index);
             }
 
             ClearMultipleForEntity(eid);

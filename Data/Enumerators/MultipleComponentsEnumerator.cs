@@ -22,7 +22,7 @@ namespace ModulesFramework.Data.Enumerators
                 if (_index == 0 || _table == null)
                     throw new InvalidOperationException();
 
-                var indices = _table.GetMultipleDataIndices(_eid);
+                var indices = _table.GetMultipleDenseIndices(_eid);
                 var index = indices[_index - 1];
                 return ref _table.At(index);
             }
@@ -31,7 +31,7 @@ namespace ModulesFramework.Data.Enumerators
         public bool MoveNext()
         {
             _index++;
-            var indices = _table.GetMultipleDataIndices(_eid);
+            var indices = _table.GetMultipleDenseIndices(_eid);
             return _index <= indices.Length;
         }
 

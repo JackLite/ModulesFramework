@@ -45,7 +45,10 @@ namespace ModulesFramework.Data
             if (_freeEid.Count == 0)
             {
                 entity.Id = _entityCount;
-                _generationsTable.AddData(entity.Id, new EntityGeneration { generation = 0 });
+                _generationsTable.AddData(entity.Id, new EntityGeneration
+                {
+                    generation = 0
+                });
                 entity.generation = 0;
                 ++_entityCount;
             }
@@ -119,9 +122,9 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
-        public void RemoveAt<T>(int eid, int index) where T : struct
+        internal void RemoveAt<T>(int eid, int mtmIndex) where T : struct
         {
-            GetEcsTable<T>().RemoveAt(eid, index);
+            GetEcsTable<T>().RemoveAt(eid, mtmIndex);
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} at {index}", LogFilter.EntityModifications);
             #endif
@@ -144,15 +147,15 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Span<int> GetIndices<T>(int eid) where T : struct
+        public MultipleComponentsIndicesEnumerable<T> GetIndices<T>(int eid) where T : struct
         {
-            return GetEcsTable<T>().GetMultipleDataIndices(eid);
+            return GetEcsTable<T>().GetMultipleIndices(eid);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T GetComponentAt<T>(int index) where T : struct
+        public ref T GetComponentAt<T>(int eid, int index) where T : struct
         {
-            return ref GetEcsTable<T>().At(index);
+            return ref GetEcsTable<T>().MultipleAt(eid, index);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -245,7 +248,7 @@ namespace ModulesFramework.Data
             return _entitiesTable.GetData(id);
         }
 
-        internal Entity GetEntityByDenseIndex<T>(int denseIndex) where T : struct 
+        internal Entity GetEntityByDenseIndex<T>(int denseIndex) where T : struct
         {
             return GetEntity(GetEcsTable<T>().GetEidByIndex(denseIndex));
         }
