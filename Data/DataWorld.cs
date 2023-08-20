@@ -189,6 +189,12 @@ namespace ModulesFramework.Data
             CreateTableIfNeed<T>();
             return (EcsTable<T>)_data[typeof(T)];
         }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal EcsTable GetEcsTable(Type type)
+        {
+            return _data[type];
+        }
 
         public Span<T> GetRawData<T>() where T : struct
         {

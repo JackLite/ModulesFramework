@@ -10,8 +10,11 @@ namespace ModulesFramework.Data
     {
         internal abstract bool[] ActiveEntities { get; }
         internal abstract bool IsMultiple { get; }
+        internal abstract Type Type { get; }
         internal abstract object GetDataObject(int eid);
-        internal abstract void GetDataObjects(int eid, List<object> result);
+        internal abstract object SetDataObject(int eid, object component);
+        internal abstract void GetDataObjects(int eid, Dictionary<int, object> result);
+        internal abstract void SetDataObjects(int eid, List<object> result);
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
         internal abstract void RemoveInternal(int eid);
@@ -40,6 +43,7 @@ namespace ModulesFramework.Data
         internal override bool IsMultiple => _isMultiple;
 
         internal override bool[] ActiveEntities => _entities;
+        internal override Type Type => typeof(T);
 
         public EcsTable()
         {
@@ -187,21 +191,38 @@ namespace ModulesFramework.Data
         {
             return _denseTable.At(_tableMap[eid]);
         }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override object SetDataObject(int eid, object component)
+        {
+            return _denseTable[_tableMap[eid]] = (T) component;
+        }
 
         /// <summary>
         /// Only for internal usage!
         /// This method is for debugging. You should never use it in production code.
         /// </summary>
         /// <param name="eid">Id of Entity</param>
-        /// <returns>Boxed struct T</returns>
         /// <seealso cref="GetData"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal override void GetDataObjects(int eid, List<object> result)
+        internal override void GetDataObjects(int eid, Dictionary<int, object> result)
         {
-            var components = GetMultipleForEntity(eid);
-            foreach (var comp in components)
+            var indices = GetMultipleDenseIndices(eid);
+            foreach (var index in indices)
             {
-                result.Add(comp);
+                var component = _denseTable.At(index);
+                result.Add(index, component);
+            }
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal override void SetDataObjects(int eid, List<object> newData)
+        {
+            var data = _multipleTableMap[eid].GetData();
+            for (var index = 0; index < data.Length; index++)
+            {
+                var denseIndex = data[index];
+                _denseTable[denseIndex] = (T)newData[index];
             }
         }
 
