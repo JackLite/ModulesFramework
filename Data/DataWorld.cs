@@ -368,6 +368,18 @@ namespace ModulesFramework.Data
             if (_oneDatas.ContainsKey(typeof(T)))
                 _oneDatas.Remove(typeof(T));
         }
+        
+        /// <summary>
+        ///     Check if one data exists. You do not need this check when you get one data
+        ///     cause it will be created with default fields. But in some cases you need to know if
+        ///     one data was created. For example if it created by some async operations and you can't use await.
+        /// </summary>
+        /// <typeparam name="T">Type of one data</typeparam>
+        /// <returns>True if created</returns>
+        public bool IsOneDataExists<T>() where T : struct
+        {
+            return _oneDatas.ContainsKey(typeof(T));
+        }
 
         public int CountComponentsAt<T>(int eid) where T : struct
         {
