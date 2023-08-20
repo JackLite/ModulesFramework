@@ -273,17 +273,17 @@ namespace ModulesFramework.Data
             RemoveMultipleFromTableMap(eid, mtmIndex);
 
             var affectedEid = _tableReverseMap[_denseTable.Length];
+            _tableReverseMap[denseIndex] = affectedEid;
             var affectedMap = _multipleTableMap[affectedEid];
 
             UpdateMultipleMap(affectedMap, denseIndex);
-            UpdateMultipleMap(_multipleTableMap[eid], denseIndex);
         }
-        
+
         private void UpdateMultipleMap(DenseArray<int>? map, int denseIndex)
         {
             if (map == null)
                 return;
-            
+
             for (var i = 0; i < map.Length; i++)
             {
                 if (map[i] == _denseTable.Length)
