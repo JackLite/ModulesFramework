@@ -27,6 +27,7 @@ namespace ModulesFramework.Data
         public event Action<int>? OnEntityDestroyed;
 
         internal event Action<Type, OneData>? OnOneDataCreated;
+        internal event Action<Type>? OnOneDataRemoved;
 
         public DataWorld(int worldIndex)
         {
@@ -188,6 +189,12 @@ namespace ModulesFramework.Data
         {
             CreateTableIfNeed<T>();
             return (EcsTable<T>)_data[typeof(T)];
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal EcsTable GetEcsTable(Type type)
+        {
+            return _data[type];
         }
 
         public Span<T> GetRawData<T>() where T : struct
@@ -366,9 +373,12 @@ namespace ModulesFramework.Data
         public void RemoveOneData<T>() where T : struct
         {
             if (_oneDatas.ContainsKey(typeof(T)))
+            {
                 _oneDatas.Remove(typeof(T));
+                OnOneDataRemoved?.Invoke(typeof(T));
+            }
         }
-        
+
         /// <summary>
         ///     Check if one data exists. You do not need this check when you get one data
         ///     cause it will be created with default fields. But in some cases you need to know if
