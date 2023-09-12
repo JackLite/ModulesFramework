@@ -30,19 +30,23 @@ namespace ModulesFramework.Data.Enumerators
         public bool MoveNext()
         {
             ++_index;
+            var eid = _index - 1;
             while (true)
             {
                 var outOfRange = _index > _table.ActiveEntities.Length;
                 if (outOfRange)
                     break;
+                
+                eid = _index - 1;
+                if (eid >= _filter.Length)
+                    break;
                 var isActive = _table.ActiveEntities[_index - 1];
-                var eid = _index - 1;
                 if (isActive && _filter[eid])
                     break;
                 ++_index;
             }
 
-            return _index <= _table.ActiveEntities.Length;
+            return _index <= _table.ActiveEntities.Length && eid < _filter.Length;
         }
 
         public void Reset()
