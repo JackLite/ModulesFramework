@@ -481,6 +481,16 @@ namespace ModulesFramework.Modules
                     field.SetValue(system, world);
                     continue;
                 }
+                
+                if (t.BaseType == typeof(OneData))
+                {
+                    var data = world.GetOneData(t);
+                    if (data == null)
+                        ThrowOneDataException(t);
+                    else
+                        field.SetValue(system, data);
+                    continue;
+                }
 
                 object? dependency = null;
                 foreach (var module in _globalModules)
