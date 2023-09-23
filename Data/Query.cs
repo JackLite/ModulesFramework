@@ -202,11 +202,11 @@ namespace ModulesFramework.Data
             public int Count()
             {
                 var count = 0;
-                foreach (var _ in GetEntitiesId())
+                foreach (var inc in _inc)
                 {
-                    count++;
+                    count += Convert.ToInt32(inc);
                 }
-
+                
                 return count;
             }
         }
