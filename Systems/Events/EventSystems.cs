@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using ModulesFramework.Data;
 
 namespace ModulesFramework.Systems.Events
 {
@@ -9,9 +10,15 @@ namespace ModulesFramework.Systems.Events
         private readonly Dictionary<Type, List<IEventSystem>> _systems =
             new Dictionary<Type, List<IEventSystem>>()
             {
-                { typeof(IRunEventSystem), new List<IEventSystem>(64) },
-                { typeof(IPostRunEventSystem), new List<IEventSystem>(64) },
-                { typeof(IFrameEndEventSystem), new List<IEventSystem>(64) }
+                {
+                    typeof(IRunEventSystem), new List<IEventSystem>(64)
+                },
+                {
+                    typeof(IPostRunEventSystem), new List<IEventSystem>(64)
+                },
+                {
+                    typeof(IFrameEndEventSystem), new List<IEventSystem>(64)
+                }
             };
 
         internal IEnumerable<Type> AllSystems => _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()));
@@ -20,58 +27,79 @@ namespace ModulesFramework.Systems.Events
         {
             _systems[typeof(IRunEventSystem)].Add(system);
         }
-        
+
         internal void AddPostRunEventSystem(IEventSystem system)
         {
             _systems[typeof(IPostRunEventSystem)].Add(system);
         }
-        
+
         internal void AddFrameEndEventSystem(IEventSystem system)
         {
             _systems[typeof(IFrameEndEventSystem)].Add(system);
         }
 
-        internal void HandleEvent<T>(T ev, Type eventSystemType) where T : struct
+        internal void HandleEvent<T>(T ev, Type eventSystemType, DataWorld world) where T : struct
         {
             if (eventSystemType == typeof(IRunEventSystem))
             {
-                RunEvent(ev);
+                RunEvent(ev, world);
                 return;
             }
 
             if (eventSystemType == typeof(IPostRunEventSystem))
             {
-                PostRunEvent(ev);
+                PostRunEvent(ev, world);
                 return;
             }
 
             if (eventSystemType == typeof(IFrameEndEventSystem))
             {
-                FrameEndEvent(ev);
+                FrameEndEvent(ev, world);
             }
         }
 
-        private void RunEvent<T>(T ev) where T : struct
+        private void RunEvent<T>(T ev, DataWorld world) where T : struct
         {
             foreach (var system in _systems[typeof(IRunEventSystem)])
             {
-                ((IRunEventSystem<T>)system).RunEvent(ev);
+                try
+                {
+                    ((IRunEventSystem<T>)system).RunEvent(ev);
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
             }
         }
 
-        private void PostRunEvent<T>(T ev) where T : struct
+        private void PostRunEvent<T>(T ev, DataWorld world) where T : struct
         {
             foreach (var system in _systems[typeof(IPostRunEventSystem)])
             {
-                ((IPostRunEventSystem<T>)system).PostRunEvent(ev);
+                try
+                {
+                    ((IPostRunEventSystem<T>)system).PostRunEvent(ev);
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
             }
         }
 
-        private void FrameEndEvent<T>(T ev) where T : struct
+        private void FrameEndEvent<T>(T ev, DataWorld world) where T : struct
         {
             foreach (var system in _systems[typeof(IFrameEndEventSystem)])
             {
-                ((IFrameEndEventSystem<T>)system).FrameEndEvent(ev);
+                try
+                {
+                    ((IFrameEndEventSystem<T>)system).FrameEndEvent(ev);
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
             }
         }
     }

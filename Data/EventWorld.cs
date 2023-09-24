@@ -47,7 +47,7 @@ namespace ModulesFramework.Data
                 _eventsHandlers[type] = new EventsHandler();
             foreach (var systemsGroup in _eventListeners[type])
             {
-                void Handler(Type systemType) => systemsGroup.HandleEvent(ev, systemType);
+                void Handler(Type systemType) => systemsGroup.HandleEvent(ev, systemType, this);
                 _eventsHandlers[type].AddHandler<IRunEventSystem>(Handler);
                 _eventsHandlers[type].AddHandler<IPostRunEventSystem>(Handler);
                 _eventsHandlers[type].AddHandler<IFrameEndEventSystem>(Handler);

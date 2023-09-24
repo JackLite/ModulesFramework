@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using ModulesFramework.Data;
-using ModulesFramework.Data.Events;
 using ModulesFramework.Systems.Events;
 
 namespace ModulesFramework.Systems
@@ -17,20 +15,15 @@ namespace ModulesFramework.Systems
 
         private static readonly Type[] _systemTypes = new Type[]
         {
-            typeof(IPreInitSystem),
-            typeof(IInitSystem),
-            typeof(IActivateSystem),
-            typeof(IRunSystem),
-            typeof(IRunPhysicSystem),
-            typeof(IPostRunSystem),
-            typeof(IDeactivateSystem),
-            typeof(IDestroySystem)
+            typeof(IPreInitSystem), typeof(IInitSystem), typeof(IActivateSystem), typeof(IRunSystem),
+            typeof(IRunPhysicSystem), typeof(IPostRunSystem), typeof(IDeactivateSystem), typeof(IDestroySystem)
         };
 
         internal IEnumerable<Type> EventTypes => _eventSystems.Keys;
 
-        internal IEnumerable<Type> AllSystems => _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()))
-            .Concat(_eventSystems.SelectMany(kvp => kvp.Value.AllSystems));
+        internal IEnumerable<Type> AllSystems =>
+            _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()))
+                .Concat(_eventSystems.SelectMany(kvp => kvp.Value.AllSystems));
 
         internal SystemsGroup()
         {
@@ -40,52 +33,124 @@ namespace ModulesFramework.Systems
             }
         }
 
-        internal void PreInit()
+        internal void PreInit(DataWorld world)
         {
             foreach (var s in _systems[typeof(IPreInitSystem)])
-                ((IPreInitSystem)s).PreInit();
+            {
+                try
+                {
+                    ((IPreInitSystem)s).PreInit();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
-        internal void Init()
+        internal void Init(DataWorld world)
         {
             foreach (var s in _systems[typeof(IInitSystem)])
-                ((IInitSystem)s).Init();
+            {
+                try
+                {
+                    ((IInitSystem)s).Init();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
-        internal void Activate()
+        internal void Activate(DataWorld world)
         {
             foreach (var s in _systems[typeof(IActivateSystem)])
-                ((IActivateSystem)s).Activate();
+            {
+                try
+                {
+                    ((IActivateSystem)s).Activate();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
-        internal void Run()
+        internal void Run(DataWorld world)
         {
             foreach (var s in _systems[typeof(IRunSystem)])
-                ((IRunSystem)s).Run();
+            {
+                try
+                {
+                    ((IRunSystem)s).Run();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
-        internal void RunPhysic()
+        internal void RunPhysic(DataWorld world)
         {
             foreach (var s in _systems[typeof(IRunPhysicSystem)])
-                ((IRunPhysicSystem)s).RunPhysic();
+            {
+                try
+                {
+                    ((IRunPhysicSystem)s).RunPhysic();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
-        internal void PostRun()
+        internal void PostRun(DataWorld world)
         {
             foreach (var s in _systems[typeof(IPostRunSystem)])
-                ((IPostRunSystem)s).PostRun();
+            {
+                try
+                {
+                    ((IPostRunSystem)s).PostRun();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
-        internal void Deactivate()
+        internal void Deactivate(DataWorld world)
         {
             foreach (var s in _systems[typeof(IDeactivateSystem)])
-                ((IDeactivateSystem)s).Deactivate();
+            {
+                try
+                {
+                    ((IDeactivateSystem)s).Deactivate();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
-        internal void Destroy()
+        internal void Destroy(DataWorld world)
         {
             foreach (var s in _systems[typeof(IDestroySystem)])
-                ((IDestroySystem)s).Destroy();
+            {
+                try
+                {
+                    ((IDestroySystem)s).Destroy();
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
         }
 
         internal void Add(ISystem s)
@@ -109,28 +174,27 @@ namespace ModulesFramework.Systems
                 if (isRun || isPostRun || isFrameEnd)
                 {
                     var eventType = type.GetGenericArguments()[0];
-                    if (!_eventSystems.ContainsKey(eventType))
-                        _eventSystems[eventType] = new EventSystems();
-                    
+                    _eventSystems.TryAdd(eventType, new EventSystems());
+
                     if (isRun)
                         _eventSystems[eventType].AddRunEventSystem(eventSystem);
-                    
+
                     if (isPostRun)
                         _eventSystems[eventType].AddPostRunEventSystem(eventSystem);
-                    
+
                     if (isFrameEnd)
                         _eventSystems[eventType].AddFrameEndEventSystem(eventSystem);
                 }
             }
         }
 
-        internal void HandleEvent<T>(T ev, Type eventSystemType) where T : struct
+        internal void HandleEvent<T>(T ev, Type eventSystemType, DataWorld world) where T : struct
         {
             var eventType = typeof(T);
             if (!_eventSystems.TryGetValue(eventType, out var systems))
                 return;
 
-            systems.HandleEvent(ev, eventSystemType);
+            systems.HandleEvent(ev, eventSystemType, world);
         }
     }
 }

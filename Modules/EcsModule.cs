@@ -32,13 +32,19 @@ namespace ModulesFramework.Modules
 #nullable enable
 
         private Type ConcreteType => GetType();
+
         /// <summary>
         ///     Set that marks to what world belongs this module.
         ///     Be careful cause all systems in module will run once per world
         ///     Note: probably you will never need this, but for some complex multiplayer games it will be
         ///     necessary in host mode
         /// </summary>
-        public virtual HashSet<int> WorldIndex => new HashSet<int>{0};
+        public virtual HashSet<int> WorldIndex =>
+            new HashSet<int>
+            {
+                0
+            };
+
         public bool IsGlobal { get; }
         public bool IsInitialized { get; private set; }
         public bool IsActive { get; private set; }
@@ -134,7 +140,7 @@ namespace ModulesFramework.Modules
             InitSystems();
             foreach (var submodule in world.GetSubmodules(ConcreteType))
             {
-                if(submodule.IsInitWithParent)
+                if (submodule.IsInitWithParent)
                     submodule.ProcessSystems();
             }
 
@@ -174,14 +180,14 @@ namespace ModulesFramework.Modules
             #endif
 
             foreach (var p in _systems)
-                p.Value.PreInit();
+                p.Value.PreInit(world);
 
             #if MODULES_DEBUG
             world.Logger.LogDebug($"Module {GetType().Name} systems init", LogFilter.SystemsInit);
             #endif
 
             foreach (var p in _systems)
-                p.Value.Init();
+                p.Value.Init(world);
 
             _systemsArr = _systems.Values.ToArray();
         }
@@ -238,7 +244,7 @@ namespace ModulesFramework.Modules
                     world.RegisterListener(eventType, p.Value);
                 }
 
-                p.Value.Activate();
+                p.Value.Activate(world);
             }
             #if MODULES_DEBUG
             world.Logger.LogDebug($"Call OnActivate in {GetType().Name}", LogFilter.ModulesFull);
@@ -253,7 +259,7 @@ namespace ModulesFramework.Modules
 
             foreach (var p in _systems)
             {
-                p.Value.Deactivate();
+                p.Value.Deactivate(world);
                 foreach (var eventType in p.Value.EventTypes)
                 {
                     world.UnregisterListener(eventType, p.Value);
@@ -277,10 +283,17 @@ namespace ModulesFramework.Modules
                 foreach (var eventType in p.EventTypes)
                 {
                     var handler = world.GetHandlers(eventType);
-                    handler.Run<IRunEventSystem>();
+                    try
+                    {
+                        handler.Run<IRunEventSystem>();
+                    }
+                    catch (Exception e)
+                    {
+                        world.Logger.RethrowException(e);
+                    }
                 }
 
-                p.Run();
+                p.Run(world);
             }
         }
 
@@ -294,7 +307,7 @@ namespace ModulesFramework.Modules
 
             foreach (var p in _systemsArr)
             {
-                p.RunPhysic();
+                p.RunPhysic(world);
             }
         }
 
@@ -315,7 +328,7 @@ namespace ModulesFramework.Modules
                     handler.Run<IPostRunEventSystem>();
                 }
 
-                p.PostRun();
+                p.PostRun(world);
             }
 
             foreach (var p in _systemsArr)
@@ -335,7 +348,7 @@ namespace ModulesFramework.Modules
         {
             return Task.CompletedTask;
         }
-        
+
         /// <summary>
         /// Calls after all <see cref="IPreInitSystem"/> and <see cref="IInitSystem"/> proceed
         /// </summary>
@@ -375,7 +388,7 @@ namespace ModulesFramework.Modules
 
             foreach (var p in _systems)
             {
-                p.Value.Destroy();
+                p.Value.Destroy(world);
             }
 
             _systems.Clear();
@@ -481,7 +494,7 @@ namespace ModulesFramework.Modules
                     field.SetValue(system, world);
                     continue;
                 }
-                
+
                 if (t.BaseType == typeof(OneData))
                 {
                     var data = world.GetOneData(t);
@@ -567,7 +580,7 @@ namespace ModulesFramework.Modules
 
             if (IsSubmodule)
             {
-                return  Parent.GetDependency(type);
+                return Parent.GetDependency(type);
             }
 
             return null;
