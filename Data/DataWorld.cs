@@ -17,7 +17,7 @@ namespace ModulesFramework.Data
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
         private readonly EcsTable<EntityGeneration> _generationsTable = new EcsTable<EntityGeneration>();
-        private readonly Stack<int> _freeEid = new Stack<int>(64);
+        private readonly Queue<int> _freeEid = new Queue<int>(64);
         private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
 
         private readonly Stack<Query> _queriesPool;
@@ -55,7 +55,7 @@ namespace ModulesFramework.Data
             }
             else
             {
-                entity.Id = _freeEid.Pop();
+                entity.Id = _freeEid.Dequeue();
                 ref var generation = ref _generationsTable.GetData(entity.Id);
                 generation.generation++;
                 entity.generation = generation.generation;
@@ -286,7 +286,7 @@ namespace ModulesFramework.Data
             }
 
             _entitiesTable.Remove(id);
-            _freeEid.Push(id);
+            _freeEid.Enqueue(id);
             #if MODULES_DEBUG
             Logger.LogDebug($"Entity {id.ToString()} destroyed", LogFilter.EntityLife);
             #endif
