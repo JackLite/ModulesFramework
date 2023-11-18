@@ -1,7 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
+using ModulesFramework.Data.QueryUtils;
 using ModulesFramework.Exceptions;
 
 namespace ModulesFramework.Data
@@ -23,8 +23,6 @@ namespace ModulesFramework.Data
             internal void Init(EcsTable table)
             {
                 _mainTable = table;
-                for (var i = 0; i < _inc.Length; ++i)
-                    _inc[i] = false;
 
                 if (_inc.Length < _mainTable.ActiveEntities.Length)
                     _inc = new bool[_mainTable.ActiveEntities.Length];
@@ -43,6 +41,17 @@ namespace ModulesFramework.Data
                 {
                     if (_inc[i])
                         _inc[i] &= table.Contains(i);
+                }
+
+                return this;
+            }
+
+            public Query With(OrBuilder or)
+            {
+                for (var i = 0; i < _inc.Length; ++i)
+                {
+                    if (_inc[i])
+                        _inc[i] &= or.Check(i, _world);
                 }
 
                 return this;
@@ -67,6 +76,17 @@ namespace ModulesFramework.Data
                 {
                     if (_inc[i])
                         _inc[i] &= customFilter.Invoke(table.GetData(i));
+                }
+
+                return this;
+            }
+            
+            public Query Where(WhereOrBuilder whereOr)
+            {
+                for (var i = 0; i < _inc.Length; ++i)
+                {
+                    if (_inc[i])
+                        _inc[i] &= whereOr.Check(i, _world);
                 }
 
                 return this;
@@ -206,7 +226,7 @@ namespace ModulesFramework.Data
                 {
                     count += Convert.ToInt32(inc);
                 }
-                
+
                 return count;
             }
         }
