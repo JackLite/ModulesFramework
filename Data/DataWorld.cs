@@ -1,13 +1,12 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
+using ModulesFramework.Modules;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
 #endif
-using ModulesFramework.Modules;
 
 namespace ModulesFramework.Data
 {
@@ -394,6 +393,20 @@ namespace ModulesFramework.Data
         public int CountComponentsAt<T>(int eid) where T : struct
         {
             return GetEcsTable<T>().GetMultipleDataLength(eid);
+        }
+
+        public bool HasSomeComponent(int eid, params Type[] types)
+        {
+            foreach (var type in types)
+            {
+                var table = GetEcsTable(type);
+                if (table.Contains(eid))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }

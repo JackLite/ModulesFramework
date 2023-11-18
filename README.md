@@ -316,6 +316,24 @@ public class DeathSystem : IPostRunSystem
 ```
 As you see it's very simple.
 
+### Queries
+Query is the object who get when use `DataWorld.Select<T>()` method. It allows you to get entities with or without some components and check some custom prerequisites by `Where<T>(Func<T, bool>)` method (we've seen it before). However for some cases you may need choose entities that has one of set of components. Here's example of it:
+
+```csharp
+_world.Select<HP>()
+    .With(Filter.Or<Enemy>().Or<Ally>());
+```
+
+`Filter` - util for creating special object that allows you to select only entities that contains one of several components.
+There is also possibility to use `Where` with filter:
+```csharp
+var filter = Filter
+    .Or<Enemy>(/*func like in usual Where<T>*/)
+    .Or<Ally>(/*func like in usual Where<T>*/);
+_world.Select<HP>()
+    .Where(filter);
+```
+
 ### Events
 
 Let's do one more thing. We do not want that dead system shows game over UI or does
@@ -547,6 +565,13 @@ _world.CreateOneData(dataInstance);
 ref var data = ref _world.OneData<MyData>();
 ```
 
+##### How to get entities with one of the several components?
+```csharp
+_world.Select<HP>()
+    .With(Filter.Or<Enemy>().Or<Ally>())
+    .GetEntities();
+```
+
 ## Best practice
 
 ### Getting data
@@ -555,11 +580,11 @@ Here's the range of speed of getting components:
 1. `GetRawData` - as fast as the simple array;
 2. getting ecs table and iterate through entities id from query - it is 7 times slower then first method but still very fast cause we get data from table itself;
 3. iterate through components by `Query.GetComponents<T>` - slightly slower then previous;
-4. iterate through entities and getting component from entity - this is teh slowest way cause every time we getting component from entity (or from world) MF checks if table exists.
+4. iterate through entities and getting component from entity - this is the ten times slowest way cause every time we getting component from entity (or from world) MF checks if table exists.
 
 Note that this range has sense when there is thousands of components. In the other cases you can use any method.
 
-**Important**: you may want to workaround limit of `GetRawData` by storing entity inside of component. Still you can do this it's a very bad decision if you want to remove same component from this entity or destroy entity itself. Because components stores on dense array when some of them destroyed last component will be moved in place of removed. So you may miss some data. But even worse because `GetRawData` returns slide of dense array you may iterate some data twice! Consider using entities id and getting data from ecs table. It's safer and fast enough for the most cases. Still if you want to get access to entity and it's critical please let me know.
+**Important**: you may want to workaround limit of `GetRawData` by storing entity inside of component. Still you can do this it's a very bad decision if you want to remove same component from this entity or destroy entity itself. Because components stores on dense array when some of them destroyed last component will be moved in place of removed. So you may miss some data. But even worse because `GetRawData` returns slice of dense array you may iterate some data twice! Consider using entities id and getting data from ecs table. It's safer and fast enough for the most cases. Still if you want to get access to entity and it's critical please let me know.
 
 ### Multiple components
 
@@ -583,7 +608,7 @@ Cause it may lead to very complex code you must use multiple components only whe
 ### Query
 
 - use `using` keyword when you select components. It will safe memory and time;
-- start `Select<T>` from components with lesser count. It will reduce any `With<T>`, `Without<T>` and `Where` calls and iterations;
+- start `Select<T>` from components with lesser count. It will reduce any other functions calls and iterations;
 
 ## <a id="api"></a>API
 
