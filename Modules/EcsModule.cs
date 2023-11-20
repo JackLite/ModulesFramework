@@ -423,9 +423,7 @@ namespace ModulesFramework.Modules
             // any submodule must be destroyed with parent cause it has dependencies from it that may being destroyed
             foreach (var submodule in world.GetSubmodules(ConcreteType))
             {
-                submodule.OnDestroy();
-                submodule.DestroySystems();
-                submodule.IsInitialized = false;
+                submodule.Destroy();
             }
 
             OnDestroy();
