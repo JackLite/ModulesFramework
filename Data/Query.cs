@@ -75,12 +75,14 @@ namespace ModulesFramework.Data
                 for (var i = 0; i < _inc.Length; ++i)
                 {
                     if (_inc[i])
+                        _inc[i] &= table.Contains(i);
+                    if (_inc[i])
                         _inc[i] &= customFilter.Invoke(table.GetData(i));
                 }
 
                 return this;
             }
-            
+
             public Query Where(WhereOrBuilder whereOr)
             {
                 for (var i = 0; i < _inc.Length; ++i)
