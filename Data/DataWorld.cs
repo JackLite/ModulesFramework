@@ -390,23 +390,55 @@ namespace ModulesFramework.Data
             return _oneDatas.ContainsKey(typeof(T));
         }
 
+        /// <summary>
+        ///     Return count of multiple components at entity
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CountComponentsAt<T>(int eid) where T : struct
         {
             return GetEcsTable<T>().GetMultipleDataLength(eid);
         }
 
-        public bool HasSomeComponent(int eid, params Type[] types)
+        /// <summary>
+        ///     Create custom index for component, so you can get component or entity by component's index
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void CreateIndex<T, TIndex>(Func<T, TIndex> getIndex) where T : struct where TIndex : notnull
         {
-            foreach (var type in types)
-            {
-                var table = GetEcsTable(type);
-                if (table.Contains(eid))
-                {
-                    return true;
-                }
-            }
+            GetEcsTable<T>().CreateIndex(getIndex);
+        }
 
-            return false;
+        /// <summary>
+        ///     Return component by custom index. Throws exception if there is no index or component
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public ref T ComponentByCustomIndex<T, TIndex>(TIndex index) where T : struct where TIndex : notnull
+        {
+            return ref GetEcsTable<T>().ComponentByCustomIndex(index);
+        }
+
+        /// <summary>
+        ///     Return entity by custom index on some component on entity.
+        ///     Returns nul if there is no entity found
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public Entity? FindEntityByCustomIndex<T, TIndex>(TIndex index) where T : struct where TIndex : notnull
+        {
+            var eid = GetEcsTable<T>().FindEidByCustomIndex(index);
+            if (eid == null)
+                return null;
+            return GetEntity(eid.Value);
+        }
+
+        /// <summary>
+        ///     Updates custom index for component. It's remove old index first and then create new one
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public void UpdateCustomIndex<T, TIndex>(TIndex oldIndex, T testComponent, int eid)
+            where T : struct
+            where TIndex : notnull
+        {
+            GetEcsTable<T>().UpdateCustomIndex(oldIndex, testComponent, eid);
         }
     }
 }
