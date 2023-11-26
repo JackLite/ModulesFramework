@@ -23,6 +23,10 @@ namespace ModulesFramework.Data
     public class EcsTable<T> : EcsTable where T : struct
     {
         private readonly DenseArray<T> _denseTable;
+
+        /// <summary>
+        ///     Eid -> dense indices
+        /// </summary>
         private int[] _tableMap;
 
         /// <summary>
@@ -39,6 +43,8 @@ namespace ModulesFramework.Data
 
         private bool _isMultiple;
         private bool _isUsed;
+
+        private TableIndexer<T>? _indexer;
 
         internal override bool IsMultiple => _isMultiple;
 
@@ -77,6 +83,9 @@ namespace ModulesFramework.Data
             _tableReverseMap[index] = eid;
             _tableMap[eid] = index;
             _entities[eid] = true;
+
+            if (_indexer != null)
+                _indexer.Add(data, eid);
         }
 
         /// <summary>
@@ -191,11 +200,11 @@ namespace ModulesFramework.Data
         {
             return _denseTable.At(_tableMap[eid]);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override object SetDataObject(int eid, object component)
         {
-            return _denseTable[_tableMap[eid]] = (T) component;
+            return _denseTable[_tableMap[eid]] = (T)component;
         }
 
         /// <summary>
@@ -214,7 +223,7 @@ namespace ModulesFramework.Data
                 result.Add(index, component);
             }
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override void SetDataObjects(int eid, List<object> newData)
         {
@@ -250,6 +259,7 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 return;
             var index = _tableMap[eid];
+            _indexer?.Remove(_denseTable[index]);
             _denseTable.RemoveData(index);
             var updateEid = _tableReverseMap[_denseTable.Length];
             _tableReverseMap[index] = updateEid;
@@ -415,6 +425,53 @@ namespace ModulesFramework.Data
             if (_isUsed && !_isMultiple)
                 throw new TableSingleWrongUseException<T>();
             #endif
+        }
+
+        public void CreateIndex<TIndex>(Func<T, TIndex> getIndex) where TIndex : notnull
+        {
+            CheckSingle();
+            var indexer = new TableIndexer<T, TIndex>(getIndex);
+            for (var i = 0; i < _tableMap.Length; i++)
+            {
+                if (!ActiveEntities[i])
+                    continue;
+                var data = _denseTable[_tableMap[i]];
+                indexer.Add(data, i);
+            }
+
+            _indexer = indexer;
+        }
+
+        public ref T ComponentByCustomIndex<TIndex>(TIndex index) where TIndex : notnull
+        {
+            CheckSingle();
+            var eid = FindEidByCustomIndex(index);
+            if (eid == null)
+                throw new ComponentNotFoundException<T>($"Component {typeof(T).Name} not found by index {index}");
+
+            var denseIndex = _tableMap[eid.Value];
+            return ref _denseTable.At(denseIndex);
+        }
+
+        //todo: rename because there is GetEidByIndex 
+        public int? FindEidByCustomIndex<TIndex>(TIndex index) where TIndex : notnull
+        {
+            CheckSingle();
+            if (_indexer == null)
+                throw new NoIndexerException<T>();
+            var indexer = (TableIndexer<T, TIndex>)_indexer;
+            if (!indexer.Contains(index))
+                return null;
+
+            return indexer[index];
+        }
+
+        public void UpdateCustomIndex<TIndex>(TIndex old, T testComponent, int eid) where TIndex : notnull
+        {
+            if (_indexer == null)
+                throw new NoIndexerException<T>();
+            var indexer = (TableIndexer<T, TIndex>)_indexer;
+            indexer.Update(old, testComponent, eid);
         }
     }
 }
