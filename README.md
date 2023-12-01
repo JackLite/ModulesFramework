@@ -395,6 +395,37 @@ systems.
 so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
 **will not** be lost.
 
+### Indices
+
+Sometimes you may want to get particular component (or entity) by particular field. The most common case is when you have some unique id for game entity in online game and you want to send some message with that id from server to client. For example you may want to heal some enemy and play some vfx based on source of healing. In that case you should use indices:
+
+```csharp
+public struct NetId 
+{
+    public uint someNumber;
+}
+...
+// we need to create index manually
+world.CreateIndex<NetId>(id => id.someNumber);    
+...
+// if field was updated we need to update the index
+NetId netId = /*get from entity/world*/;
+var oldId = netId.someNumber;
+netId.someNumber = IdGenerator.Next();
+world.UpdateCustomIndex(oldId, netId, entity2.Id);
+...
+void OnMessage(HealMsg msg)
+{
+    // getting entity by index
+    Entity? entity = world.FindEntityByCustomIndex<NetId, uint>(msg.id);  
+}
+```
+**Note**:
+- every index slightly increase time of AddComponent/RemoveComponent;
+- index field can be any type but it must be correct key for C# Dictionary<TKey, TVal>;
+- indices do not works on multiple components for obvious reasons;
+- tables do not checks that index is unique, so you must be sure that your indices is unique.
+
 ### Submodules
 
 In the large project it will be good to keep thing as simple as possible. There is can be hundreds of dependencies and thousands of systems. To simplify complexity you can use submodules. 
@@ -609,6 +640,11 @@ Cause it may lead to very complex code you must use multiple components only whe
 
 - use `using` keyword when you select components. It will safe memory and time;
 - start `Select<T>` from components with lesser count. It will reduce any other functions calls and iterations;
+
+### Indices
+
+- create indices as soon as possible. It will be perfect to create them when application is started;
+- do not change index field after creating component;
 
 ## <a id="api"></a>API
 

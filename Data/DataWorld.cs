@@ -416,6 +416,15 @@ namespace ModulesFramework.Data
         {
             return ref GetEcsTable<T>().ComponentByCustomIndex(index);
         }
+        
+        /// <summary>
+        ///     Check if there is component with given index
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsCustomIndexExisted<T, TIndex>(TIndex index) where T : struct where TIndex : notnull
+        {
+            return GetEcsTable<T>().HasCustomIndex(index);
+        }
 
         /// <summary>
         ///     Return entity by custom index on some component on entity.

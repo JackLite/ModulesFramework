@@ -453,7 +453,6 @@ namespace ModulesFramework.Data
             return ref _denseTable.At(denseIndex);
         }
 
-        //todo: rename because there is GetEidByIndex 
         public int? FindEidByCustomIndex<TIndex>(TIndex index) where TIndex : notnull
         {
             CheckSingle();
@@ -464,6 +463,16 @@ namespace ModulesFramework.Data
                 return null;
 
             return indexer[index];
+        }
+        
+        public bool HasCustomIndex<TIndex>(TIndex index) where TIndex : notnull
+        {
+            CheckSingle();
+            if (_indexer == null)
+                throw new NoIndexerException<T>();
+            var indexer = (TableIndexer<T, TIndex>)_indexer;
+
+            return indexer.Contains(index);
         }
 
         public void UpdateCustomIndex<TIndex>(TIndex old, T testComponent, int eid) where TIndex : notnull
