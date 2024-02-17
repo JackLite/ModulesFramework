@@ -1,6 +1,25 @@
 # ModulesFramework
 
-## Getting started
+- [Queries](#gs-queries)
+- [Events](#gs-events)
+- [Indices](#gs-indices)
+- [Submodules](#gs-submodules)
+- [Multiple Components](#gs-multiple)
+- [Multiple Worlds](#gs-multiple-worlds)
+#### FAQ
+- [How to create an instance of system?](#faq-1)
+- [What is a module?](#faq-2)
+- [How to get entities with three components?](#faq-3)
+- [How to get entities without some component?](#faq-4)
+- [How to get entities with hp > 0 but < 100?](#faq-5)
+- [How to create OneData?](#faq-6)
+- [How to get OneData?](#faq-7)
+- [How to get entities with one of the several components?](#faq-8)
+#### [Best practices](#best)
+#### [API](#api-0)
+#### [Projects](#projects-0)
+
+## <a id="getting-started"/> Getting started
 
 All you need for start using ModulesFramework
 is this simple code:
@@ -316,7 +335,7 @@ public class DeathSystem : IPostRunSystem
 ```
 As you see it's very simple.
 
-### Queries
+### <a id="gs-queries"/>Queries
 Query is the object who get when use `DataWorld.Select<T>()` method. It allows you to get entities with or without some components and check some custom prerequisites by `Where<T>(Func<T, bool>)` method (we've seen it before). However for some cases you may need choose entities that has one of set of components. Here's example of it:
 
 ```csharp
@@ -334,7 +353,7 @@ _world.Select<HP>()
     .Where(filter);
 ```
 
-### Events
+### <a id="gs-events"/>Events
 
 Let's do one more thing. We do not want that dead system shows game over UI or does
 something like this. It's good to keep such logic in separated system. Usually 
@@ -395,7 +414,7 @@ systems.
 so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
 **will not** be lost.
 
-### Indices
+### <a id="gs-indices"/> Indices
 
 Sometimes you may want to get particular component (or entity) by particular field. The most common case is when you have some unique id for game entity in online game and you want to send some message with that id from server to client. For example you may want to heal some enemy and play some vfx based on source of healing. In that case you should use indices:
 
@@ -426,7 +445,7 @@ void OnMessage(HealMsg msg)
 - indices do not works on multiple components for obvious reasons;
 - tables do not checks that index is unique, so you must be sure that your indices is unique.
 
-### Submodules
+### <a id="gs-submodules"/>Submodules
 
 In the large project it will be good to keep thing as simple as possible. There is can be hundreds of dependencies and thousands of systems. To simplify complexity you can use submodules. 
 
@@ -455,7 +474,7 @@ The order of destroy:
 3. Submodule destroy;
 4. Parent module destroy.
 
-### Multiple Components
+### <a id="gs-multiple"/> Multiple Components
 What if you making the cool dynamic game with a lot of thins that happened simultaneously. Hundreds of entities fighting each other, long term effects continiously damage everyone. Base on who damage who the AI change the aggression or healing or buffing. And by the way the damage type can be different. So you need to know value of damage, it's type and source.
 
 ```csharp
@@ -498,7 +517,7 @@ foreach (ref var damage in query.GetMultipleComponents<Damage>()){}
 ```
 In the cases like a `HasComponent<T>` multiple components behave like expected.
 
-### Multiple Worlds
+### <a id="gs-multiple-worlds"/> Multiple Worlds
 
 There are cases when you may want to have more then one worlds with their own modules or even with shared modules. For example for the host mode in online game. So all common logic will be in one world and local player logic in another. Anyway this feature is very rare need but because it's remove some unbreakable limits it's was added in core of MF.
 
@@ -527,19 +546,19 @@ public class SomeModule : EcsModule
 
 **Note**: systems belong to module will run on every system. For example `IRunSystem`s run twice for module above. Same with all other systems. It allows to use same systems in different world making shared logic.
 
-## FAQ
+## <a id="faq-0"/> FAQ
 
-##### How to create an instance of system?
+##### <a id="faq-1"/> How to create an instance of system?
 
 You should never create instance of system by your own. 
 Just create a class, implement one ore more interfaces
-(see section [systems](#api-systems) in [API](#z24api)) and add `EcsSystem` attribute.
+(see section [systems](#api-systems) in [API](#api-0)) and add `EcsSystem` attribute.
 
 ```csharp
 [EcsSystem(typeof(MyModule))]
 public class MySystem : IRunSystem {}
 ```
-##### What is a module?
+##### <a id="faq-2"/> What is a module?
 Module is a main concept in framework (that's why 
 it calls Modules Framework). You can look at module
 as an abstraction like a class or feature. One module
@@ -559,7 +578,7 @@ Thus module is not just a class but a group of many
 data and functionality that implements concrete part
 of your game.
 
-##### How to get entities with three components?
+##### <a id="faq-3"/> How to get entities with three components?
 
 ```csharp
 _world.Select<FirstComponent>()
@@ -568,7 +587,7 @@ _world.Select<FirstComponent>()
     .GetEntities();
 ```
 
-##### How to get entities without some component?
+##### <a id="faq-4"/> How to get entities without some component?
 
 ```csharp
 _world.Select<FirstComponent>()
@@ -576,7 +595,7 @@ _world.Select<FirstComponent>()
     .GetEntities();
 ```
 
-##### How to get entities with hp > 0 but < 100?
+##### <a id="faq-5"/> How to get entities with hp > 0 but < 100?
 
 ```csharp
 _world.Select<Hp>()
@@ -584,26 +603,26 @@ _world.Select<Hp>()
     .GetEntities();
 ```
 
-##### How to create OneData?
+##### <a id="faq-6"/> How to create OneData?
 
 ```csharp
 _world.CreateOneData(dataInstance);
 ```
 
-##### How to get OneData?
+##### <a id="faq-7"/> How to get OneData?
 
 ```csharp
 ref var data = ref _world.OneData<MyData>();
 ```
 
-##### How to get entities with one of the several components?
+##### <a id="faq-8"/> How to get entities with one of the several components?
 ```csharp
 _world.Select<HP>()
     .With(Filter.Or<Enemy>().Or<Ally>())
     .GetEntities();
 ```
 
-## Best practice
+## <a id="best"/> Best practice
 
 ### Getting data
 
@@ -646,7 +665,7 @@ Cause it may lead to very complex code you must use multiple components only whe
 - create indices as soon as possible. It will be perfect to create them when application is started;
 - do not change index field after creating component;
 
-## <a id="api"></a>API
+## <a id="api-0"/>API
 
 ### EcsModule
 
@@ -869,3 +888,11 @@ Takes one argument about to what module belongs the system;
 - `GlobalSystemAttribute` - marks that system not in module,
 so it will run all the time and can't contain any dependency but DataWorld;
 - `SubmoduleAttribute` - marks that module is a submodule of other module;
+
+## <a id="projects-0"/>Projects
+
+https://store.steampowered.com/app/1965780/CyberNet/
+
+https://store.steampowered.com/app/2468720/Hellwatch/
+
+https://play.google.com/store/apps/details?id=com.GoldstaneGames.LumberjackHero

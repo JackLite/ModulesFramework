@@ -191,7 +191,7 @@ namespace ModulesFramework.Data
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal EcsTable GetEcsTable(Type type)
+        public EcsTable GetEcsTable(Type type)
         {
             return _data[type];
         }
