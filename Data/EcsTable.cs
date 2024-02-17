@@ -11,6 +11,7 @@ namespace ModulesFramework.Data
         internal abstract bool[] ActiveEntities { get; }
         internal abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
+        public abstract void AddData(int eid, object component);
         internal abstract object GetDataObject(int eid);
         internal abstract object SetDataObject(int eid, object component);
         internal abstract void GetDataObjects(int eid, Dictionary<int, object> result);
@@ -58,6 +59,11 @@ namespace ModulesFramework.Data
             _tableReverseMap = new int[64];
             _entities = new bool[64];
             _multipleTableMap = new DenseArray<int>[64];
+        }
+
+        public override void AddData(int eid, object component)
+        {
+            AddData(eid, (T)component);
         }
 
         /// <summary>
@@ -464,7 +470,7 @@ namespace ModulesFramework.Data
 
             return indexer[index];
         }
-        
+
         public bool HasCustomIndex<TIndex>(TIndex index) where TIndex : notnull
         {
             CheckSingle();
