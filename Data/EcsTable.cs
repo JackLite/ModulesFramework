@@ -11,7 +11,7 @@ namespace ModulesFramework.Data
         internal abstract bool[] ActiveEntities { get; }
         internal abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
-        public abstract void AddData(int eid, object component);
+        public abstract void AddData(Entity entity, object component);
         internal abstract object GetDataObject(int eid);
         internal abstract object SetDataObject(int eid, object component);
         internal abstract void GetDataObjects(int eid, Dictionary<int, object> result);
@@ -61,9 +61,9 @@ namespace ModulesFramework.Data
             _multipleTableMap = new DenseArray<int>[64];
         }
 
-        public override void AddData(int eid, object component)
+        public override void AddData(Entity entity, object component)
         {
-            AddData(eid, (T)component);
+            entity.AddComponent((T) component);
         }
 
         /// <summary>
