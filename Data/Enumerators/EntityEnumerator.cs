@@ -5,11 +5,11 @@ namespace ModulesFramework.Data.Enumerators
     public struct EntityEnumerator
     {
         private readonly bool[] _filter;
-        private readonly DataWorld _world;
+        private readonly World.DataWorld _world;
         private int _index;
         private readonly bool[] _pool;
 
-        internal EntityEnumerator(bool[] entities, bool[] filter, DataWorld world)
+        internal EntityEnumerator(bool[] entities, bool[] filter, World.DataWorld world)
         {
             _pool = entities;
             _filter = filter;

@@ -4,7 +4,7 @@ using ModulesFramework.Data.Events;
 using ModulesFramework.Systems;
 using ModulesFramework.Systems.Events;
 
-namespace ModulesFramework.Data
+namespace ModulesFramework.Data.World
 {
     public partial class DataWorld
     {

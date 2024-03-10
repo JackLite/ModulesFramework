@@ -13,7 +13,7 @@ namespace ModulesFramework.Data.QueryUtils
             return this;
         }
 
-        public bool Check(int eid, DataWorld world)
+        public bool Check(int eid, World.DataWorld world)
         {
             foreach (var (_, or) in orWrappers)
             {

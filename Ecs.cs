@@ -2,6 +2,7 @@
 using System.Linq;
 using ModulesFramework.Data;
 using ModulesFramework.Modules;
+using DataWorld = ModulesFramework.Data.World.DataWorld;
 
 namespace ModulesFramework
 {
@@ -15,18 +16,12 @@ namespace ModulesFramework
         private DataWorld[] _worlds;
         public DataWorld MainWorld => _worlds[0];
 
-        public Ecs()
-        {
-            CreateWorlds(1);
-            CreateEmbedded();
-        }
-
-        public Ecs(int worldsCount)
+        public Ecs(int worldsCount = 1)
         {
             CreateWorlds(worldsCount);
             CreateEmbedded();
         }
-        
+
         public DataWorld GetWorld(int index)
         {
             return _worlds[index];

@@ -1,4 +1,4 @@
-﻿namespace ModulesFramework.Data
+﻿namespace ModulesFramework.Data.World
 {
     public partial class DataWorld
     {

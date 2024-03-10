@@ -2,7 +2,7 @@
 {
     internal class OrWrapper<T> : OrWrapper where T : struct
     {
-        internal override bool HasComponent(int eid, DataWorld world)
+        internal override bool HasComponent(int eid, World.DataWorld world)
         {
             return world.HasComponent<T>(eid);
         }
@@ -10,6 +10,6 @@
 
     internal abstract class OrWrapper
     {
-        internal abstract bool HasComponent(int eid, DataWorld world);
+        internal abstract bool HasComponent(int eid, World.DataWorld world);
     }
 }

@@ -11,6 +11,7 @@ using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Systems;
 using ModulesFramework.Systems.Events;
+using DataWorld = ModulesFramework.Data.World.DataWorld;
 
 namespace ModulesFramework.Modules
 {

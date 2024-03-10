@@ -382,7 +382,10 @@ public class DeathSystem : IPostRunSystem
         {
             if (entity.HasComponent<PlayerTag>())
                 // if event is empty we can use _world.RiseEvent<EventType>()
-                _world.RiseEvent(new GameOverEvent { reason = GameOverReason.Dead };
+                _world.RiseEvent(new GameOverEvent 
+                    { 
+                          reason = GameOverReason.Dead 
+                    });
             
             // other code
         }
@@ -414,9 +417,9 @@ systems.
 so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
 **will not** be lost.
 
-### <a id="gs-indices"/> Indices
+### <a id="gs-indices"/> Keys
 
-Sometimes you may want to get particular component (or entity) by particular field. The most common case is when you have some unique id for game entity in online game and you want to send some message with that id from server to client. For example you may want to heal some enemy and play some vfx based on source of healing. In that case you should use indices:
+Sometimes you may want to get particular component (or entity) by particular field. The most common case is when you have some unique id for game entity in online game and you want to send some message with that id from server to client. For example you may want to heal some enemy and play some vfx based on source of healing. In that case you should use keys:
 
 ```csharp
 public struct NetId 
@@ -424,26 +427,30 @@ public struct NetId
     public uint someNumber;
 }
 ...
-// we need to create index manually
-world.CreateIndex<NetId>(id => id.someNumber);    
+// we need to create key manually
+world.CreateKey<NetId, uint>(id => id.someNumber);    
 ...
 // if field was updated we need to update the index
 NetId netId = /*get from entity/world*/;
 var oldId = netId.someNumber;
 netId.someNumber = IdGenerator.Next();
-world.UpdateCustomIndex(oldId, netId, entity2.Id);
+world.UpdateKey(oldId, netId, entity2.Id);
 ...
 void OnMessage(HealMsg msg)
 {
     // getting entity by index
-    Entity? entity = world.FindEntityByCustomIndex<NetId, uint>(msg.id);  
+    Entity entity = world.FindEntityByKey<NetId, uint>(msg.id);  
+    if (entity.IsAlive()) // check if entity exists
+    {
+        // do some logic
+    }
 }
 ```
 **Note**:
-- every index slightly increase time of AddComponent/RemoveComponent;
-- index field can be any type but it must be correct key for C# Dictionary<TKey, TVal>;
-- indices do not works on multiple components for obvious reasons;
-- tables do not checks that index is unique, so you must be sure that your indices is unique.
+- every key slightly increase time of AddComponent/RemoveComponent;
+- key field can be any type but it must be correct key for C# Dictionary<TKey, TVal>;
+- keys don't work with multiple components;
+- tables do not checks that key is unique, so it's up to you to be sure that your keys are unique.
 
 ### <a id="gs-submodules"/>Submodules
 
@@ -630,7 +637,7 @@ Here's the range of speed of getting components:
 1. `GetRawData` - as fast as the simple array;
 2. getting ecs table and iterate through entities id from query - it is 7 times slower then first method but still very fast cause we get data from table itself;
 3. iterate through components by `Query.GetComponents<T>` - slightly slower then previous;
-4. iterate through entities and getting component from entity - this is the ten times slowest way cause every time we getting component from entity (or from world) MF checks if table exists.
+4. iterate through entities and getting component from entity - this is the five times slower then previous way cause every time we getting component from entity (or from world) MF checks if table exists.
 
 Note that this range has sense when there is thousands of components. In the other cases you can use any method.
 
@@ -658,12 +665,12 @@ Cause it may lead to very complex code you must use multiple components only whe
 ### Query
 
 - use `using` keyword when you select components. It will safe memory and time;
-- start `Select<T>` from components with lesser count. It will reduce any other functions calls and iterations;
+- start `Select<T>` from components with lesser count. It will reduce any other functions calls and iterations with that query;
 
-### Indices
+### Keys
 
-- create indices as soon as possible. It will be perfect to create them when application is started;
-- do not change index field after creating component;
+- create keys as soon as possible. It will be perfect to create them when application is started;
+- do not change key field after creating component;
 
 ## <a id="api-0"/>API
 
@@ -708,12 +715,7 @@ retrieve and create any data.
 
 - `Entity NewEntity()` - creates empty entity. 
 `OnEntityCreated` event called at this point.
-- `Entity CreateOneFrame()` - create `Entity` and add 
-`OneFrameComponent` to it. That `Entity` will be destroyed
-after all systems in `PostRun`;
-- `EcsTable<T> GetEcsTable<T>()` - return raw data container that allows
-iterate more fast. Should be used *only* if you iterate through thousands
-and thousands entities.
+- `EcsTable<T> GetEcsTable<T>()` - return data container. Use it with the `Query.GetEntitiesId()` to faster iteration.
 
 ##### Queries
 
@@ -721,10 +723,6 @@ and thousands entities.
 See about `Query` below for more information;
 - `bool Exist<T>()` - fast way to check if there exists
 any entities with `T`;
-- `bool TrySelectFirst<T>(out T)` - select first `Entity`
-with `T`. If there is no such entities return false. 
-Be careful: out parameter is not a reference.
-`T` is a struct;
 
 ##### Data
 
@@ -783,7 +781,7 @@ By default no logs filtered.
 - `int Id` - id of entity. You can always use entity id to get same things from world that you get from entity;
 - `bool IsAlive()` - checks if entity still exists. Use it when you stored the entity for a while;
 - `void Destroy()` - destroy entity;
-- `bool HasComponent<T>()` - return true if `T` bind to `Entity`;
+- `bool HasComponent<T>()` - return true if `T` is bound to `Entity`;
 
 ##### Add and remove single components
 
@@ -890,6 +888,7 @@ so it will run all the time and can't contain any dependency but DataWorld;
 - `SubmoduleAttribute` - marks that module is a submodule of other module;
 
 ## <a id="projects-0"/>Projects
+Here's a list with projects based on Modules Framework:
 
 https://store.steampowered.com/app/1965780/CyberNet/
 

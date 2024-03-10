@@ -7,7 +7,7 @@ using ModulesFramework.Attributes;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 
-namespace ModulesFramework.Data
+namespace ModulesFramework.Data.World
 {
     public partial class DataWorld
     {

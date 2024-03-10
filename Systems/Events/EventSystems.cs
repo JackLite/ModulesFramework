@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using ModulesFramework.Data;
+using DataWorld = ModulesFramework.Data.World.DataWorld;
 
 namespace ModulesFramework.Systems.Events
 {

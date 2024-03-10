@@ -7,7 +7,7 @@ namespace ModulesFramework.Data
     {
         public int generation;
         public int Id { get; set; }
-        public DataWorld World { get; set; }
+        public World.DataWorld World { get; set; }
 
         /// <summary>
         ///     Add component to entity
@@ -137,6 +137,11 @@ namespace ModulesFramework.Data
         public int Count<T>() where T : struct
         {
             return World.CountComponentsAt<T>(Id);
+        }
+        
+        public bool IsEmpty()
+        {
+            return World.IsEmptyEntity(Id);
         }
     }
 }

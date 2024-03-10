@@ -7,7 +7,7 @@ namespace ModulesFramework.Exceptions
     {
         public NoIndexerException()
             : base($"There is no indexer for table of {typeof(T).Name}. " +
-                $"Create one with {nameof(EcsTable<T>.CreateIndex)}")
+                $"Create one with {nameof(EcsTable<T>.CreateKey)}")
         {
         }
     }
