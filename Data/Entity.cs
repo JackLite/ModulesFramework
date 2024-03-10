@@ -7,7 +7,7 @@ namespace ModulesFramework.Data
     {
         public int generation;
         public int Id { get; set; }
-        public World.DataWorld World { get; set; }
+        public DataWorld World { get; set; }
 
         /// <summary>
         ///     Add component to entity

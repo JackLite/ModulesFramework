@@ -8,12 +8,12 @@ namespace ModulesFramework.Data
 {
     public sealed class DataQuery : IDisposable
     {
-        private readonly World.DataWorld _world;
+        private readonly DataWorld _world;
 
         private EcsTable _mainTable;
         private bool[] _inc = new bool[64];
 
-        public DataQuery(World.DataWorld world)
+        public DataQuery(DataWorld world)
         {
             _world = world;
         }

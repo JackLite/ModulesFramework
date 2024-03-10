@@ -2,7 +2,7 @@
 using System.Linq;
 using ModulesFramework.Data;
 using ModulesFramework.Modules;
-using DataWorld = ModulesFramework.Data.World.DataWorld;
+using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework
 {

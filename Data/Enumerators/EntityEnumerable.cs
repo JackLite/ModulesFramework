@@ -4,9 +4,9 @@
     {
         private readonly bool[] _active;
         private readonly bool[] _inc;
-        private readonly World.DataWorld _world;
+        private readonly DataWorld _world;
 
-        public EntitiesEnumerable(bool[] active, bool[] inc, World.DataWorld world)
+        public EntitiesEnumerable(bool[] active, bool[] inc, DataWorld world)
         {
             _active = active;
             _inc = inc;

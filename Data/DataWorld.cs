@@ -9,7 +9,7 @@ using ModulesFramework.Modules;
 using ModulesFramework.Exceptions;
 #endif
 
-namespace ModulesFramework.Data.World
+namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {

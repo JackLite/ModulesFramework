@@ -4,7 +4,7 @@ namespace ModulesFramework.Data.QueryUtils
 {
     internal abstract class WhereOrWrapper
     {
-        internal abstract bool Check(int eid, World.DataWorld world);
+        internal abstract bool Check(int eid, DataWorld world);
     }
 
     internal class WhereOrWrapper<T> : WhereOrWrapper where T : struct
@@ -16,7 +16,7 @@ namespace ModulesFramework.Data.QueryUtils
             _customFilter = customFilter;
         }
 
-        internal override bool Check(int eid, World.DataWorld world)
+        internal override bool Check(int eid, DataWorld world)
         {
             if (!world.HasComponent<T>(eid))
                 return false;
