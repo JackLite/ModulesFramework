@@ -1,20 +1,20 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
+        private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
+
         /// <summary>
         /// Create one data container
         /// </summary>
         /// <typeparam name="T">Type of data in container</typeparam>
         /// <seealso cref="CreateOneData{T}()"/>
-        public EcsOneData<T> CreateOneData<T>() where T : struct
+        public ref T CreateOneData<T>() where T : struct
         {
-            var oneData = new EcsOneData<T>();
-            _oneDatas[typeof(T)] = oneData;
-            OnOneDataCreated?.Invoke(typeof(T), _oneDatas[typeof(T)]);
-            return oneData;
+            return ref CreateOneData<T>(default);
         }
 
         /// <summary>
@@ -23,12 +23,25 @@ namespace ModulesFramework.Data
         /// <param name="data">Data that will be set in container</param>
         /// <typeparam name="T">Type of data in container</typeparam>
         /// <seealso cref="CreateOneData{T}(T)"/>
-        public void CreateOneData<T>(T data) where T : struct
+        public ref T CreateOneData<T>(T data) where T : struct
+        {
+            return ref CreateOneData(data, true);
+        }
+
+        private ref T CreateOneData<T>(T data, bool updateGeneration) where T : struct
         {
             var oneData = new EcsOneData<T>();
             oneData.SetDataIfNotExist(data);
+
+            if (_oneDatas.TryGetValue(typeof(T), out var oldData))
+                oneData.generation = oldData.generation;
+
+            if (updateGeneration)
+                oneData.generation++;
+
             _oneDatas[typeof(T)] = oneData;
             OnOneDataCreated?.Invoke(typeof(T), oneData);
+            return ref oneData.GetData();
         }
 
         internal OneData? GetOneData(Type containerType)
@@ -41,21 +54,6 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        /// Allow to get one data container by type
-        /// If one data component does not exist it create it
-        /// </summary>
-        /// <typeparam name="T">Type of one data</typeparam>
-        /// <returns>Generic container with one data</returns>
-        private EcsOneData<T> GetOneData<T>() where T : struct
-        {
-            var dataType = typeof(T);
-            if (!_oneDatas.TryGetValue(dataType, out var oneData))
-                return CreateOneData<T>();
-
-            return (EcsOneData<T>)oneData;
-        }
-
-        /// <summary>
         /// Return ref to one data component by T
         /// If one data component does not exist it create it
         /// </summary>
@@ -63,8 +61,33 @@ namespace ModulesFramework.Data
         /// <returns>Ref to one data component</returns>
         public ref T OneData<T>() where T : struct
         {
-            var container = GetOneData<T>();
-            return ref container.GetData();
+            var dataType = typeof(T);
+            if (!_oneDatas.TryGetValue(dataType, out var oneData))
+                return ref CreateOneData<T>();
+
+            return ref ((EcsOneData<T>)oneData).GetData();
+        }
+
+        /// <summary>
+        /// Return number of one data generation. It starts from 0 like in <see cref="Entity"/>
+        /// </summary>
+        /// <typeparam name="T">Type of one data</typeparam>
+        /// <returns>Number of generation or -1 if one data wasn't created yet</returns>
+        public int OneDataGeneration<T>() where T : struct
+        {
+            if (_oneDatas.TryGetValue(typeof(T), out var data))
+                return data.generation;
+            return -1;
+        }
+
+        public ref T ReplaceOneData<T>(T data) where T : struct
+        {
+            return ref CreateOneData(data, false);
+        }
+
+        public ref T ReplaceOneData<T>() where T : struct
+        {
+            return ref CreateOneData<T>(default, false);
         }
 
         /// <summary>
