@@ -188,7 +188,13 @@ namespace ModulesFramework.Modules
             #endif
 
             foreach (var p in _systems)
+            {
                 p.Value.Init(world);
+                foreach (var subscriptionType in p.Value.SubscriptionTypes)
+                {
+                    world.RegisterSubscriber(subscriptionType, p.Value, p.Key, true);
+                }
+            }
 
             _systemsArr = _systems.Values.ToArray();
         }
@@ -241,9 +247,10 @@ namespace ModulesFramework.Modules
             foreach (var p in _systems)
             {
                 foreach (var eventType in p.Value.EventTypes)
-                {
                     world.RegisterListener(eventType, p.Value);
-                }
+                
+                foreach (var eventType in p.Value.SubscriptionTypes)
+                    world.RegisterSubscriber(eventType, p.Value, p.Key);
 
                 p.Value.Activate(world);
             }
@@ -262,9 +269,10 @@ namespace ModulesFramework.Modules
             {
                 p.Value.Deactivate(world);
                 foreach (var eventType in p.Value.EventTypes)
-                {
                     world.UnregisterListener(eventType, p.Value);
-                }
+                
+                foreach (var eventType in p.Value.SubscriptionTypes)
+                    world.UnregisterSubscriber(eventType, p.Value);
             }
             #if MODULES_DEBUG
             world.Logger.LogDebug($"Call OnDeactivate in {GetType().Name}", LogFilter.ModulesFull);
@@ -283,6 +291,7 @@ namespace ModulesFramework.Modules
             {
                 foreach (var eventType in p.EventTypes)
                 {
+                    // 
                     var handler = world.GetHandlers(eventType);
                     try
                     {
@@ -390,6 +399,11 @@ namespace ModulesFramework.Modules
             foreach (var p in _systems)
             {
                 p.Value.Destroy(world);
+
+                foreach (var subscriptionType in p.Value.SubscriptionTypes)
+                {
+                    world.UnregisterSubscriber(subscriptionType, p.Value, true);
+                }
             }
 
             _systems.Clear();

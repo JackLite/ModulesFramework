@@ -6,7 +6,6 @@ namespace ModulesFramework.Data.Events
 {
     internal class EventsHandler
     {
-        private readonly Action _handle;
         private readonly Dictionary<Type, Queue<Action<Type>>> _handlers = new Dictionary<Type, Queue<Action<Type>>>
         {
             { typeof(IRunEventSystem), new Queue<Action<Type>>(64) },
