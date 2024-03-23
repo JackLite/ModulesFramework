@@ -356,10 +356,10 @@ _world.Select<HP>()
 ### <a id="gs-events"/>Events
 
 Let's do one more thing. We do not want that dead system shows game over UI or does
-something like this. It's good to keep such logic in separated system. Usually 
-event concept is using for such thing. Very often in pure ecs frameworks we create
-entity that exists only one frame (one frame entity) and try to find that entity
-in `Run()` or `PostRun()`. ModulesFramework introduces other way - event systems.
+something like this. It's good to keep such logic in separated system. Usually in classic OOP approach
+event concept is using for such thing. In pure ECS frameworks instead of events there is
+entity that exists for only one frame (one frame entity) and systems are trying to find that entity
+in `Run()` or `PostRun()`. ModulesFramework uses other way - event systems.
 
 Event is struct like an other components.
 ```csharp
@@ -406,7 +406,7 @@ public class DeathSystem : IRunEventSystem<GameOverEvent>
 Method `RunEvent<T>(T ev)` calls only when there is event. Every event system
 subscribe when module activated and unsubscribe when deactivated.
 
-There is three types of event systems. Every calls in particular time:
+There are three types of event systems. Every calls in particular time:
 - `IRunEventSystem<T>` - calls **before** all `IRunSystem`s with the same order;
 - `IPostRunEventSystem<T>` - calls **after** all `IRunSystem`s (and `IRunEventSystem<T>`)
 and **before** all `IPostRunSystem`s with the same order;
@@ -415,7 +415,28 @@ systems.
 
 **Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()`
 so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
-**will not** be lost.
+**will not** be lost. 
+
+#### Subscriptions
+
+Sometimes you want more classic events. For example if you're making ActionRPG game you may have very complex damage logic with buffs from several sources like a equipment and spells. In this case you can and you should use subscription systems. 
+
+Here's the same example as before:
+```csharp
+[EcsSystem(typeof(BattleModule))]
+public class DeathSystem : ISubscriptionActivateSystem<GameOverEvent>
+{
+    public void HandleEvent(GameOverEvent ev)
+    {
+        // show game over and do some logic
+    }
+}
+```
+It's the very same system as before, but `HandleEvent` calls immediately when you call `RiseEvent`. 
+
+There are two types of subscription systems:
+- `ISubscribeInitSystem<T>` - subscribes and unsubscribes when module initializes/destroys;
+- `ISubscribeActivateSystem` - subscribes and unsubscribes when module activates/deactivates.
 
 ### <a id="gs-indices"/> Keys
 
