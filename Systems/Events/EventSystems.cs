@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using ModulesFramework.Data;
 using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework.Systems.Events
