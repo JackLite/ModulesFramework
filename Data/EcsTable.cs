@@ -63,7 +63,7 @@ namespace ModulesFramework.Data
 
         public override void AddData(Entity entity, object component)
         {
-            entity.AddComponent((T) component);
+            AddData(entity.Id, (T) component);
         }
 
         /// <summary>
