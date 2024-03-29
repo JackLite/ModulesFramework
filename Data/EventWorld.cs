@@ -43,10 +43,10 @@ namespace ModulesFramework.Data
             #endif
 
             if (_subscribeInitSystems.TryGetValue(type, out var subscribers))
-                subscribers.HandleEvent(ev, true);
+                subscribers.HandleEvent(this, ev, true);
 
             if (_subscribeActivateSystems.TryGetValue(type, out subscribers))
-                subscribers.HandleEvent(ev);
+                subscribers.HandleEvent(this, ev);
 
             if (!_eventListeners.ContainsKey(type))
             {

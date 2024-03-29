@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using ModulesFramework.Systems;
 
 namespace ModulesFramework.Data.Subscribes
@@ -6,6 +7,7 @@ namespace ModulesFramework.Data.Subscribes
     internal class Subscribers
     {
         private readonly Dictionary<int, List<SystemsGroup>> _subscribers = new Dictionary<int, List<SystemsGroup>>();
+        private readonly Queue<SystemsGroup> _groupsToCall = new Queue<SystemsGroup>();
 
         public void AddSystems(int order, SystemsGroup systemsGroup)
         {
@@ -20,7 +22,7 @@ namespace ModulesFramework.Data.Subscribes
                 systemsGroup
             };
         }
-        
+
         public void RemoveSystems(SystemsGroup systemsGroup)
         {
             foreach (var (_, systems) in _subscribers)
@@ -29,13 +31,26 @@ namespace ModulesFramework.Data.Subscribes
             }
         }
 
-        public void HandleEvent<T>(T ev, bool isInit = false) where T : struct
+        public void HandleEvent<T>(DataWorld world, T ev, bool isInit = false) where T : struct
         {
             foreach (var (_, systems) in _subscribers)
             {
                 foreach (var systemsGroup in systems)
                 {
+                    _groupsToCall.Enqueue(systemsGroup);
+                }
+            }
+
+            while (_groupsToCall.Count > 0)
+            {
+                var systemsGroup = _groupsToCall.Dequeue();
+                try
+                {
                     systemsGroup.ProceedSubscriptions(ev, isInit);
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
                 }
             }
         }
