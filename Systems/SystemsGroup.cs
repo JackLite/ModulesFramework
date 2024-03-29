@@ -211,6 +211,12 @@ namespace ModulesFramework.Systems
             {
                 if (!type.IsGenericType)
                     continue;
+                var isSubInit = type.GetInterface(nameof(ISubscribeInitSystem)) != null;
+                var isSubActivate = type.GetInterface(nameof(ISubscribeActivateSystem)) != null;
+
+                if (!isSubInit && !isSubActivate)
+                    continue;
+
                 var eventType = type.GetGenericArguments()[0];
                 if (_subscribes.TryGetValue(eventType, out var systems))
                 {
