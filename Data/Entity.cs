@@ -138,5 +138,10 @@ namespace ModulesFramework.Data
         {
             return World.CountComponentsAt<T>(Id);
         }
+        
+        public bool IsEmpty()
+        {
+            return World.IsEmptyEntity(Id);
+        }
     }
 }

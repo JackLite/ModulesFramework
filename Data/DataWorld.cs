@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
+using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
@@ -17,9 +18,8 @@ namespace ModulesFramework.Data
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
         private readonly EcsTable<EntityGeneration> _generationsTable = new EcsTable<EntityGeneration>();
         private readonly Queue<int> _freeEid = new Queue<int>(64);
-        private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
 
-        private readonly Stack<Query> _queriesPool;
+        private readonly Stack<DataQuery> _queriesPool;
 
         public event Action<int>? OnEntityCreated;
         public event Action<int>? OnEntityChanged;
@@ -33,9 +33,14 @@ namespace ModulesFramework.Data
             _modules = new Dictionary<Type, EcsModule>();
             _submodules = new Dictionary<Type, List<EcsModule>>();
             CtorModules(worldIndex);
-            _queriesPool = new Stack<Query>(128);
+            _queriesPool = new Stack<DataQuery>(128);
         }
 
+        /// <summary>
+        ///     Creates new Entity and returns it
+        ///     Rises <see cref="OnEntityCreated"/> after creation
+        ///     <seealso cref="Entity"/>
+        /// </summary>
         public Entity NewEntity()
         {
             var entity = new Entity
@@ -70,6 +75,9 @@ namespace ModulesFramework.Data
             return entity;
         }
 
+        /// <summary>
+        ///     Adds component to entity. If component exists it will be replaced
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddComponent<T>(int eid, T component) where T : struct
         {
@@ -90,6 +98,10 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        /// <summary>
+        ///     Adds new component to entity.
+        ///     This is MultipleComponents API and allowed to add multiple components to a single entity
+        /// </summary>
         public void AddNewComponent<T>(int eid, T component) where T : struct
         {
             var table = GetEcsTable<T>();
@@ -103,6 +115,9 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        /// <summary>
+        ///     Remove component from entity. If there is no component it will do nothing
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveComponent<T>(int eid) where T : struct
         {
@@ -113,6 +128,10 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        /// <summary>
+        ///     Remove first component from entity.
+        ///     This is MultipleComponents API and allowed to remove one component from an entity
+        /// </summary>
         public void RemoveFirstComponent<T>(int eid) where T : struct
         {
             GetEcsTable<T>().RemoveFirst(eid);
@@ -123,18 +142,10 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
-        internal void RemoveAt<T>(int eid, int mtmIndex) where T : struct
-        {
-            GetEcsTable<T>().RemoveAt(eid, mtmIndex);
-            #if MODULES_DEBUG
-            Logger.LogDebug(
-                $"Remove from {eid.ToString()} {typeof(T).Name} at multiple index {mtmIndex}",
-                LogFilter.EntityModifications
-            );
-            #endif
-            OnEntityChanged?.Invoke(eid);
-        }
-
+        /// <summary>
+        ///     Remove all components of type T from entity
+        ///     This is MultipleComponents API and allowed to remove all components from an entity
+        /// </summary>
         public void RemoveAll<T>(int eid) where T : struct
         {
             GetEcsTable<T>().RemoveAll(eid);
@@ -145,36 +156,78 @@ namespace ModulesFramework.Data
             OnEntityChanged?.Invoke(eid);
         }
 
+        /// <summary>
+        ///     Get component from entity by type.
+        ///     If there is no component it will throw <see cref="DataNotExistsInTableException{T}"/>
+        /// </summary>
+        /// <param name="id"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponent<T>(int id) where T : struct
         {
             return ref GetEcsTable<T>().GetData(id);
         }
 
+        /// <summary>
+        ///     Return indices enumerable to iterate through multiple components.
+        ///     This is MultipleComponents API
+        /// </summary>
+        /// <param name="eid"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public MultipleComponentsIndicesEnumerable<T> GetIndices<T>(int eid) where T : struct
         {
             return GetEcsTable<T>().GetMultipleIndices(eid);
         }
 
+        /// <summary>
+        ///     Return component by inner index.
+        ///     This is MultipleComponents API
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponentAt<T>(int eid, int index) where T : struct
         {
             return ref GetEcsTable<T>().MultipleAt(eid, index);
         }
 
+        /// <summary>
+        ///     Return enumerable of all components of type T from entity.
+        ///     This is MultipleComponents API
+        /// </summary>
+        /// <param name="eid"></param>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public MultipleComponentsEnumerable<T> GetAllComponents<T>(int eid) where T : struct
         {
             return GetEcsTable<T>().GetMultipleForEntity(eid);
         }
 
+        /// <summary>
+        ///     Return true if entity exists. Entity may exists but has another generation
+        ///     <seealso cref="IsEntityAlive"/>
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsEntityExists(int eid)
         {
             return _entitiesTable.Contains(eid);
         }
+        
+        /// <summary>
+        ///     Return true if entity exists. Entity may exists but has another generation
+        ///     <seealso cref="IsEntityAlive"/>
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsEntityExists(Entity entity)
+        {
+            return _entitiesTable.Contains(entity.Id);
+        }
 
+        /// <summary>
+        ///     Return true if entity wasn't deleted
+        /// </summary>
         public bool IsEntityAlive(Entity entity)
         {
             if (!IsEntityExists(entity.Id))
@@ -182,32 +235,69 @@ namespace ModulesFramework.Data
             var generation = _generationsTable.GetData(entity.Id);
             return generation.generation == entity.generation;
         }
+        
+        /// <summary>
+        ///     Return true if entity wasn't deleted
+        /// </summary>
+        public bool IsEntityAlive(int eid)
+        {
+            if (!IsEntityExists(eid))
+                return false;
+            var generation = _generationsTable.GetData(eid);
+            var entity = _entitiesTable.GetData(eid);
+            return generation.generation == entity.generation;
+        }
 
+        /// <summary>
+        ///     Return EcsTable by type. If table doesn't exist it will be created
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable<T> GetEcsTable<T>() where T : struct
         {
-            CreateTableIfNeed<T>();
-            return (EcsTable<T>)_data[typeof(T)];
+            return CreateTableIfNeed<T>();
         }
 
+        /// <summary>
+        ///     Return EcsTable by type. If table doesn't exist - throw exception
+        /// </summary>
+        /// <param name="type"></param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable GetEcsTable(Type type)
         {
             return _data[type];
         }
 
+        /// <summary>
+        ///     Return dense array of components by type.
+        ///     This is the fastest way to iterate through components
+        /// </summary>
         public Span<T> GetRawData<T>() where T : struct
         {
             return GetEcsTable<T>().GetRawData();
         }
 
+        /// <summary>
+        ///     Return query to select entities or components.
+        ///     It will take query from pool, so it's a good practice to use 'using' keyword
+        ///     for the sake of decreasing memory allocations
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Query Select<T>() where T : struct
+        public DataQuery Select<T>() where T : struct
         {
             var table = GetEcsTable<T>();
             return GetQuery(table);
         }
 
+        /// <summary>
+        ///     Return true if there is at least one component of type T
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Exist<T>() where T : struct
         {
@@ -216,20 +306,15 @@ namespace ModulesFramework.Data
             return query.Any();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool TrySelectFirst<T>(out T c) where T : struct
-        {
-            var table = GetEcsTable<T>();
-            var query = GetQuery(table);
-            return query.TrySelectFirst(out c);
-        }
-
-        private void ReturnQuery(Query query)
+        /// <summary>
+        ///     Return Query to pool. You may need it if you don't use 'using' with <see cref="Select{T}"/>
+        /// </summary>
+        internal void ReturnQuery(DataQuery query)
         {
             _queriesPool.Push(query);
         }
 
-        private Query GetQuery<T>(EcsTable<T> table) where T : struct
+        private DataQuery GetQuery<T>(EcsTable<T> table) where T : struct
         {
             if (_queriesPool.Count == 0)
                 FillQueriesPool();
@@ -241,34 +326,55 @@ namespace ModulesFramework.Data
         private void FillQueriesPool()
         {
             while (_queriesPool.Count < 128)
-                _queriesPool.Push(new Query(this));
+                _queriesPool.Push(new DataQuery(this));
         }
 
+        /// <summary>
+        ///     Create EcsTable if there is no one
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable<T> CreateTableIfNeed<T>() where T : struct
         {
             var type = typeof(T);
-            if (!_data.ContainsKey(type))
-                _data[type] = new EcsTable<T>();
-            return (EcsTable<T>)_data[type];
+            if (_data.TryGetValue(type, out var table))
+            {
+                return (EcsTable<T>)table;
+            }
+
+            var newTable = new EcsTable<T>();
+            _data[type] = newTable;
+            return newTable;
         }
 
+        /// <summary>
+        ///     Return Entity by id
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Entity GetEntity(int id)
         {
             return _entitiesTable.GetData(id);
         }
 
+        /// <summary>
+        ///     Return Entity by internal index. It isn't safe cause if entity will be destroyed the dense array
+        ///     will change and it may caused unexpected behaviour and bugs that will be very hard to find.
+        /// </summary>
         internal Entity GetEntityByDenseIndex<T>(int denseIndex) where T : struct
         {
             return GetEntity(GetEcsTable<T>().GetEidByIndex(denseIndex));
         }
 
+        /// <summary>
+        ///     Return true if entity with specified id has component of type T
+        /// </summary>
         public bool HasComponent<T>(int id) where T : struct
         {
             return GetEcsTable<T>().Contains(id);
         }
 
+        /// <summary>
+        ///     Return true if entity with specified id has component of specified Type
+        /// </summary>
         public bool HasComponent(int eid, Type componentType)
         {
             if (!_data.ContainsKey(componentType))
@@ -276,6 +382,9 @@ namespace ModulesFramework.Data
             return _data[componentType].Contains(eid);
         }
 
+        /// <summary>
+        ///     Destroy entity and remove all of its components
+        /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DestroyEntity(int id)
         {
@@ -299,99 +408,9 @@ namespace ModulesFramework.Data
                 handler.Invoke(kvp.Key, kvp.Value);
             }
         }
-
-
+        
         /// <summary>
-        /// Create one data container
-        /// </summary>
-        /// <typeparam name="T">Type of data in container</typeparam>
-        /// <seealso cref="CreateOneData{T}()"/>
-        public void CreateOneData<T>() where T : struct
-        {
-            _oneDatas[typeof(T)] = new EcsOneData<T>();
-            OnOneDataCreated?.Invoke(typeof(T), _oneDatas[typeof(T)]);
-        }
-
-        /// <summary>
-        /// Create one data container and set data
-        /// </summary>
-        /// <param name="data">Data that will be set in container</param>
-        /// <typeparam name="T">Type of data in container</typeparam>
-        /// <seealso cref="CreateOneData{T}(T)"/>
-        public void CreateOneData<T>(T data) where T : struct
-        {
-            var oneData = new EcsOneData<T>();
-            oneData.SetDataIfNotExist(data);
-            _oneDatas[typeof(T)] = oneData;
-            OnOneDataCreated?.Invoke(typeof(T), oneData);
-        }
-
-        internal OneData? GetOneData(Type containerType)
-        {
-            var dataType = containerType.GetGenericArguments()[0];
-            if (_oneDatas.ContainsKey(dataType))
-                return _oneDatas[dataType];
-
-            return null;
-        }
-
-        /// <summary>
-        /// Allow to get one data container by type
-        /// If one data component does not exist it create it
-        /// </summary>
-        /// <typeparam name="T">Type of one data</typeparam>
-        /// <returns>Generic container with one data</returns>
-        private EcsOneData<T> GetOneData<T>() where T : struct
-        {
-            var dataType = typeof(T);
-            if (!_oneDatas.ContainsKey(dataType))
-            {
-                CreateOneData<T>();
-            }
-
-            return (EcsOneData<T>)_oneDatas[dataType];
-        }
-
-        /// <summary>
-        /// Return ref to one data component by T
-        /// If one data component does not exist it create it
-        /// </summary>
-        /// <typeparam name="T">Type of one data</typeparam>
-        /// <returns>Ref to one data component</returns>
-        public ref T OneData<T>() where T : struct
-        {
-            var container = GetOneData<T>();
-            return ref container.GetData();
-        }
-
-        /// <summary>
-        /// Fully remove one data.
-        /// If you will use <see cref="OneData{T}"/> after removing it returns default value for type
-        /// </summary>
-        /// <typeparam name="T">Type of one data</typeparam>
-        public void RemoveOneData<T>() where T : struct
-        {
-            if (_oneDatas.ContainsKey(typeof(T)))
-            {
-                _oneDatas.Remove(typeof(T));
-                OnOneDataRemoved?.Invoke(typeof(T));
-            }
-        }
-
-        /// <summary>
-        ///     Check if one data exists. You do not need this check when you get one data
-        ///     cause it will be created with default fields. But in some cases you need to know if
-        ///     one data was created. For example if it created by some async operations and you can't use await.
-        /// </summary>
-        /// <typeparam name="T">Type of one data</typeparam>
-        /// <returns>True if created</returns>
-        public bool IsOneDataExists<T>() where T : struct
-        {
-            return _oneDatas.ContainsKey(typeof(T));
-        }
-
-        /// <summary>
-        ///     Return count of multiple components at entity
+        ///     Return count of multiple components at entity. This is MultipleComponents API
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int CountComponentsAt<T>(int eid) where T : struct
@@ -400,54 +419,17 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        ///     Create custom index for component, so you can get component or entity by component's index
+        ///     Return true if there is no components bound to entity with specified id
         /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void CreateIndex<T, TIndex>(Func<T, TIndex> getIndex) where T : struct where TIndex : notnull
+        public bool IsEmptyEntity(int id)
         {
-            GetEcsTable<T>().CreateIndex(getIndex);
-        }
+            foreach (var value in _data.Values)
+            {
+                if (value.Contains(id))
+                    return false;
+            }
 
-        /// <summary>
-        ///     Return component by custom index. Throws exception if there is no index or component
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public ref T ComponentByCustomIndex<T, TIndex>(TIndex index) where T : struct where TIndex : notnull
-        {
-            return ref GetEcsTable<T>().ComponentByCustomIndex(index);
-        }
-        
-        /// <summary>
-        ///     Check if there is component with given index
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public bool IsCustomIndexExists<T, TIndex>(TIndex index) where T : struct where TIndex : notnull
-        {
-            return GetEcsTable<T>().HasCustomIndex(index);
-        }
-
-        /// <summary>
-        ///     Return entity by custom index on some component on entity.
-        ///     Returns nul if there is no entity found
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public Entity? FindEntityByCustomIndex<T, TIndex>(TIndex index) where T : struct where TIndex : notnull
-        {
-            var eid = GetEcsTable<T>().FindEidByCustomIndex(index);
-            if (eid == null)
-                return null;
-            return GetEntity(eid.Value);
-        }
-
-        /// <summary>
-        ///     Updates custom index for component. It's remove old index first and then create new one
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void UpdateCustomIndex<T, TIndex>(TIndex oldIndex, T testComponent, int eid)
-            where T : struct
-            where TIndex : notnull
-        {
-            GetEcsTable<T>().UpdateCustomIndex(oldIndex, testComponent, eid);
+            return true;
         }
     }
 }

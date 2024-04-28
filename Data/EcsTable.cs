@@ -433,7 +433,7 @@ namespace ModulesFramework.Data
             #endif
         }
 
-        public void CreateIndex<TIndex>(Func<T, TIndex> getIndex) where TIndex : notnull
+        public void CreateKey<TIndex>(Func<T, TIndex> getIndex) where TIndex : notnull
         {
             CheckSingle();
             var indexer = new TableIndexer<T, TIndex>(getIndex);
@@ -448,30 +448,30 @@ namespace ModulesFramework.Data
             _indexer = indexer;
         }
 
-        public ref T ComponentByCustomIndex<TIndex>(TIndex index) where TIndex : notnull
+        public ref T ByKey<TIndex>(TIndex index) where TIndex : notnull
         {
             CheckSingle();
-            var eid = FindEidByCustomIndex(index);
-            if (eid == null)
+            var eid = FindEidByKey(index);
+            if (eid < 0)
                 throw new ComponentNotFoundException<T>($"Component {typeof(T).Name} not found by index {index}");
 
-            var denseIndex = _tableMap[eid.Value];
+            var denseIndex = _tableMap[eid];
             return ref _denseTable.At(denseIndex);
         }
 
-        public int? FindEidByCustomIndex<TIndex>(TIndex index) where TIndex : notnull
+        public int FindEidByKey<TIndex>(TIndex index) where TIndex : notnull
         {
             CheckSingle();
             if (_indexer == null)
                 throw new NoIndexerException<T>();
             var indexer = (TableIndexer<T, TIndex>)_indexer;
             if (!indexer.Contains(index))
-                return null;
+                return -1;
 
             return indexer[index];
         }
 
-        public bool HasCustomIndex<TIndex>(TIndex index) where TIndex : notnull
+        public bool HasKey<TIndex>(TIndex index) where TIndex : notnull
         {
             CheckSingle();
             if (_indexer == null)
@@ -481,7 +481,7 @@ namespace ModulesFramework.Data
             return indexer.Contains(index);
         }
 
-        public void UpdateCustomIndex<TIndex>(TIndex old, T testComponent, int eid) where TIndex : notnull
+        public void UpdateKey<TIndex>(TIndex old, T testComponent, int eid) where TIndex : notnull
         {
             if (_indexer == null)
                 throw new NoIndexerException<T>();

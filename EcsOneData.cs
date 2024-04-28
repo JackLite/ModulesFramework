@@ -53,6 +53,7 @@
 
     public abstract class OneData
     {
+        internal int generation;
         internal abstract object GetDataObject();
         internal abstract OneData Copy();
         internal abstract void SetDataObject(object data);
