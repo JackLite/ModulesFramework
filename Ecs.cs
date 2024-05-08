@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using ModulesFramework.Data;
 using ModulesFramework.Modules;
@@ -15,6 +16,7 @@ namespace ModulesFramework
 
         private DataWorld[] _worlds;
         public DataWorld MainWorld => _worlds[0];
+        public IEnumerable<DataWorld> Worlds => _worlds;
 
         public Ecs(int worldsCount = 1)
         {
