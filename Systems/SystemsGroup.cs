@@ -249,14 +249,14 @@ namespace ModulesFramework.Systems
 
             foreach (var system in subscribeSystems)
             {
-                if (!isInit && system is ISubscribeActivateSystem)
+                if (!isInit && system is ISubscribeActivateSystem<T> activateSystem)
                 {
-                    ((ISubscribeActivateSystem<T>)system).HandleEvent(ev);
+                    activateSystem.HandleEvent(ev);
                     continue;
                 }
 
-                if (isInit && system is ISubscribeInitSystem)
-                    ((ISubscribeInitSystem<T>)system).HandleEvent(ev);
+                if (isInit && system is ISubscribeInitSystem<T> initSystem)
+                    initSystem.HandleEvent(ev);
             }
         }
     }
