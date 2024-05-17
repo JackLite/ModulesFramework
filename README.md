@@ -27,7 +27,7 @@ is this simple code:
 ```csharp
 public void MyEntryPoint() 
 {
-    var ecs = new Ecs();
+    var ecs = new MF();
     ecs.Start();
 }
 ```
@@ -38,11 +38,11 @@ Here example for simple server:
 ```csharp
 public class MyServer
 {
-    private Ecs _ecs;
+    private MF _ecs;
     
     public MyServer()
     {
-        _ecs = new Ecs();
+        _ecs = new MF();
     }
     
     public void StartServer()
@@ -414,7 +414,7 @@ and **before** all `IPostRunSystem`s with the same order;
 systems.
 
 **Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()`
-so game over will be showing in *next* frame (i.e. next `Ecs.Run()` call) but
+so game over will be showing in *next* frame (i.e. next `MF.Run()` call) but
 **will not** be lost. 
 
 #### Subscriptions
@@ -551,8 +551,8 @@ There are cases when you may want to have more then one worlds with their own mo
 
 Here is example of working with worlds.
 ```csharp
-// just pass number of worlds when creating Ecs object
-var ecs = new Ecs(2);
+// just pass number of worlds when creating MF object
+var ecs = new MF(2);
 
 // get second world
 var secondWorld = ecs.GetWorld(1); // 1 - index of world, starting from 0
@@ -877,9 +877,9 @@ There is several types of system's interfaces:
 every `IPreInitSystem`s works;
 - `IActivateSystem` - calls once when module activated;
 - `IDeactivateSystem` - calls once when module deactivated;
-- `IRunSystem` - calls every `Ecs.Run()`;
-- `IPostRunSystem` - calls every `Ecs.PostRun()`;
-- `IRunPhysicSystem` - calls every `Ecs.RunPhysic()`;
+- `IRunSystem` - calls every `MF.Run()`;
+- `IPostRunSystem` - calls every `MF.PostRun()`;
+- `IRunPhysicSystem` - calls every `MF.RunPhysic()`;
 - `IRunEventSystem<T>` - calls *before* `IRunSystem` if event `T` was raised;
 - `IPostRunEventSystem<T>` - calls *after* `IRunSystem` and *before*
 `IPostRunSystem` if event `T` was raised;
@@ -887,9 +887,9 @@ every `IPreInitSystem`s works;
 was raised;
 - `IDestroySystem` - calls once when module destroyed; 
 
-### Ecs
+### MF
 
-`Ecs` is a entry point to modules framework.
+`MF` is a entry point to modules framework.
 
 - `DataWorld MainWorld` - world at 0 index;
 - `async void Start()` - inits and activate all global modules (all exceptions checks internally);

@@ -15,7 +15,7 @@ namespace ModulesFramework.Data
     {
         private readonly Dictionary<Type, EcsModule> _modules;
         private readonly Dictionary<Type, List<EcsModule>> _submodules;
-        private Dictionary<Type, List<Type>> _allSystemTypes;
+        private Dictionary<Type, List<Type>>? _allSystemTypes;
 
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
@@ -151,7 +151,7 @@ namespace ModulesFramework.Data
 
         private void CtorModules(int worldIndex)
         {
-            _allSystemTypes ??= EcsUtilities.FindSystems(this);
+            _allSystemTypes ??= EcsUtilities.FindSystems();
             var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {

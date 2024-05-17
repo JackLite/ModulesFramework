@@ -19,16 +19,13 @@ namespace ModulesFramework.Utils
         ///     Returns all systems types from all assemblies.
         ///     It's a very heavy operation so it's result cached in the world
         /// </summary>
-        /// <param name="world"></param>
         /// <returns></returns>
-        public static Dictionary<Type, List<Type>> FindSystems(DataWorld world)
+        public static Dictionary<Type, List<Type>> FindSystems()
         {
-            var st = new Stopwatch();
-            st.Start();
             var assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(FilterAssembly);
             var allSystems =
                 from type in assemblies.SelectMany(a => a.GetTypes())
-                where type.IsAssignableFrom(typeof(ISystem))
+                where type.IsClass && type.IsAssignableTo(typeof(ISystem))
                 let attr = type.GetCustomAttribute<EcsSystemAttribute>()
                 where attr != null
                 select (type, attr.module);
@@ -45,10 +42,6 @@ namespace ModulesFramework.Utils
                 systems.Add(systemType);
             }
 
-            st.Stop();
-
-            world.Logger.LogDebug($"FindSystems in {st.ElapsedMilliseconds} ms", LogFilter.Performance);
-
             return result;
         }
 
@@ -63,7 +56,8 @@ namespace ModulesFramework.Utils
         private static bool FilterAssembly(Assembly assembly)
         {
             return
-                assembly.FullName != "mscorlib"
+                assembly.FullName != null
+                && assembly.FullName != "mscorlib"
                 && assembly.FullName != "System"
                 && !assembly.FullName.StartsWith("System.");
         }
