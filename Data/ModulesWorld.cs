@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using ModulesFramework.Attributes;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
+using ModulesFramework.Systems;
+using ModulesFramework.Utils;
 
 namespace ModulesFramework.Data
 {
@@ -13,6 +15,7 @@ namespace ModulesFramework.Data
     {
         private readonly Dictionary<Type, EcsModule> _modules;
         private readonly Dictionary<Type, List<EcsModule>> _submodules;
+        private Dictionary<Type, List<Type>> _allSystemTypes;
 
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
@@ -148,6 +151,7 @@ namespace ModulesFramework.Data
 
         private void CtorModules(int worldIndex)
         {
+            _allSystemTypes ??= EcsUtilities.FindSystems(this);
             var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
@@ -169,14 +173,12 @@ namespace ModulesFramework.Data
 
         private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex)
         {
-            var modules = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes()
-                    .Where(t => t != typeof(EmbeddedGlobalModule))
-                    .Where(t => t.IsSubclassOf(typeof(EcsModule)) && !t.IsAbstract)
-                    .Select(t => (EcsModule)Activator.CreateInstance(t)));
+            var modules = EcsUtilities.GetModulesTypes().Select(t => (EcsModule)Activator.CreateInstance(t));
             foreach (var module in modules)
             {
-                if (!module.WorldIndex.Contains(worldIndex))
+                var moduleWorlds = ModuleUtil.GetWorldIndex(module.GetType());
+
+                if (!moduleWorlds.Contains(worldIndex))
                     continue;
                 module.InjectWorld(this);
                 yield return module;
@@ -197,9 +199,20 @@ namespace ModulesFramework.Data
 
         internal IEnumerable<EcsModule> GetSubmodules(Type parent)
         {
-            if (_submodules.ContainsKey(parent))
-                return _submodules[parent];
+            if (_submodules.TryGetValue(parent, out var submodules))
+                return submodules;
             return Array.Empty<EcsModule>();
+        }
+
+        internal IEnumerable<ISystem> GetSystems(Type moduleType)
+        {
+            if (!_allSystemTypes.TryGetValue(moduleType, out var systems))
+                yield break;
+
+            foreach (var system in systems)
+            {
+                yield return (ISystem)Activator.CreateInstance(system);
+            }
         }
     }
 }

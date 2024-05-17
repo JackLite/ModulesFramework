@@ -3,11 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using ModulesFramework.Data;
 using ModulesFramework.Modules;
-using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework
 {
-    public class Ecs
+    public class MF
     {
         private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
@@ -17,16 +16,23 @@ namespace ModulesFramework
         private DataWorld[] _worlds;
         public DataWorld MainWorld => _worlds[0];
         public IEnumerable<DataWorld> Worlds => _worlds;
+        public static MF Instance { get; private set; }
 
-        public Ecs(int worldsCount = 1)
+        public MF(int worldsCount = 1)
         {
             CreateWorlds(worldsCount);
             CreateEmbedded();
+            Instance = this;
         }
 
         public DataWorld GetWorld(int index)
         {
             return _worlds[index];
+        }
+
+        public IEnumerable<DataWorld> GetAllWorlds()
+        {
+            return _worlds;
         }
 
         private void CreateEmbedded()

@@ -1,5 +1,6 @@
 ﻿using System;
 using ModulesFramework.Modules;
+using ModulesFramework.Utils;
 
 namespace ModulesFramework.Attributes
 {
