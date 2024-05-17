@@ -25,7 +25,7 @@ namespace ModulesFramework.Utils
             var assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(FilterAssembly);
             var allSystems =
                 from type in assemblies.SelectMany(a => a.GetTypes())
-                where type.IsClass && type.IsAssignableTo(typeof(ISystem))
+                where type.IsClass && typeof(ISystem).IsAssignableFrom(type)
                 let attr = type.GetCustomAttribute<EcsSystemAttribute>()
                 where attr != null
                 select (type, attr.module);
