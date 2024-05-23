@@ -17,12 +17,11 @@ namespace ModulesFramework.Utils
     {
         /// <summary>
         ///     Returns all systems types from all assemblies.
-        ///     It's a very heavy operation so it's result cached in the world
+        ///     It's a very heavy operation, so its result cached in the world
         /// </summary>
-        /// <returns></returns>
-        public static Dictionary<Type, List<Type>> FindSystems()
+        public static Dictionary<Type, List<Type>> FindSystems(Func<Assembly, bool> filter)
         {
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(FilterAssembly);
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(filter);
             var allSystems =
                 from type in assemblies.SelectMany(a => a.GetTypes())
                 where type.IsClass && typeof(ISystem).IsAssignableFrom(type)
@@ -45,21 +44,12 @@ namespace ModulesFramework.Utils
             return result;
         }
 
-        public static IEnumerable<Type> GetModulesTypes()
+        public static IEnumerable<Type> GetModulesTypes(Func<Assembly, bool> filter)
         {
-            var assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(FilterAssembly);
+            var assemblies = AppDomain.CurrentDomain.GetAssemblies().Where(filter);
             return assemblies.SelectMany(a => a.GetTypes()
                 .Where(FilterModules)
                 .Select(t => t));
-        }
-
-        private static bool FilterAssembly(Assembly assembly)
-        {
-            return
-                assembly.FullName != null
-                && assembly.FullName != "mscorlib"
-                && assembly.FullName != "System"
-                && !assembly.FullName.StartsWith("System.");
         }
 
         private static bool FilterModules(Type type)

@@ -113,7 +113,6 @@ namespace ModulesFramework.Data
             ActivateModule(typeof(T));
         }
 
-
         /// <summary>
         /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
         /// </summary>
@@ -155,20 +154,27 @@ namespace ModulesFramework.Data
             module.SetActive(false);
         }
 
+        /// <summary>
+        ///     Return true if module T is initialized and active
+        /// </summary>
         public bool IsModuleActive<TModule>() where TModule : EcsModule
         {
             var localModule = GetModule<TModule>();
             return localModule is { IsActive: true };
         }
 
-        public EcsModule GetModule<T>() where T : EcsModule
+        /// <summary>
+        ///     Return module T
+        /// </summary>
+        /// <typeparam name="T">Type of module. It must inherit from EcsModule</typeparam>
+        public T GetModule<T>() where T : EcsModule
         {
-            return GetModule(typeof(T));
+            return (T)GetModule(typeof(T));
         }
 
         private void CtorModules(int worldIndex)
         {
-            _allSystemTypes ??= EcsUtilities.FindSystems();
+            _allSystemTypes ??= EcsUtilities.FindSystems(_assemblyFilter.Filter);
             var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
@@ -190,7 +196,8 @@ namespace ModulesFramework.Data
 
         private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex)
         {
-            var modules = EcsUtilities.GetModulesTypes().Select(t => (EcsModule)Activator.CreateInstance(t));
+            var modules = EcsUtilities.GetModulesTypes(_assemblyFilter.Filter)
+                .Select(t => (EcsModule)Activator.CreateInstance(t)!);
             foreach (var module in modules)
             {
                 var moduleWorlds = ModuleUtil.GetWorldIndex(module.GetType());
@@ -202,11 +209,21 @@ namespace ModulesFramework.Data
             }
         }
 
+        /// <summary>
+        ///     Return all created modules
+        /// </summary>
         public IEnumerable<EcsModule> GetAllModules()
         {
             return _modules.Values;
         }
 
+        /// <summary>
+        ///     Return module by its type. There is no case when you can't get module if
+        ///     it's inherited from <see cref="EcsModule"/> class and MF is started
+        /// </summary>
+        /// <param name="moduleType">Type of module</param>
+        /// <returns>EcsModule</returns>
+        /// <exception cref="ModuleNotFoundException"></exception>
         public EcsModule GetModule(Type moduleType)
         {
             if (_modules.TryGetValue(moduleType, out var module))
@@ -223,12 +240,12 @@ namespace ModulesFramework.Data
 
         internal IEnumerable<ISystem> GetSystems(Type moduleType)
         {
-            if (!_allSystemTypes.TryGetValue(moduleType, out var systems))
+            if (_allSystemTypes == null || !_allSystemTypes.TryGetValue(moduleType, out var systems))
                 yield break;
 
             foreach (var system in systems)
             {
-                yield return (ISystem)Activator.CreateInstance(system);
+                yield return (ISystem)Activator.CreateInstance(system)!;
             }
         }
     }

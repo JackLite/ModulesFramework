@@ -1,8 +1,10 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using ModulesFramework.Data;
 using ModulesFramework.Modules;
+using ModulesFramework.Utils;
 
 namespace ModulesFramework
 {
@@ -14,12 +16,14 @@ namespace ModulesFramework
         private EmbeddedGlobalModule _embeddedGlobalModule;
 
         private DataWorld[] _worlds;
+        private AssemblyFilter _assemblyFilter;
         public DataWorld MainWorld => _worlds[0];
         public IEnumerable<DataWorld> Worlds => _worlds;
         public static MF Instance { get; private set; }
 
-        public MF(int worldsCount = 1)
+        public MF(int worldsCount = 1, AssemblyFilter? filter = null)
         {
+            _assemblyFilter = filter ?? new AssemblyFilter();
             CreateWorlds(worldsCount);
             CreateEmbedded();
             Instance = this;
@@ -47,21 +51,29 @@ namespace ModulesFramework
             _moduleSystems = new ModuleSystem[count];
             for (var i = 0; i < count; i++)
             {
-                _worlds[i] = new DataWorld(i);
+                _worlds[i] = new DataWorld(i, _assemblyFilter);
                 _moduleSystems[i] = new ModuleSystem(_worlds[i].GetAllModules().ToArray());
             }
         }
 
-        public async void Start()
+        public async Task Start()
         {
-            await _embeddedGlobalModule.Init(true);
-            foreach (var world in _worlds)
+            try
             {
-                _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
-                foreach (var module in _globalModules)
+                await _embeddedGlobalModule.Init(true);
+                foreach (var world in _worlds)
                 {
-                    await module.Init(true);
+                    _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
+                    foreach (var module in _globalModules)
+                    {
+                        await module.Init(true);
+                    }
                 }
+            }
+            catch (Exception e)
+            {
+                MainWorld.Logger.RethrowException(e);
+                throw;
             }
 
             _isInitialized = true;
