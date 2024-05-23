@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -23,7 +24,8 @@ namespace ModulesFramework.Data
         /// </summary>
         /// <typeparam name="T">Type of module that you want to activate</typeparam>
         /// <seealso cref="ActivateModule{T}"/>
-        /// <seealso cref="InitModule{T, T}"/>
+        /// <seealso cref="InitModule"/>
+        /// <seealso cref="InitModuleAsync{T}"/>
         public void InitModule<T>(bool activateImmediately = false) where T : EcsModule
         {
             InitModule(typeof(T), activateImmediately);
@@ -34,17 +36,32 @@ namespace ModulesFramework.Data
         /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
         /// </summary>
         /// <seealso cref="ActivateModule{T}"/>
-        /// <seealso cref="InitModule{T, T}"/>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="InitModuleAsync"/>
         public void InitModule(Type moduleType, bool activateImmediately = false)
         {
             InitModuleAsync(moduleType, activateImmediately).Forget();
         }
 
+        /// <summary>
+        /// Init module asynchronously. Call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// </summary>
+        /// <seealso cref="ActivateModule{T}"/>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="InitModuleAsync"/>
         public async Task InitModuleAsync<T>(bool activateImmediately = false)
         {
             await InitModuleAsync(typeof(T), activateImmediately);
         }
 
+        /// <summary>
+        /// Init module asynchronously. Call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// </summary>
+        /// <seealso cref="ActivateModule{T}"/>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="InitModuleAsync{T}"/>
         public async Task InitModuleAsync(Type moduleType, bool activateImmediately = false)
         {
             try
