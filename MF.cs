@@ -19,7 +19,10 @@ namespace ModulesFramework
         private AssemblyFilter _assemblyFilter;
         public DataWorld MainWorld => _worlds[0];
         public IEnumerable<DataWorld> Worlds => _worlds;
-        public static MF Instance { get; private set; }
+        private static MF Instance { get; set; }
+
+        public static bool IsInitialized => Instance is { _isInitialized: true };
+        public static DataWorld World => Instance.MainWorld;
 
         public MF(int worldsCount = 1, AssemblyFilter? filter = null)
         {
