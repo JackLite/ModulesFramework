@@ -5,6 +5,7 @@ using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
+using ModulesFramework.Utils;
 #if MODULES_DEBUG
 using ModulesFramework.Exceptions;
 #endif
@@ -13,6 +14,7 @@ namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
+        private readonly AssemblyFilter _assemblyFilter;
         private int _entityCount;
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
         private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
@@ -28,8 +30,9 @@ namespace ModulesFramework.Data
         internal event Action<Type, OneData>? OnOneDataCreated;
         internal event Action<Type>? OnOneDataRemoved;
 
-        public DataWorld(int worldIndex)
+        public DataWorld(int worldIndex, AssemblyFilter assemblyFilter)
         {
+            _assemblyFilter = assemblyFilter;
             _modules = new Dictionary<Type, EcsModule>();
             _submodules = new Dictionary<Type, List<EcsModule>>();
             CtorModules(worldIndex);
@@ -214,7 +217,7 @@ namespace ModulesFramework.Data
         {
             return _entitiesTable.Contains(eid);
         }
-        
+
         /// <summary>
         ///     Return true if entity exists. Entity may exists but has another generation
         ///     <seealso cref="IsEntityAlive"/>
@@ -235,7 +238,7 @@ namespace ModulesFramework.Data
             var generation = _generationsTable.GetData(entity.Id);
             return generation.generation == entity.generation;
         }
-        
+
         /// <summary>
         ///     Return true if entity wasn't deleted
         /// </summary>
@@ -408,7 +411,7 @@ namespace ModulesFramework.Data
                 handler.Invoke(kvp.Key, kvp.Value);
             }
         }
-        
+
         /// <summary>
         ///     Return count of multiple components at entity. This is MultipleComponents API
         /// </summary>

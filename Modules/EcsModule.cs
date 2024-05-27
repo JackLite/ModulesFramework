@@ -1,12 +1,12 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using ModulesFramework.Attributes;
-using ModulesFramework.Data;
 using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Systems;
@@ -27,24 +27,11 @@ namespace ModulesFramework.Modules
         private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
         private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
         private static readonly List<EcsModule> _globalModules = new List<EcsModule>();
+        private List<ISystem>? _createdSystem;
 
-#nullable disable
-        protected DataWorld world;
-#nullable enable
+        protected DataWorld world = null!;
 
         private Type ConcreteType => GetType();
-
-        /// <summary>
-        ///     Set that marks to what world belongs this module.
-        ///     Be careful cause all systems in module will run once per world
-        ///     Note: probably you will never need this, but for some complex multiplayer games it will be
-        ///     necessary in host mode
-        /// </summary>
-        public virtual HashSet<int> WorldIndex =>
-            new HashSet<int>
-            {
-                0
-            };
 
         public bool IsGlobal { get; }
         public bool IsInitialized { get; private set; }
@@ -57,14 +44,19 @@ namespace ModulesFramework.Modules
 
         internal IEnumerable<Type> Systems => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
 
+        public event Action? OnInitialized;
+        public event Action? OnActivated;
+        public event Action? OnDeactivated;
+        public event Action? OnDestroyed;
+
         protected EcsModule()
         {
             IsGlobal = ConcreteType.GetCustomAttribute<GlobalModuleAttribute>() != null;
         }
 
-        internal void InjectWorld(DataWorld world)
+        internal void InjectWorld(DataWorld dataWorld)
         {
-            this.world = world;
+            world = dataWorld;
         }
 
         /// <summary>
@@ -77,7 +69,6 @@ namespace ModulesFramework.Modules
             try
             {
                 await StartInit();
-
                 ProcessSystems();
                 if (activateImmediately)
                     SetActive(true);
@@ -137,7 +128,9 @@ namespace ModulesFramework.Modules
 
         private void ProcessSystems()
         {
-            CreateSystems();
+            if (_createdSystem == null)
+                CreateSystems();
+
             InitSystems();
             foreach (var submodule in world.GetSubmodules(ConcreteType))
             {
@@ -150,12 +143,14 @@ namespace ModulesFramework.Modules
             world.Logger.LogDebug($"Call OnInit in {GetType().Name}", LogFilter.ModulesFull);
             #endif
             OnInit();
+            OnInitialized?.Invoke();
         }
 
         private void CreateSystems()
         {
             var systemOrder = GetSystemsOrder();
-            foreach (var system in GetSystems())
+            _createdSystem = GetSystems().ToList();
+            foreach (var system in _createdSystem)
             {
                 var order = 0;
                 if (systemOrder.ContainsKey(system.GetType()))
@@ -171,7 +166,7 @@ namespace ModulesFramework.Modules
 
         protected virtual IEnumerable<ISystem> GetSystems()
         {
-            return EcsUtilities.CreateSystems(ConcreteType);
+            return world.GetSystems(ConcreteType);
         }
 
         internal void InitSystems()
@@ -219,12 +214,14 @@ namespace ModulesFramework.Modules
                 Activate();
                 SetSubmodulesActive(true);
                 OnActivate();
+                OnActivated?.Invoke();
             }
             else if (!isActive && IsActive)
             {
                 SetSubmodulesActive(false);
                 Deactivate();
                 OnDeactivate();
+                OnDeactivated?.Invoke();
             }
 
             IsActive = isActive;
@@ -248,7 +245,7 @@ namespace ModulesFramework.Modules
             {
                 foreach (var eventType in p.Value.EventTypes)
                     world.RegisterListener(eventType, p.Value);
-                
+
                 foreach (var eventType in p.Value.SubscriptionTypes)
                     world.RegisterSubscriber(eventType, p.Value, p.Key);
 
@@ -270,7 +267,7 @@ namespace ModulesFramework.Modules
                 p.Value.Deactivate(world);
                 foreach (var eventType in p.Value.EventTypes)
                     world.UnregisterListener(eventType, p.Value);
-                
+
                 foreach (var eventType in p.Value.SubscriptionTypes)
                     world.UnregisterSubscriber(eventType, p.Value);
             }
@@ -406,7 +403,6 @@ namespace ModulesFramework.Modules
                 }
             }
 
-            _systems.Clear();
             IsInitialized = false;
         }
 
@@ -444,6 +440,7 @@ namespace ModulesFramework.Modules
             OnDestroy();
             DestroySystems();
             IsInitialized = false;
+            OnDestroyed?.Invoke();
         }
 
         private void InsertDependencies(ISystem system, DataWorld world)
@@ -487,8 +484,10 @@ namespace ModulesFramework.Modules
                     }
 
                     if (dependency == null)
+                    {
                         throw new Exception(
                             $"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}");
+                    }
 
                     injections[i++] = dependency;
                 }
@@ -597,21 +596,6 @@ namespace ModulesFramework.Modules
             }
 
             return null;
-        }
-
-        /// <summary>
-        /// Let you get global dependencies in local module.
-        /// It can be useful when you create some local service that needs global dependency.
-        /// </summary>
-        /// <typeparam name="TModule">Module from where you need dependency</typeparam>
-        /// <typeparam name="TDependency">Dependency type</typeparam>
-        /// <returns>Dependency or null</returns>
-        protected TDependency? GetGlobalDependency<TModule, TDependency>()
-            where TModule : EcsModule where TDependency : class
-        {
-            var module = world.GetModule<TModule>();
-
-            return module?.GetDependency<TDependency>();
         }
 
         /// <summary>

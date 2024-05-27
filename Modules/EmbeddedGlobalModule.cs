@@ -13,19 +13,28 @@ namespace ModulesFramework.Modules
         protected override IEnumerable<ISystem> GetSystems()
         {
             var types = GetSystemTypes().ToArray();
+            var systems = new List<ISystem>(types.Length);
             foreach (var type in types)
             {
-                if (type.GetInterfaces().All(t => t != typeof(ISystem)))
-                    Console.WriteLine("[Error] Wrong type! " + type);
+                try
+                {
+                    var system = (ISystem)Activator.CreateInstance(type);
+                    systems.Add(system);
+                }
+                catch (InvalidCastException)
+                {
+                    world.Logger.LogError($"System {type} should implement {nameof(ISystem)} interface");
+                }
             }
 
-            return types.Select(t => (ISystem)Activator.CreateInstance(t));
+            return systems;
         }
 
         private static IEnumerable<Type> GetSystemTypes()
         {
             return
                 from type in AppDomain.CurrentDomain.GetAssemblies().SelectMany(a => a.GetTypes())
+                where type.IsAssignableFrom(typeof(ISystem))
                 let attr = type.GetCustomAttribute<GlobalSystemAttribute>()
                 where attr != null
                 select type;
