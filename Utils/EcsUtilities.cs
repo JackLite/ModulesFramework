@@ -26,8 +26,9 @@ namespace ModulesFramework.Utils
                 from type in assemblies.SelectMany(a => a.GetTypes())
                 where type.IsClass && typeof(ISystem).IsAssignableFrom(type)
                 let attr = type.GetCustomAttribute<EcsSystemAttribute>()
-                where attr != null
-                select (type, attr.module);
+                let global = type.GetCustomAttribute<GlobalSystemAttribute>()
+                where attr != null || global != null
+                select (type, attr != null ? attr.module : typeof(EmbeddedGlobalModule));
 
             var result = new Dictionary<Type, List<Type>>();
             foreach (var (systemType, moduleType) in allSystems)
