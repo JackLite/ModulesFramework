@@ -158,8 +158,7 @@ namespace ModulesFramework.Modules
 
                 if (!_systems.ContainsKey(order))
                     _systems[order] = new SystemsGroup();
-
-                InsertDependencies(system, world);
+                
                 _systems[order].Add(system);
             }
         }
@@ -175,6 +174,9 @@ namespace ModulesFramework.Modules
             world.Logger.LogDebug($"Module {GetType().Name} systems preinit", LogFilter.SystemsInit);
             #endif
 
+            foreach (var system in _createdSystem)
+                InsertDependencies(system, world);
+            
             foreach (var p in _systems)
                 p.Value.PreInit(world);
 
