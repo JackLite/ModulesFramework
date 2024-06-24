@@ -7,6 +7,7 @@ namespace ModulesFramework.Data
     {
         private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
 
+        internal IEnumerable<OneData> OneDataCollection => _oneDatas.Values;
         /// <summary>
         /// Create one data container
         /// </summary>
