@@ -33,13 +33,6 @@
             return _isSet;
         }
 
-        internal override OneData Copy()
-        {
-            var copy = new EcsOneData<T>();
-            copy.SetData(_data);
-            return copy;
-        }
-        
         internal override object GetDataObject()
         {
             return _data;
@@ -55,7 +48,6 @@
     {
         internal int generation;
         internal abstract object GetDataObject();
-        internal abstract OneData Copy();
         internal abstract void SetDataObject(object data);
     }
 }
