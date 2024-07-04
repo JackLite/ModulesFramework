@@ -434,5 +434,15 @@ namespace ModulesFramework.Data
 
             return true;
         }
+
+        internal IEnumerable<Entity> GetAliveEntities()
+        {
+            foreach (var entity in _entitiesTable.GetInternalData())
+            {
+                if(!IsEntityAlive(entity))
+                    continue;
+                yield return entity;
+            }
+        }
     }
 }
