@@ -500,10 +500,5 @@ namespace ModulesFramework.Data
             var indexer = (TableIndexer<T, TIndex>)_indexer;
             indexer.Update(old, testComponent, eid);
         }
-
-        internal IEnumerable<T> GetInternalData()
-        {
-            return _denseTable.Enumerate();
-        }
     }
 }
