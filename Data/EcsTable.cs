@@ -13,12 +13,14 @@ namespace ModulesFramework.Data
         internal abstract Type Type { get; }
         public abstract void AddData(Entity entity, object component);
         internal abstract object GetDataObject(int eid);
+        internal abstract object GetAt(int denseIndex);
         internal abstract object SetDataObject(int eid, object component);
         internal abstract void GetDataObjects(int eid, Dictionary<int, object> result);
         internal abstract void SetDataObjects(int eid, List<object> result);
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
         internal abstract void RemoveInternal(int eid);
+        public abstract int GetMultipleDataLength(int eid);
     }
 
     public class EcsTable<T> : EcsTable where T : struct
@@ -168,7 +170,7 @@ namespace ModulesFramework.Data
         /// <summary>
         ///     Returns counts of multiple components at entity
         /// </summary>
-        public int GetMultipleDataLength(int eid)
+        public override int GetMultipleDataLength(int eid)
         {
             CheckMultiple();
             if (!Contains(eid))
@@ -205,6 +207,11 @@ namespace ModulesFramework.Data
         internal override object GetDataObject(int eid)
         {
             return _denseTable.At(_tableMap[eid]);
+        }
+
+        internal override object GetAt(int denseIndex)
+        {
+            return At(denseIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -487,6 +494,11 @@ namespace ModulesFramework.Data
                 throw new NoIndexerException<T>();
             var indexer = (TableIndexer<T, TIndex>)_indexer;
             indexer.Update(old, testComponent, eid);
+        }
+
+        internal IEnumerable<T> GetInternalData()
+        {
+            return _denseTable.Enumerate();
         }
     }
 }

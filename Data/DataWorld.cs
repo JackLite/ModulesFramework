@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
@@ -433,6 +434,40 @@ namespace ModulesFramework.Data
             }
 
             return true;
+        }
+
+        internal IEnumerable<Entity> GetAliveEntities()
+        {
+            foreach (var entity in _entitiesTable.GetInternalData())
+            {
+                if (!IsEntityAlive(entity))
+                    continue;
+                yield return entity;
+            }
+        }
+
+        /// <summary>
+        ///     Return types of single components that entity contains
+        /// </summary>
+        internal IEnumerable<Type> GetEntitySingleComponentsType(int eid)
+        {
+            foreach (var table in _data.Values)
+            {
+                if (table.Contains(eid) && !table.IsMultiple)
+                    yield return table.Type;
+            }
+        }
+
+        /// <summary>
+        ///     Return types of multiple components that entity contains
+        /// </summary>
+        internal IEnumerable<Type> GetEntityMultipleComponentsType(int eid)
+        {
+            foreach (var table in _data.Values)
+            {
+                if (table.Contains(eid) && table.IsMultiple)
+                    yield return table.Type;
+            }
         }
     }
 }
