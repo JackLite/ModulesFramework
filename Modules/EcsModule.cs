@@ -22,7 +22,7 @@ namespace ModulesFramework.Modules
     /// </summary>
     /// <seealso cref="IRunSystem"/>
     /// <seealso cref="GlobalModuleAttribute"/>
-    public abstract class EcsModule
+    public abstract partial class EcsModule
     {
         private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
         private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
@@ -35,6 +35,12 @@ namespace ModulesFramework.Modules
 
         public bool IsGlobal { get; }
         public bool IsInitialized { get; private set; }
+
+        /// <summary>
+        ///     Used for events so we can rise event in Activate
+        /// </summary>
+        internal bool IsActivating { get; private set; }
+
         public bool IsActive { get; private set; }
 
         public bool IsSubmodule { get; private set; }
@@ -158,7 +164,7 @@ namespace ModulesFramework.Modules
 
                 if (!_systems.ContainsKey(order))
                     _systems[order] = new SystemsGroup();
-                
+
                 _systems[order].Add(system);
             }
         }
@@ -176,7 +182,7 @@ namespace ModulesFramework.Modules
 
             foreach (var system in _createdSystem)
                 InsertDependencies(system, world);
-            
+
             foreach (var p in _systems)
                 p.Value.PreInit(world);
 
@@ -189,7 +195,7 @@ namespace ModulesFramework.Modules
                 p.Value.Init(world);
                 foreach (var subscriptionType in p.Value.SubscriptionTypes)
                 {
-                    world.RegisterSubscriber(subscriptionType, p.Value, p.Key, true);
+                    RegisterSubscriber(subscriptionType, p.Value, p.Key, true);
                 }
             }
 
@@ -211,6 +217,7 @@ namespace ModulesFramework.Modules
             if (!IsInitialized)
                 throw new ModuleNotInitializedException(ConcreteType);
 
+            IsActivating = isActive;
             if (isActive && !IsActive)
             {
                 Activate();
@@ -246,10 +253,10 @@ namespace ModulesFramework.Modules
             foreach (var p in _systems)
             {
                 foreach (var eventType in p.Value.EventTypes)
-                    world.RegisterListener(eventType, p.Value);
+                    RegisterListener(eventType, p.Value);
 
                 foreach (var eventType in p.Value.SubscriptionTypes)
-                    world.RegisterSubscriber(eventType, p.Value, p.Key);
+                    RegisterSubscriber(eventType, p.Value, p.Key);
 
                 p.Value.Activate(world);
             }
@@ -264,14 +271,17 @@ namespace ModulesFramework.Modules
             world.Logger.LogDebug($"Deactivate systems in {GetType().Name}", LogFilter.SystemsDestroy);
             #endif
 
+            _runEvents.Clear();
+            _postRunEvents.Clear();
+            _frameEndEvents.Clear();
             foreach (var p in _systems)
             {
                 p.Value.Deactivate(world);
                 foreach (var eventType in p.Value.EventTypes)
-                    world.UnregisterListener(eventType, p.Value);
+                    UnregisterListener(eventType, p.Value);
 
                 foreach (var eventType in p.Value.SubscriptionTypes)
-                    world.UnregisterSubscriber(eventType, p.Value);
+                    UnregisterSubscriber(eventType, p.Value);
             }
             #if MODULES_DEBUG
             world.Logger.LogDebug($"Call OnDeactivate in {GetType().Name}", LogFilter.ModulesFull);
@@ -289,18 +299,7 @@ namespace ModulesFramework.Modules
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
-                {
-                    // 
-                    var handler = world.GetHandlers(eventType);
-                    try
-                    {
-                        handler.Run<IRunEventSystem>();
-                    }
-                    catch (Exception e)
-                    {
-                        world.Logger.RethrowException(e);
-                    }
-                }
+                    RunEvents(eventType);
 
                 p.Run(world);
             }
@@ -320,7 +319,6 @@ namespace ModulesFramework.Modules
             }
         }
 
-
         /// <summary>
         /// Just call RunLate at systems
         /// </summary>
@@ -332,10 +330,7 @@ namespace ModulesFramework.Modules
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
-                {
-                    var handler = world.GetHandlers(eventType);
-                    handler.Run<IPostRunEventSystem>();
-                }
+                    PostRunEvents(eventType);
 
                 p.PostRun(world);
             }
@@ -343,10 +338,7 @@ namespace ModulesFramework.Modules
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
-                {
-                    var handler = world.GetHandlers(eventType);
-                    handler.Run<IFrameEndEventSystem>();
-                }
+                    FrameEndEvents(eventType);
             }
         }
 
@@ -401,7 +393,7 @@ namespace ModulesFramework.Modules
 
                 foreach (var subscriptionType in p.Value.SubscriptionTypes)
                 {
-                    world.UnregisterSubscriber(subscriptionType, p.Value, true);
+                    UnregisterSubscriber(subscriptionType, p.Value, true);
                 }
             }
 
@@ -615,7 +607,7 @@ namespace ModulesFramework.Modules
         }
 
         /// <summary>
-        /// Let you set order of systems. Default order is 0. Systems will be ordered by ascending 
+        /// Let you set order of systems. Default order is 0. Systems will be ordered by ascending
         /// </summary>
         /// <returns>Dictionary with key - type of system and value - order</returns>
         protected virtual Dictionary<Type, int> GetSystemsOrder()
