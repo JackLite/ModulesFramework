@@ -151,6 +151,9 @@ namespace ModulesFramework.Systems
             {
                 try
                 {
+                    #if MODULES_DEBUG
+                    world.Logger.LogDebug($"Destroy system {s.GetType().Name}", LogFilter.SystemsDestroy);
+                    #endif
                     ((IDestroySystem)s).Destroy();
                 }
                 catch (Exception e)
