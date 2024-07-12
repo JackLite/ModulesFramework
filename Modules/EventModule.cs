@@ -21,8 +21,10 @@ namespace ModulesFramework.Modules
         {
             if (!IsActivating)
                 return false;
-
             var type = typeof(T);
+
+            if (!_eventListeners.ContainsKey(type))
+                return false;
             CheckRunEventType(type);
             var wasAdded = false;
             foreach (var systemsGroup in _eventListeners[type])
