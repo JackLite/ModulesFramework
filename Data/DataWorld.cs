@@ -1,6 +1,7 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
@@ -24,6 +25,8 @@ namespace ModulesFramework.Data
 
         private readonly Stack<DataQuery> _queriesPool;
 
+        internal EcsTable<Entity> EntitiesTable => _entitiesTable;
+
         public event Action<int>? OnEntityCreated;
         public event Action<int>? OnEntityChanged;
         public event Action<int>? OnEntityDestroyed;
@@ -38,6 +41,7 @@ namespace ModulesFramework.Data
             _submodules = new Dictionary<Type, List<EcsModule>>();
             CtorModules(worldIndex);
             _queriesPool = new Stack<DataQuery>(128);
+            _entitiesTable.CreateKey(e => e.GetCustomId());
         }
 
         /// <summary>
@@ -436,14 +440,9 @@ namespace ModulesFramework.Data
             return true;
         }
 
-        internal IEnumerable<Entity> GetAliveEntities()
+        public Entity EntityByCustomId(string customId)
         {
-            foreach (var entity in _entitiesTable.GetInternalData())
-            {
-                if (!IsEntityAlive(entity))
-                    continue;
-                yield return entity;
-            }
+            return _entitiesTable.ByKey(customId);
         }
 
         /// <summary>

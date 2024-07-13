@@ -488,17 +488,12 @@ namespace ModulesFramework.Data
             return indexer.Contains(index);
         }
 
-        public void UpdateKey<TIndex>(TIndex old, T testComponent, int eid) where TIndex : notnull
+        public void UpdateKey<TIndex>(TIndex old, T component, int eid) where TIndex : notnull
         {
             if (_indexer == null)
                 throw new NoIndexerException<T>();
             var indexer = (TableIndexer<T, TIndex>)_indexer;
-            indexer.Update(old, testComponent, eid);
-        }
-
-        internal IEnumerable<T> GetInternalData()
-        {
-            return _denseTable.Enumerate();
+            indexer.Update(old, component, eid);
         }
     }
 }
