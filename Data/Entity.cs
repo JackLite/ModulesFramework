@@ -151,12 +151,20 @@ namespace ModulesFramework.Data
         /// </summary>
         public string GetCustomId()
         {
+            return World.GetEntity(Id).GetCustomIdInternal();
+        }
+
+        internal string GetCustomIdInternal()
+        {
             if (string.IsNullOrWhiteSpace(_customId))
                 return Id.ToString(CultureInfo.InvariantCulture);
 
             return _customId;
         }
 
+        /// <summary>
+        ///     Set custom id for entity. Based on indices feature.
+        /// </summary>
         public void SetCustomId(string newCustomId)
         {
             World.SetEntityCustomId(Id, newCustomId);

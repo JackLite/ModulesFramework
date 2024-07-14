@@ -495,5 +495,10 @@ namespace ModulesFramework.Data
             var indexer = (TableIndexer<T, TIndex>)_indexer;
             indexer.Update(old, component, eid);
         }
+
+        public IEnumerable<T> GetInternalData()
+        {
+            return _denseTable.Enumerate();
+        }
     }
 }

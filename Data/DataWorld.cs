@@ -442,7 +442,7 @@ namespace ModulesFramework.Data
         public void SetEntityCustomId(int id, string customId)
         {
             ref var entity = ref _entitiesTable.GetData(id);
-            var oldId = entity.GetCustomId();
+            var oldId = entity.GetCustomIdInternal();
             entity.SetCustomIdInternal(customId);
             _entitiesTable.UpdateKey(oldId, entity, entity.Id);
             OnCustomIdChanged?.Invoke(id);
