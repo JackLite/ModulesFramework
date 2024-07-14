@@ -1,5 +1,4 @@
 using System;
-using ModulesFramework.Modules;
 
 namespace ModulesFramework.Exceptions
 {

@@ -133,7 +133,7 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        ///     Returns count of T components on entity
+        ///     Returns count of multiple components typeof T on entity
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Count<T>() where T : struct
@@ -157,11 +157,14 @@ namespace ModulesFramework.Data
             return _customId;
         }
 
-        public void SetCustomId(string id)
+        public void SetCustomId(string newCustomId)
         {
-            var old = GetCustomId();
-            _customId = id;
-            World.EntitiesTable.UpdateKey(old, this, Id);
+            World.SetEntityCustomId(Id, newCustomId);
+        }
+
+        internal void SetCustomIdInternal(string newCustomId)
+        {
+            _customId = newCustomId;
         }
     }
 }

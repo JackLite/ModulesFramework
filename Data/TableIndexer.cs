@@ -11,12 +11,13 @@ namespace ModulesFramework.Data
 
     }
     internal class TableIndexer<T, TIndex> : TableIndexer<T>
-        where T : struct 
+        where T : struct
         where TIndex : notnull
     {
         private readonly Func<T, TIndex> _getIndex;
         private readonly Dictionary<TIndex, int> _indices = new();
-        
+        private readonly Dictionary<int, TIndex> _reverseMap = new();
+
         public int this[TIndex index] => _indices[index];
 
         public TableIndexer(Func<T, TIndex> getIndex)
@@ -27,22 +28,32 @@ namespace ModulesFramework.Data
         public override void Add(T data, int eid)
         {
             _indices[_getIndex(data)] = eid;
+            _reverseMap[eid] = _getIndex(data);
         }
 
         public void Update(TIndex old, T data, int eid)
         {
             _indices.Remove(old);
+            _reverseMap.Remove(eid);
             Add(data, eid);
         }
 
         public override void Remove(T data)
         {
-            _indices.Remove(_getIndex(data));
+            var index = _getIndex(data);
+            var eid = _indices[index];
+            _indices.Remove(index);
+            _reverseMap.Remove(eid);
         }
 
         public bool Contains(TIndex index)
         {
             return _indices.ContainsKey(index);
+        }
+
+        public TIndex GetKey(int eid)
+        {
+            return _reverseMap[eid];
         }
     }
 }
