@@ -416,11 +416,6 @@ namespace ModulesFramework.Data
             return _denseTable.GetData();
         }
 
-        internal IEnumerable<T> GetInternalData()
-        {
-            return _denseTable.Enumerate();
-        }
-
         internal int GetEidByIndex(int denseIndex)
         {
             CheckSingle();
