@@ -1,16 +1,11 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Globalization;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 using ModulesFramework.Utils;
-#if MODULES_DEBUG
-using ModulesFramework.Exceptions;
-#endif
 
 namespace ModulesFramework.Data
 {
@@ -25,11 +20,10 @@ namespace ModulesFramework.Data
 
         private readonly Stack<DataQuery> _queriesPool;
 
-        internal EcsTable<Entity> EntitiesTable => _entitiesTable;
-
         public event Action<int>? OnEntityCreated;
         public event Action<int>? OnEntityChanged;
         public event Action<int>? OnEntityDestroyed;
+        public event Action<int>? OnCustomIdChanged;
 
         internal event Action<Type, OneData>? OnOneDataCreated;
         internal event Action<Type>? OnOneDataRemoved;
@@ -445,6 +439,15 @@ namespace ModulesFramework.Data
             return _entitiesTable.ByKey(customId);
         }
 
+        public void SetEntityCustomId(int id, string customId)
+        {
+            ref var entity = ref _entitiesTable.GetData(id);
+            var oldId = entity.GetCustomIdInternal();
+            entity.SetCustomIdInternal(customId);
+            _entitiesTable.UpdateKey(oldId, entity, entity.Id);
+            OnCustomIdChanged?.Invoke(id);
+        }
+
         /// <summary>
         ///     Return types of single components that entity contains
         /// </summary>
@@ -467,6 +470,11 @@ namespace ModulesFramework.Data
                 if (table.Contains(eid) && table.IsMultiple)
                     yield return table.Type;
             }
+        }
+
+        public IEnumerable<Entity> GetAliveEntities()
+        {
+            return _entitiesTable.GetInternalData();
         }
     }
 }

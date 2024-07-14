@@ -1,7 +1,6 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -10,7 +9,6 @@ using ModulesFramework.Attributes;
 using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Systems;
-using ModulesFramework.Systems.Events;
 using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework.Modules
