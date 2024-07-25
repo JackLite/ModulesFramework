@@ -11,7 +11,7 @@ namespace ModulesFramework.Utils
         {
             return
                 assembly.FullName != null
-                && assembly.FullName != "mscorlib"
+                && !assembly.FullName.Contains("mscorlib")
                 && assembly.FullName != "System"
                 && !assembly.FullName.StartsWith("System.");
         }
