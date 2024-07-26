@@ -14,8 +14,8 @@ namespace ModulesFramework.Data
         private readonly AssemblyFilter _assemblyFilter;
         private int _entityCount;
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
-        private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
-        private readonly EcsTable<EntityGeneration> _generationsTable = new EcsTable<EntityGeneration>();
+        private readonly EntityTable _entitiesTable = new EntityTable();
+        private readonly EntityGenerationTable _generationsTable = new EntityGenerationTable();
         private readonly Queue<int> _freeEid = new Queue<int>(64);
 
         private readonly Stack<DataQuery> _queriesPool;
@@ -343,7 +343,7 @@ namespace ModulesFramework.Data
                 return (EcsTable<T>)table;
             }
 
-            var newTable = new EcsTable<T>();
+            var newTable = new EcsTable<T>(this);
             _data[type] = newTable;
             return newTable;
         }
@@ -475,6 +475,11 @@ namespace ModulesFramework.Data
         public IEnumerable<Entity> GetAliveEntities()
         {
             return _entitiesTable.GetInternalData();
+        }
+
+        internal void RiseEntityChanged(int eid)
+        {
+            OnEntityChanged?.Invoke(eid);
         }
     }
 }
