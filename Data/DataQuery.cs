@@ -229,5 +229,10 @@ namespace ModulesFramework.Data
 
             return count;
         }
+
+        public bool Contains(int eid)
+        {
+            return eid >= 0 && _inc.Length > eid && _inc[eid];
+        }
     }
 }
