@@ -9,7 +9,7 @@ namespace ModulesFramework.Data
     public abstract class EcsTable
     {
         internal abstract bool[] ActiveEntities { get; }
-        internal abstract bool IsMultiple { get; }
+        public abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
         public abstract void AddData(Entity entity, object component);
         internal abstract object GetDataObject(int eid);
@@ -61,7 +61,7 @@ namespace ModulesFramework.Data
 
         private TableIndexer<T>? _indexer;
 
-        internal override bool IsMultiple => _isMultiple;
+        public override bool IsMultiple => _isMultiple;
 
         internal override bool[] ActiveEntities => _entities;
         internal override Type Type => typeof(T);
