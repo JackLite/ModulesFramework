@@ -451,7 +451,7 @@ namespace ModulesFramework.Data
         /// <summary>
         ///     Return types of single components that entity contains
         /// </summary>
-        internal IEnumerable<Type> GetEntitySingleComponentsType(int eid)
+        public IEnumerable<Type> GetEntitySingleComponentsType(int eid)
         {
             foreach (var table in _data.Values)
             {
@@ -463,7 +463,7 @@ namespace ModulesFramework.Data
         /// <summary>
         ///     Return types of multiple components that entity contains
         /// </summary>
-        internal IEnumerable<Type> GetEntityMultipleComponentsType(int eid)
+        public IEnumerable<Type> GetEntityMultipleComponentsType(int eid)
         {
             foreach (var table in _data.Values)
             {
