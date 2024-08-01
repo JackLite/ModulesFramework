@@ -54,6 +54,14 @@ namespace ModulesFramework.Data
             return null;
         }
 
+        public OneData? GetOneDataWrapper(Type dataType)
+        {
+            if (_oneDatas.TryGetValue(dataType, out var data))
+                return data;
+
+            return null;
+        }
+
         /// <summary>
         /// Return ref to one data component by T
         /// If one data component does not exist it create it
