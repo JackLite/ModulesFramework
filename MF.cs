@@ -106,6 +106,12 @@ namespace ModulesFramework
             {
                 system.PostRun();
             }
+
+            _embeddedGlobalModule.FrameEnd();
+            foreach (var system in _moduleSystems)
+            {
+                system.FrameEnd();
+            }
         }
 
         public void RunPhysic()

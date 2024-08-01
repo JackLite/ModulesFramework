@@ -32,7 +32,6 @@ namespace ModulesFramework.Data
         {
             _assemblyFilter = assemblyFilter;
             _modules = new Dictionary<Type, EcsModule>();
-            _submodules = new Dictionary<Type, List<EcsModule>>();
             CtorModules(worldIndex);
             _queriesPool = new Stack<DataQuery>(128);
             _entitiesTable.CreateKey(e => e.GetCustomId());
