@@ -15,7 +15,6 @@ namespace ModulesFramework.Data
     public partial class DataWorld
     {
         private readonly Dictionary<Type, EcsModule> _modules;
-        private readonly Dictionary<Type, List<EcsModule>> _submodules;
         private Dictionary<Type, List<Type>>? _allSystemTypes;
 
         /// <summary>
@@ -182,14 +181,13 @@ namespace ModulesFramework.Data
                 var submoduleAttr = module.GetType().GetCustomAttribute<SubmoduleAttribute>();
                 if (submoduleAttr != null)
                 {
+                    var parent = modules[submoduleAttr.parent];
                     module.MarkSubmodule(
-                        modules[submoduleAttr.parent],
+                        parent,
                         submoduleAttr.initWithParent,
                         submoduleAttr.activeWithParent
                     );
-                    if (!_submodules.ContainsKey(submoduleAttr.parent))
-                        _submodules[submoduleAttr.parent] = new List<EcsModule>();
-                    _submodules[submoduleAttr.parent].Add(module);
+                    parent.AddSubmodule(module);
                 }
             }
         }
@@ -229,13 +227,6 @@ namespace ModulesFramework.Data
             if (_modules.TryGetValue(moduleType, out var module))
                 return module;
             throw new ModuleNotFoundException(moduleType);
-        }
-
-        internal IEnumerable<EcsModule> GetSubmodules(Type parent)
-        {
-            if (_submodules.TryGetValue(parent, out var submodules))
-                return submodules;
-            return Array.Empty<EcsModule>();
         }
 
         internal IEnumerable<ISystem> GetSystems(Type moduleType)
