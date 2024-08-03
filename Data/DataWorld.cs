@@ -82,6 +82,11 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddComponent<T>(int eid, T component) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             var table = GetEcsTable<T>();
 
             #if !MODULES_OPT
@@ -105,8 +110,12 @@ namespace ModulesFramework.Data
         /// </summary>
         public void AddNewComponent<T>(int eid, T component) where T : struct
         {
-            var table = GetEcsTable<T>();
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
 
+            var table = GetEcsTable<T>();
             table.AddNewData(eid, component);
 
             #if MODULES_DEBUG
@@ -122,7 +131,13 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveComponent<T>(int eid) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             GetEcsTable<T>().Remove(eid);
+
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
             #endif
@@ -135,7 +150,13 @@ namespace ModulesFramework.Data
         /// </summary>
         public void RemoveFirstComponent<T>(int eid) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             GetEcsTable<T>().RemoveFirst(eid);
+
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component",
                 LogFilter.EntityModifications);
@@ -149,7 +170,13 @@ namespace ModulesFramework.Data
         /// </summary>
         public void RemoveAll<T>(int eid) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             GetEcsTable<T>().RemoveAll(eid);
+
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}",
                 LogFilter.EntityModifications);
