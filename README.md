@@ -3,6 +3,7 @@
 - [Queries](#gs-queries)
 - [Events](#gs-events)
 - [Indices](#gs-indices)
+- [Entity's Custom Id](#gs-entities-customid)
 - [Submodules](#gs-submodules)
 - [Dependency Injection](#gs-di)
 - [Multiple Components](#gs-multiple)
@@ -506,6 +507,25 @@ void OnMessage(HealMsg msg)
 - key field can be any type, but it must be a correct key for C# Dictionary<TKey, TVal>;
 - keys don't work with multiple components;
 - tables do not check that key is unique, so it's up to you to be sure that your keys are unique.
+
+### <a id="gs-entities-customid"/> Entity's custom id
+Entities store in the same way as the components. And they may have an unique string index:
+```csharp
+// mark entity that it's a Player
+var playerEntity = world.NewEntity()
+    .AddComponent(new PlayerInput())
+    .AddComponent(new WeaponComponent())
+    .SetCustomId("Player");
+```
+```csharp
+// getting Player entity by custom id
+var playerEntity = world.EntityByCustomId("Player");
+
+// you also can get entity custom id
+// if custom id isn't set it returns usual entity id 
+var customId = entity.GetCustomId();
+```
+**Note**: for entities custom id works same rules that works for component indices. The main one is that you have to check there's no doubling of indices.
 
 ### <a id="gs-submodules"/>Submodules
 
