@@ -54,6 +54,9 @@ namespace ModulesFramework.Data
 
         public DataQuery With(OrBuilder or)
         {
+            if (_isEmpty)
+                return this;
+
             for (var i = 0; i < _inc.Length; ++i)
             {
                 if (_inc[i])
@@ -81,11 +84,9 @@ namespace ModulesFramework.Data
         public DataQuery Where<T>(Func<T, bool> customFilter) where T : struct
         {
             var table = _world.GetEcsTable<T>();
-            if (table.IsEmpty)
-            {
-                _isEmpty = true;
+            _isEmpty |= table.IsEmpty;
+            if (_isEmpty)
                 return this;
-            }
 
             for (var i = 0; i < _inc.Length; ++i)
             {
@@ -100,6 +101,9 @@ namespace ModulesFramework.Data
 
         public DataQuery Where(WhereOrBuilder whereOr)
         {
+            if (_isEmpty)
+                return this;
+
             for (var i = 0; i < _inc.Length; ++i)
             {
                 if (_inc[i])
@@ -112,11 +116,9 @@ namespace ModulesFramework.Data
         public DataQuery WhereAny<T>(Func<T, bool> customFilter) where T : struct
         {
             var table = _world.GetEcsTable<T>();
-            if (table.IsEmpty)
-            {
-                _isEmpty = true;
+            _isEmpty |= table.IsEmpty;
+            if (_isEmpty)
                 return this;
-            }
 
             for (var i = 0; i < _inc.Length; ++i)
             {
@@ -139,11 +141,9 @@ namespace ModulesFramework.Data
         public DataQuery WhereAll<T>(Func<T, bool> customFilter) where T : struct
         {
             var table = _world.GetEcsTable<T>();
-            if (table.IsEmpty)
-            {
-                _isEmpty = true;
+            _isEmpty |= table.IsEmpty;
+            if (_isEmpty)
                 return this;
-            }
 
             for (var i = 0; i < _inc.Length; ++i)
             {
