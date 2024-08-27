@@ -9,19 +9,34 @@ namespace ModulesFramework.Data
     public abstract class EcsTable
     {
         internal abstract bool[] ActiveEntities { get; }
-        internal abstract bool IsMultiple { get; }
+        public abstract bool IsEmpty { get; }
+        public abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
         public abstract void AddData(Entity entity, object component);
         internal abstract object GetDataObject(int eid);
+        internal abstract object GetAt(int denseIndex);
         internal abstract object SetDataObject(int eid, object component);
         internal abstract void GetDataObjects(int eid, Dictionary<int, object> result);
         internal abstract void SetDataObjects(int eid, List<object> result);
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
         internal abstract void RemoveInternal(int eid);
+        public abstract int GetMultipleDataLength(int eid);
     }
 
-    public class EcsTable<T> : EcsTable where T : struct
+    public class EcsTable<T> : BaseEcsTable<T> where T : struct
+    {
+        protected readonly DataWorld _world;
+
+        public EcsTable(DataWorld world)
+        {
+            _world = world;
+            OnAddComponent += _world.RiseEntityChanged;
+            OnRemoveComponent += _world.RiseEntityChanged;
+        }
+    }
+
+    public class BaseEcsTable<T> : EcsTable where T : struct
     {
         private readonly DenseArray<T> _denseTable;
 
@@ -47,12 +62,21 @@ namespace ModulesFramework.Data
 
         private TableIndexer<T>? _indexer;
 
-        internal override bool IsMultiple => _isMultiple;
+        public override bool IsEmpty => _denseTable.Length == 0;
+        public override bool IsMultiple => _isMultiple;
 
         internal override bool[] ActiveEntities => _entities;
         internal override Type Type => typeof(T);
 
-        public EcsTable()
+        public event Action<int> OnAddComponent = delegate
+        {
+        };
+
+        public event Action<int> OnRemoveComponent = delegate
+        {
+        };
+
+        protected BaseEcsTable()
         {
             _denseTable = new DenseArray<T>();
             _tableMap = new int[64];
@@ -63,7 +87,7 @@ namespace ModulesFramework.Data
 
         public override void AddData(Entity entity, object component)
         {
-            entity.AddComponent((T) component);
+            AddData(entity.Id, (T)component);
         }
 
         /// <summary>
@@ -92,6 +116,8 @@ namespace ModulesFramework.Data
 
             if (_indexer != null)
                 _indexer.Add(data, eid);
+
+            OnAddComponent(eid);
         }
 
         /// <summary>
@@ -119,6 +145,7 @@ namespace ModulesFramework.Data
             _multipleTableMap[eid].AddData(index);
             _tableReverseMap[index] = eid;
             _entities[eid] = true;
+            OnAddComponent(eid);
         }
 
         /// <summary>
@@ -150,7 +177,6 @@ namespace ModulesFramework.Data
             return new MultipleComponentsIndicesEnumerable<T>(this, eid);
         }
 
-
         /// <summary>
         ///     Returns internal indices of components array for entity id
         ///     It allows to get data by <see cref="At"/>
@@ -168,7 +194,7 @@ namespace ModulesFramework.Data
         /// <summary>
         ///     Returns counts of multiple components at entity
         /// </summary>
-        public int GetMultipleDataLength(int eid)
+        public override int GetMultipleDataLength(int eid)
         {
             CheckMultiple();
             if (!Contains(eid))
@@ -205,6 +231,11 @@ namespace ModulesFramework.Data
         internal override object GetDataObject(int eid)
         {
             return _denseTable.At(_tableMap[eid]);
+        }
+
+        internal override object GetAt(int denseIndex)
+        {
+            return At(denseIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -271,6 +302,7 @@ namespace ModulesFramework.Data
             _tableReverseMap[index] = updateEid;
             _tableMap[updateEid] = index;
             _entities[eid] = false;
+            OnRemoveComponent(eid);
         }
 
         /// <summary>
@@ -293,6 +325,7 @@ namespace ModulesFramework.Data
             var affectedMap = _multipleTableMap[affectedEid];
 
             UpdateMultipleMap(affectedMap, denseIndex);
+            OnRemoveComponent(eid);
         }
 
         private void UpdateMultipleMap(DenseArray<int>? map, int denseIndex)
@@ -354,6 +387,7 @@ namespace ModulesFramework.Data
             }
 
             ClearMultipleForEntity(eid);
+            OnRemoveComponent(eid);
         }
 
         /// <summary>
@@ -481,12 +515,27 @@ namespace ModulesFramework.Data
             return indexer.Contains(index);
         }
 
-        public void UpdateKey<TIndex>(TIndex old, T testComponent, int eid) where TIndex : notnull
+        public void UpdateKey<TIndex>(TIndex old, T component, int eid) where TIndex : notnull
         {
             if (_indexer == null)
                 throw new NoIndexerException<T>();
             var indexer = (TableIndexer<T, TIndex>)_indexer;
-            indexer.Update(old, testComponent, eid);
+            indexer.Update(old, component, eid);
+        }
+
+        public IEnumerable<T> GetInternalData()
+        {
+            return _denseTable.Enumerate();
+        }
+
+        public void ClearTable()
+        {
+            for (var eid = 0; eid < _entities.Length; eid++)
+            {
+                var isActive = _entities[eid];
+                if (isActive)
+                    RemoveInternal(eid);
+            }
         }
     }
 }

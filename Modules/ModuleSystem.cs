@@ -18,7 +18,7 @@ namespace ModulesFramework.Modules
         {
             foreach (var module in _modules)
             {
-                if (module.IsActive)
+                if (module.IsActive && !module.IsSubmodule)
                     module.Run();
             }
         }
@@ -27,7 +27,7 @@ namespace ModulesFramework.Modules
         {
             foreach (var module in _modules)
             {
-                if (module.IsActive)
+                if (module.IsActive && !module.IsSubmodule)
                     module.RunPhysics();
             }
         }
@@ -36,8 +36,17 @@ namespace ModulesFramework.Modules
         {
             foreach (var module in _modules)
             {
-                if (module.IsActive)
+                if (module.IsActive && !module.IsSubmodule)
                     module.PostRun();
+            }
+        }
+
+        public void FrameEnd()
+        {
+            foreach (var module in _modules)
+            {
+                if (module.IsActive && !module.IsSubmodule)
+                    module.FrameEnd();
             }
         }
     }

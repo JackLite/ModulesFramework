@@ -4,11 +4,11 @@ namespace ModulesFramework.Data.Enumerators
 {
     public struct MultipleComponentsEnumerator<T> where T : struct
     {
-        private readonly EcsTable<T> _table;
+        private readonly BaseEcsTable<T> _table;
         private readonly int _eid;
         private int _index;
 
-        internal MultipleComponentsEnumerator(EcsTable<T> table, int eid)
+        internal MultipleComponentsEnumerator(BaseEcsTable<T> table, int eid)
         {
             _table = table;
             _eid = eid;

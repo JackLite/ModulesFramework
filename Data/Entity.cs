@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Globalization;
+using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 
 namespace ModulesFramework.Data
@@ -6,8 +7,9 @@ namespace ModulesFramework.Data
     public struct Entity
     {
         public int generation;
-        public int Id { get; set; }
-        public DataWorld World { get; set; }
+        private string _customId;
+        public int Id { get; internal set; }
+        public DataWorld World { get; internal set; }
 
         /// <summary>
         ///     Add component to entity
@@ -19,7 +21,7 @@ namespace ModulesFramework.Data
             World.AddComponent(Id, component);
             return this;
         }
-        
+
         /// <summary>
         ///     Add new multiple component T to entity
         /// </summary>
@@ -43,13 +45,13 @@ namespace ModulesFramework.Data
         ///     Return enumerable of inner indices for multiple components
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public  MultipleComponentsIndicesEnumerable<T> GetIndices<T>() where T : struct
+        public MultipleComponentsIndicesEnumerable<T> GetIndices<T>() where T : struct
         {
             return World.GetIndices<T>(Id);
         }
 
         /// <summary>
-        ///     Get multiple component T from entity by internal index 
+        ///     Get multiple component T from entity by internal index
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetComponentAt<T>(int mtmIndex) where T : struct
@@ -67,7 +69,7 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        ///     Remove T component from entity 
+        ///     Remove T component from entity
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
@@ -131,17 +133,46 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        ///     Returns count of T components on entity
+        ///     Returns count of multiple components typeof T on entity
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public int Count<T>() where T : struct
         {
             return World.CountComponentsAt<T>(Id);
         }
-        
+
         public bool IsEmpty()
         {
             return World.IsEmptyEntity(Id);
+        }
+
+        /// <summary>
+        ///     Return custom id. If it's not set - return id as string
+        /// </summary>
+        public string GetCustomId()
+        {
+            return World.GetEntity(Id).GetCustomIdInternal();
+        }
+
+        internal string GetCustomIdInternal()
+        {
+            if (string.IsNullOrWhiteSpace(_customId))
+                return Id.ToString(CultureInfo.InvariantCulture);
+
+            return _customId;
+        }
+
+        /// <summary>
+        ///     Set custom id for entity. Based on indices feature.
+        /// </summary>
+        public void SetCustomId(string newCustomId)
+        {
+            World.SetEntityCustomId(Id, newCustomId);
+        }
+
+        internal void SetCustomIdInternal(string newCustomId)
+        {
+            _customId = newCustomId;
         }
     }
 }

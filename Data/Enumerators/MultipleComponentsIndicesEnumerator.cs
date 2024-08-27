@@ -5,11 +5,11 @@ namespace ModulesFramework.Data.Enumerators
 {
     public struct MultipleComponentsIndicesEnumerator<T> where T : struct
     {
-        private readonly EcsTable<T> _table;
+        private readonly BaseEcsTable<T> _table;
         private readonly int _eid;
         private readonly LinkedList<int> _queueMain;
 
-        internal MultipleComponentsIndicesEnumerator(EcsTable<T> table, int eid)
+        internal MultipleComponentsIndicesEnumerator(BaseEcsTable<T> table, int eid)
         {
             _table = table;
             _eid = eid;
@@ -47,7 +47,7 @@ namespace ModulesFramework.Data.Enumerators
 
             if (_queueMain.Count <= 0)
                 return;
-            
+
             _queueMain.RemoveLast();
             _queueMain.AddFirst(mtmIndex);
         }

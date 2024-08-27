@@ -1,8 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using ModulesFramework.Data;
+using System.Runtime.CompilerServices;
 using ModulesFramework.Systems.Events;
+using ModulesFramework.Systems.Subscribes;
 using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework.Systems
@@ -11,7 +12,7 @@ namespace ModulesFramework.Systems
     {
         private readonly Dictionary<Type, List<ISystem>> _systems = new Dictionary<Type, List<ISystem>>();
 
-        // Type is type of event
+        // Type of event -> event systems
         private readonly Dictionary<Type, EventSystems> _eventSystems = new Dictionary<Type, EventSystems>();
 
         private static readonly Type[] _systemTypes = new Type[]
@@ -20,7 +21,12 @@ namespace ModulesFramework.Systems
             typeof(IRunPhysicSystem), typeof(IPostRunSystem), typeof(IDeactivateSystem), typeof(IDestroySystem)
         };
 
+        // Type of event -> list of subscribers
+        private readonly Dictionary<Type, List<ISubscribeSystem>> _subscribes
+            = new Dictionary<Type, List<ISubscribeSystem>>();
+
         internal IEnumerable<Type> EventTypes => _eventSystems.Keys;
+        internal IEnumerable<Type> SubscriptionTypes => _subscribes.Keys;
 
         internal IEnumerable<Type> AllSystems =>
             _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()))
@@ -145,6 +151,9 @@ namespace ModulesFramework.Systems
             {
                 try
                 {
+                    #if MODULES_DEBUG
+                    world.Logger.LogDebug($"Destroy system {s.GetType().Name}", LogFilter.SystemsDestroy);
+                    #endif
                     ((IDestroySystem)s).Destroy();
                 }
                 catch (Exception e)
@@ -162,6 +171,12 @@ namespace ModulesFramework.Systems
                     _systems[type].Add(s);
             }
 
+            CheckEvents(s);
+            CheckSubscriptions(s);
+        }
+
+        private void CheckEvents(ISystem s)
+        {
             if (s is not IEventSystem eventSystem) return;
 
             var interfaces = eventSystem.GetType().GetInterfaces();
@@ -189,6 +204,37 @@ namespace ModulesFramework.Systems
             }
         }
 
+        private void CheckSubscriptions(ISystem system)
+        {
+            if (system is not ISubscribeSystem subscribeSystem)
+                return;
+
+            var interfaces = subscribeSystem.GetType().GetInterfaces();
+            foreach (var type in interfaces)
+            {
+                if (!type.IsGenericType)
+                    continue;
+                var isSubInit = type.GetInterface(nameof(ISubscribeInitSystem)) != null;
+                var isSubActivate = type.GetInterface(nameof(ISubscribeActivateSystem)) != null;
+
+                if (!isSubInit && !isSubActivate)
+                    continue;
+
+                var eventType = type.GetGenericArguments()[0];
+                if (_subscribes.TryGetValue(eventType, out var systems))
+                {
+                    systems.Add(subscribeSystem);
+                    continue;
+                }
+
+                systems = new List<ISubscribeSystem>
+                {
+                    subscribeSystem
+                };
+                _subscribes[eventType] = systems;
+            }
+        }
+
         internal void HandleEvent<T>(T ev, Type eventSystemType, DataWorld world) where T : struct
         {
             var eventType = typeof(T);
@@ -196,6 +242,25 @@ namespace ModulesFramework.Systems
                 return;
 
             systems.HandleEvent(ev, eventSystemType, world);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal void ProceedSubscriptions<T>(T ev, bool isInit = false) where T : struct
+        {
+            if (!_subscribes.TryGetValue(typeof(T), out var subscribeSystems))
+                return;
+
+            foreach (var system in subscribeSystems)
+            {
+                if (!isInit && system is ISubscribeActivateSystem<T> activateSystem)
+                {
+                    activateSystem.HandleEvent(ev);
+                    continue;
+                }
+
+                if (isInit && system is ISubscribeInitSystem<T> initSystem)
+                    initSystem.HandleEvent(ev);
+            }
         }
     }
 }

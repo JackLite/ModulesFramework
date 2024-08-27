@@ -1,4 +1,5 @@
-﻿using System;
+﻿#nullable enable
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -6,13 +7,15 @@ using System.Threading.Tasks;
 using ModulesFramework.Attributes;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
+using ModulesFramework.Systems;
+using ModulesFramework.Utils;
 
 namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
         private readonly Dictionary<Type, EcsModule> _modules;
-        private readonly Dictionary<Type, List<EcsModule>> _submodules;
+        private Dictionary<Type, List<Type>>? _allSystemTypes;
 
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
@@ -20,7 +23,8 @@ namespace ModulesFramework.Data
         /// </summary>
         /// <typeparam name="T">Type of module that you want to activate</typeparam>
         /// <seealso cref="ActivateModule{T}"/>
-        /// <seealso cref="InitModule{T, T}"/>
+        /// <seealso cref="InitModule"/>
+        /// <seealso cref="InitModuleAsync{T}"/>
         public void InitModule<T>(bool activateImmediately = false) where T : EcsModule
         {
             InitModule(typeof(T), activateImmediately);
@@ -31,17 +35,32 @@ namespace ModulesFramework.Data
         /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
         /// </summary>
         /// <seealso cref="ActivateModule{T}"/>
-        /// <seealso cref="InitModule{T, T}"/>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="InitModuleAsync"/>
         public void InitModule(Type moduleType, bool activateImmediately = false)
         {
             InitModuleAsync(moduleType, activateImmediately).Forget();
         }
 
+        /// <summary>
+        /// Init module asynchronously. Call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// </summary>
+        /// <seealso cref="ActivateModule{T}"/>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="InitModuleAsync"/>
         public async Task InitModuleAsync<T>(bool activateImmediately = false)
         {
             await InitModuleAsync(typeof(T), activateImmediately);
         }
 
+        /// <summary>
+        /// Init module asynchronously. Call Setup() and GetDependencies()
+        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// </summary>
+        /// <seealso cref="ActivateModule{T}"/>
+        /// <seealso cref="InitModule{T}"/>
+        /// <seealso cref="InitModuleAsync{T}"/>
         public async Task InitModuleAsync(Type moduleType, bool activateImmediately = false)
         {
             try
@@ -93,7 +112,6 @@ namespace ModulesFramework.Data
             ActivateModule(typeof(T));
         }
 
-
         /// <summary>
         /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
         /// </summary>
@@ -135,19 +153,27 @@ namespace ModulesFramework.Data
             module.SetActive(false);
         }
 
+        /// <summary>
+        ///     Return true if module T is initialized and active
+        /// </summary>
         public bool IsModuleActive<TModule>() where TModule : EcsModule
         {
             var localModule = GetModule<TModule>();
             return localModule is { IsActive: true };
         }
 
-        public EcsModule GetModule<T>() where T : EcsModule
+        /// <summary>
+        ///     Return module T
+        /// </summary>
+        /// <typeparam name="T">Type of module. It must inherit from EcsModule</typeparam>
+        public T GetModule<T>() where T : EcsModule
         {
-            return GetModule(typeof(T));
+            return (T)GetModule(typeof(T));
         }
 
         private void CtorModules(int worldIndex)
         {
+            _allSystemTypes ??= EcsUtilities.FindSystems(_assemblyFilter.Filter);
             var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
@@ -155,39 +181,47 @@ namespace ModulesFramework.Data
                 var submoduleAttr = module.GetType().GetCustomAttribute<SubmoduleAttribute>();
                 if (submoduleAttr != null)
                 {
+                    var parent = modules[submoduleAttr.parent];
                     module.MarkSubmodule(
-                        modules[submoduleAttr.parent],
+                        parent,
                         submoduleAttr.initWithParent,
                         submoduleAttr.activeWithParent
                     );
-                    if (!_submodules.ContainsKey(submoduleAttr.parent))
-                        _submodules[submoduleAttr.parent] = new List<EcsModule>();
-                    _submodules[submoduleAttr.parent].Add(module);
+                    parent.AddSubmodule(module);
                 }
             }
         }
 
         private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex)
         {
-            var modules = AppDomain.CurrentDomain.GetAssemblies()
-                .SelectMany(a => a.GetTypes()
-                    .Where(t => t != typeof(EmbeddedGlobalModule))
-                    .Where(t => t.IsSubclassOf(typeof(EcsModule)) && !t.IsAbstract)
-                    .Select(t => (EcsModule)Activator.CreateInstance(t)));
+            var modules = EcsUtilities.GetModulesTypes(_assemblyFilter.Filter)
+                .Select(t => (EcsModule)Activator.CreateInstance(t)!);
             foreach (var module in modules)
             {
-                if (!module.WorldIndex.Contains(worldIndex))
+                var moduleWorlds = ModuleUtil.GetWorldIndex(module.GetType());
+
+                if (!moduleWorlds.Contains(worldIndex))
                     continue;
                 module.InjectWorld(this);
                 yield return module;
             }
         }
 
+        /// <summary>
+        ///     Return all created modules
+        /// </summary>
         public IEnumerable<EcsModule> GetAllModules()
         {
             return _modules.Values;
         }
 
+        /// <summary>
+        ///     Return module by its type. There is no case when you can't get module if
+        ///     it's inherited from <see cref="EcsModule"/> class and MF is started
+        /// </summary>
+        /// <param name="moduleType">Type of module</param>
+        /// <returns>EcsModule</returns>
+        /// <exception cref="ModuleNotFoundException"></exception>
         public EcsModule GetModule(Type moduleType)
         {
             if (_modules.TryGetValue(moduleType, out var module))
@@ -195,11 +229,15 @@ namespace ModulesFramework.Data
             throw new ModuleNotFoundException(moduleType);
         }
 
-        internal IEnumerable<EcsModule> GetSubmodules(Type parent)
+        internal IEnumerable<ISystem> GetSystems(Type moduleType)
         {
-            if (_submodules.ContainsKey(parent))
-                return _submodules[parent];
-            return Array.Empty<EcsModule>();
+            if (_allSystemTypes == null || !_allSystemTypes.TryGetValue(moduleType, out var systems))
+                yield break;
+
+            foreach (var system in systems)
+            {
+                yield return (ISystem)Activator.CreateInstance(system)!;
+            }
         }
     }
 }

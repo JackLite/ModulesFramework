@@ -7,6 +7,7 @@ namespace ModulesFramework.Data
     {
         private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
 
+        internal IEnumerable<OneData> OneDataCollection => _oneDatas.Values;
         /// <summary>
         /// Create one data container
         /// </summary>
@@ -47,6 +48,14 @@ namespace ModulesFramework.Data
         internal OneData? GetOneData(Type containerType)
         {
             var dataType = containerType.GetGenericArguments()[0];
+            if (_oneDatas.TryGetValue(dataType, out var data))
+                return data;
+
+            return null;
+        }
+
+        public OneData? GetOneDataWrapper(Type dataType)
+        {
             if (_oneDatas.TryGetValue(dataType, out var data))
                 return data;
 

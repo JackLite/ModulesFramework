@@ -5,18 +5,17 @@ using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
-#if MODULES_DEBUG
-using ModulesFramework.Exceptions;
-#endif
+using ModulesFramework.Utils;
 
 namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
+        private readonly AssemblyFilter _assemblyFilter;
         private int _entityCount;
         private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
-        private readonly EcsTable<Entity> _entitiesTable = new EcsTable<Entity>();
-        private readonly EcsTable<EntityGeneration> _generationsTable = new EcsTable<EntityGeneration>();
+        private readonly EntityTable _entitiesTable = new EntityTable();
+        private readonly EntityGenerationTable _generationsTable = new EntityGenerationTable();
         private readonly Queue<int> _freeEid = new Queue<int>(64);
 
         private readonly Stack<DataQuery> _queriesPool;
@@ -24,16 +23,18 @@ namespace ModulesFramework.Data
         public event Action<int>? OnEntityCreated;
         public event Action<int>? OnEntityChanged;
         public event Action<int>? OnEntityDestroyed;
+        public event Action<int>? OnCustomIdChanged;
 
         internal event Action<Type, OneData>? OnOneDataCreated;
         internal event Action<Type>? OnOneDataRemoved;
 
-        public DataWorld(int worldIndex)
+        public DataWorld(int worldIndex, AssemblyFilter assemblyFilter)
         {
+            _assemblyFilter = assemblyFilter;
             _modules = new Dictionary<Type, EcsModule>();
-            _submodules = new Dictionary<Type, List<EcsModule>>();
             CtorModules(worldIndex);
             _queriesPool = new Stack<DataQuery>(128);
+            _entitiesTable.CreateKey(e => e.GetCustomId());
         }
 
         /// <summary>
@@ -81,6 +82,11 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddComponent<T>(int eid, T component) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             var table = GetEcsTable<T>();
 
             #if !MODULES_OPT
@@ -104,8 +110,12 @@ namespace ModulesFramework.Data
         /// </summary>
         public void AddNewComponent<T>(int eid, T component) where T : struct
         {
-            var table = GetEcsTable<T>();
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
 
+            var table = GetEcsTable<T>();
             table.AddNewData(eid, component);
 
             #if MODULES_DEBUG
@@ -121,7 +131,13 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveComponent<T>(int eid) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             GetEcsTable<T>().Remove(eid);
+
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
             #endif
@@ -134,7 +150,13 @@ namespace ModulesFramework.Data
         /// </summary>
         public void RemoveFirstComponent<T>(int eid) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             GetEcsTable<T>().RemoveFirst(eid);
+
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component",
                 LogFilter.EntityModifications);
@@ -148,7 +170,13 @@ namespace ModulesFramework.Data
         /// </summary>
         public void RemoveAll<T>(int eid) where T : struct
         {
+            #if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+            #endif
+
             GetEcsTable<T>().RemoveAll(eid);
+
             #if MODULES_DEBUG
             Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}",
                 LogFilter.EntityModifications);
@@ -214,7 +242,7 @@ namespace ModulesFramework.Data
         {
             return _entitiesTable.Contains(eid);
         }
-        
+
         /// <summary>
         ///     Return true if entity exists. Entity may exists but has another generation
         ///     <seealso cref="IsEntityAlive"/>
@@ -235,7 +263,7 @@ namespace ModulesFramework.Data
             var generation = _generationsTable.GetData(entity.Id);
             return generation.generation == entity.generation;
         }
-        
+
         /// <summary>
         ///     Return true if entity wasn't deleted
         /// </summary>
@@ -341,7 +369,7 @@ namespace ModulesFramework.Data
                 return (EcsTable<T>)table;
             }
 
-            var newTable = new EcsTable<T>();
+            var newTable = new EcsTable<T>(this);
             _data[type] = newTable;
             return newTable;
         }
@@ -408,7 +436,7 @@ namespace ModulesFramework.Data
                 handler.Invoke(kvp.Key, kvp.Value);
             }
         }
-        
+
         /// <summary>
         ///     Return count of multiple components at entity. This is MultipleComponents API
         /// </summary>
@@ -430,6 +458,54 @@ namespace ModulesFramework.Data
             }
 
             return true;
+        }
+
+        public Entity EntityByCustomId(string customId)
+        {
+            return _entitiesTable.ByKey(customId);
+        }
+
+        public void SetEntityCustomId(int id, string customId)
+        {
+            ref var entity = ref _entitiesTable.GetData(id);
+            var oldId = entity.GetCustomIdInternal();
+            entity.SetCustomIdInternal(customId);
+            _entitiesTable.UpdateKey(oldId, entity, entity.Id);
+            OnCustomIdChanged?.Invoke(id);
+        }
+
+        /// <summary>
+        ///     Return types of single components that entity contains
+        /// </summary>
+        public IEnumerable<Type> GetEntitySingleComponentsType(int eid)
+        {
+            foreach (var table in _data.Values)
+            {
+                if (table.Contains(eid) && !table.IsMultiple)
+                    yield return table.Type;
+            }
+        }
+
+        /// <summary>
+        ///     Return types of multiple components that entity contains
+        /// </summary>
+        public IEnumerable<Type> GetEntityMultipleComponentsType(int eid)
+        {
+            foreach (var table in _data.Values)
+            {
+                if (table.Contains(eid) && table.IsMultiple)
+                    yield return table.Type;
+            }
+        }
+
+        public IEnumerable<Entity> GetAliveEntities()
+        {
+            return _entitiesTable.GetInternalData();
+        }
+
+        internal void RiseEntityChanged(int eid)
+        {
+            OnEntityChanged?.Invoke(eid);
         }
     }
 }
