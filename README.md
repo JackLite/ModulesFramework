@@ -3,7 +3,9 @@
 - [Queries](#gs-queries)
 - [Events](#gs-events)
 - [Indices](#gs-indices)
+- [Entity's Custom Id](#gs-entities-customid)
 - [Submodules](#gs-submodules)
+- [Dependency Injection](#gs-di)
 - [Multiple Components](#gs-multiple)
 - [Multiple Worlds](#gs-multiple-worlds)
 #### FAQ
@@ -21,8 +23,12 @@
 
 ## <a id="getting-started"/> Getting started
 
-All you need for start using ModulesFramework
-is this simple code:
+This is all abstraction that you need to create anything you want with MF.
+
+![start-scheme](readme-start.png)
+
+And all you need to start using ModulesFramework
+is this short code:
 
 ```csharp
 public void MyEntryPoint() 
@@ -32,8 +38,8 @@ public void MyEntryPoint()
 }
 ```
 
-Next steps depends on what you want to do. 
-Here example for simple server:
+Next steps depend on what you want to do. 
+Here's an example for game server:
 
 ```csharp
 public class MyServer
@@ -63,16 +69,16 @@ public class MyServer
 }
 ```
 
-##### Simple example
+##### Battle example
 
 Let's create some battle feature. We want to create one
-player and three enemy. Then we want to make some damage.
-Finally we want to destroy entities when they hp <= 0.
+player and three enemies. Then we want to make some damage.
+Finally, we want to destroy entities when they hp <= 0.
 
-First of all we need a global module that startup our simple example.
+First, we need a global module that starts up our simple example.
 
-**Note:** we do not want make all logic bind to global,
-because our battle may be part of complex game.
+**Note:** you shouldn't bind all logic to a global module,
+because the battle (or any other feature) may - and will - be part of a complex game.
 
 So let's create global module:
 
@@ -93,16 +99,17 @@ public class BattleModule : EcsModule
 {
 }
 ```
-Now we just init and activate battle module from startup.
+
+Now we are just init and activate battle module from startup.
+**Note**: for fast prototype you can make battle module global. 
 
 ```csharp
 [GlobalModule]
 public class StartupModule : EcsModule
 {
-    protected override Task Setup()
+    protected async override Task Setup()
     {
-        world.InitModule<BattleModule>(true);
-        return Task.CompletedTask;
+        await world.InitModuleAsync<BattleModule>(true);
     }
 }
 ```
@@ -125,20 +132,25 @@ public struct PlayerTag {}
 public struct EnemyTag {}
 public struct DeadTag {}
 ```
-As you see all components is a struct.
+As you see, all components are a struct. It reduces heap usage and increases performance.
 
-Now we ready to create our systems. 
-Let's start from creating player and enemies.
+Now we are ready to create our systems. 
+Let's start from creating players and enemies.
 
 ```csharp
 [EcsSystem(typeof(BattleModule))] // bind system to module
 public class InitBattleSystem : IInitSystem
 {
+    // the DataWorld give access to all data and modules
+    // in injects automatically into any system
     private DataWorld _world;
     
+    // init calls after module setup is done and all IPreInitSystem
     public void Init()
     {
+        // creates and return new entity
         _world.NewEntity()
+            // entity provides fluent api to work with
             .AddComponent(new PlayerTag())
             .AddComponent(new Hp() { 
                 maxValue = 100, 
@@ -159,31 +171,41 @@ public class InitBattleSystem : IInitSystem
 ```
 
 `Init()` called when module initialized. There is no 
-need to create system by your own. All systems creates
-when module initialized.
+need to create a system by your own. All systems create
+ when a module is initialized.
 
 Now damage!
 
 
 ```csharp
-[EcsSystem(typeof(BattleModule))] // bind system to module
+[EcsSystem(typeof(BattleModule))]
 public class DamageSystem : IRunSystem
 {
     private DataWorld _world;
     
     public void Run()
     {
-        // get all entities with hp and damage 
+        /* 
+        Note: DataQuery is disposable for a matter of reuse the array inside queries 
+        and do not allocate unnecessary memory 
+        */
+        // get all entities with hp and damage
         using var query = _world.Select<Hp>()
             .With<Damage>();
             
+        // GetEntities() returns enumerator for Entity that appropriates to query
         foreach(var entity in query.GetEntities())
         {
+            // use ref to change the component data
             ref var hp = ref entity.GetComponent<Hp>();
-            ref var damage = ref entity.GetComponent<Damage>();
+            var damage = entity.GetComponent<Damage>();
             hp.current -= damage.value;
+            
             // we do not want apply same damage twice
             entity.RemoveComponent<Damage>();
+            
+            // mark entity as dead if hp <= 0
+            // death logic may be different for different entities
             if (hp.current <= 0)
                 entity.AddComponent<DeadTag>();
         }
@@ -195,6 +217,7 @@ And finally death system.
 
 ```csharp
 [EcsSystem(typeof(BattleModule))] // bind system to module
+// use IPostRunSystem to proceed entities after all IRunSystem-s 
 public class DeathSystem : IPostRunSystem
 {
     private DataWorld _world;
@@ -215,11 +238,11 @@ public class DeathSystem : IPostRunSystem
     }
 }
 ```
-This is a very simple example but it shows main 
+This is a basic example, but it shows the main  
 concepts of ModulesFramework and Ecs. Let's do a 
 couple more things.
 
-First off all let's create a settings so we able control
+First, let's create a settings, so we are able to control the
 count of enemies. We will do it by dependencies of module.
 
 ```csharp
@@ -234,12 +257,11 @@ public class Settings
 public class StartupModule : EcsModule
 {
     private readonly Dictionary<Type, object> _dependencies = new();
-    protected override Task Setup()
+    protected async override Task Setup()
     {
-        world.InitModule<BattleModule>(true);
         // read settings from some JSON or anything else
         _dependencies[typeof(Settings)] = settings;
-        return Task.CompletedTask;
+        await world.InitModuleAsync<BattleModule>(true);
     }
     
     public override object GetDependency(Type t)
@@ -252,11 +274,11 @@ Now we can do this.
 
 
 ```csharp
-[EcsSystem(typeof(BattleModule))] // bind system to module
+[EcsSystem(typeof(BattleModule))]
 public class InitBattleSystem : IInitSystem
 {
     private DataWorld _world;
-    // it injects by creating system
+    // it injects automatically
     private Settings _settings;
     
     public void Init()
@@ -271,20 +293,18 @@ public class InitBattleSystem : IInitSystem
 }
 ```
 You can create any dependencies and inject them in any
-system of your module. If module is global *all* systems
-can use it's dependencies.
+system of your module.
+If a module is global, *all* systems can use its dependencies.
 
-Now let's take a look on another thing. We want to
-give player a coin for every killed enemy. We could
-create new component `Wallet` and add it to some 
-entity that lives between battles. But it must live forever,
-must be created at start (to live between sessions)
-and take it by query too boilerplated. There is 
-better way - the one data concept.
+Now let's take a look at another thing.
+We want to give player a coin for every killed enemy.
+We could create new component `Wallet` and add it to some entity that lives between battles.
+But it must live forever, must be created at the start (to live between sessions) and take it by query too boilerplated.
+There is a better way: the **one data** concept.
 
 **OneData** is a struct that holds some information 
 that exists *only in one* copy. That's it you can 
-very simple controls it. Let's see the example.
+transparent controls it. Let's see the example.
 
 ```csharp
 public struct Wallet
@@ -298,12 +318,12 @@ public struct Wallet
 public class StartupModule : EcsModule
 {
     private readonly Dictionary<Type, object> _dependencies = new();
-    protected override Task Setup()
+    protected async override Task Setup()
     {
         // load wallet from save
         world.CreateOneData(wallet);
-        world.InitModule<BattleModule>(true);
        _dependencies[typeof(Settings)] = settings;
+        await world.InitModuleAsync<BattleModule>(true);
         return Task.CompletedTask;
     }
     // other methods
@@ -318,7 +338,7 @@ public class DeathSystem : IPostRunSystem
     public void PostRun()
     {
         using var query = _world.Select<DeadTag>();
-        // get one data similar to get component
+        // get Wallet one data 
         ref var wallet = ref _world.OneData<Wallet>();
         foreach(var entity in query.GetEntities())
         {
@@ -333,17 +353,22 @@ public class DeathSystem : IPostRunSystem
     }
 }
 ```
-As you see it's very simple.
+As you see, it's pretty straightforward.
 
 ### <a id="gs-queries"/>Queries
-Query is the object who get when use `DataWorld.Select<T>()` method. It allows you to get entities with or without some components and check some custom prerequisites by `Where<T>(Func<T, bool>)` method (we've seen it before). However for some cases you may need choose entities that has one of set of components. Here's example of it:
+Query is the object who gets when use `DataWorld.Select<T>()` method.
+It allows you to get entities with or without any components
+and check some custom prerequisites by `Where<T>(Func<T, bool>)` method
+(we've seen it before).
+However, in some cases, you may need to choose entities that have one of a set of components.
+Here's an example of it:
 
 ```csharp
 _world.Select<HP>()
     .With(Filter.Or<Enemy>().Or<Ally>());
 ```
 
-`Filter` - util for creating special object that allows you to select only entities that contains one of several components.
+`Filter` is a tool for creating special object that allows you to select only entities that contains one of several components.
 There is also possibility to use `Where` with filter:
 ```csharp
 var filter = Filter
@@ -355,13 +380,19 @@ _world.Select<HP>()
 
 ### <a id="gs-events"/>Events
 
-Let's do one more thing. We do not want that dead system shows game over UI or does
-something like this. It's good to keep such logic in separated system. Usually in classic OOP approach
-event concept is using for such thing. In pure ECS frameworks instead of events there is
+Let's do one more thing.
+We do not want that dead system shows game over UI or doing 
+something like this.
+It's good to keep such logic in a separated system.
+Usually in classic OOP approach event concept is using it for such a thing.
+In pure ECS frameworks instead of events there is
 entity that exists for only one frame (one frame entity) and systems are trying to find that entity
-in `Run()` or `PostRun()`. ModulesFramework uses other way - event systems.
+in `Run()` or `PostRun()`.
+Often it makes you create system chains by ordering them
+or invent some other way to guarantee that every system proceeds this "one-frame entity."
+ModulesFramework uses other way - event systems.
 
-Event is struct like an other components.
+Event is struct like any other component.
 ```csharp
 public struct GameOverEvent 
 {
@@ -403,23 +434,24 @@ public class DeathSystem : IRunEventSystem<GameOverEvent>
     }
 }
 ```
-Method `RunEvent<T>(T ev)` calls only when there is event. Every event system
-subscribe when module activated and unsubscribe when deactivated.
+Method `RunEvent<T>(T ev)` calls only when there is event.
+Every event system subscribes when module activated and unsubscribes when deactivated.
 
-There are three types of event systems. Every calls in particular time:
+There are three types of event systems. Every call in particular time:
 - `IRunEventSystem<T>` - calls **before** all `IRunSystem`s with the same order;
 - `IPostRunEventSystem<T>` - calls **after** all `IRunSystem`s (and `IRunEventSystem<T>`)
 and **before** all `IPostRunSystem`s with the same order;
 - `IFrameEndEventSystem<T>` - calls **after** all `IRunSystem`s and `IPostRunSystem`s
 systems.
 
-**Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()`
-so game over will be showing in *next* frame (i.e. next `MF.Run()` call) but
-**will not** be lost. 
+**Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()` so game over will be showing in *next* frame (i.e., next `MF.Run()` call) but **will not** be lost. 
 
 #### Subscriptions
 
-Sometimes you want more classic events. For example if you're making ActionRPG game you may have very complex damage logic with buffs from several sources like a equipment and spells. In this case you can and you should use subscription systems. 
+Sometimes you want more classic events.
+For example, if you're making ActionRPG game,
+you may have very complex damage logic with buffs from several sources like equipment and spells.
+In this case, you can, and you should use subscription systems. 
 
 Here's the same example as before:
 ```csharp
@@ -440,21 +472,24 @@ There are two types of subscription systems:
 
 ### <a id="gs-indices"/> Keys
 
-Sometimes you may want to get particular component (or entity) by particular field. The most common case is when you have some unique id for game entity in online game and you want to send some message with that id from server to client. For example you may want to heal some enemy and play some vfx based on source of healing. In that case you should use keys:
+Sometimes you may want to get a particular component (or entity) by particular field.
+The most common case is when you have some unique id for game entity in online game, and you want to send some message with that id from server to client.
+For example, you may want to heal some enemy and play some vfx based on a source of healing.
+In that case, you should use keys:
 
 ```csharp
 public struct NetId 
 {
-    public uint someNumber;
+    public uint someUniqueId;
 }
 ...
 // we need to create key manually
-world.CreateKey<NetId, uint>(id => id.someNumber);    
+world.CreateKey<NetId, uint>(id => id.someUniqueId);    
 ...
 // if field was updated we need to update the index
 NetId netId = /*get from entity/world*/;
-var oldId = netId.someNumber;
-netId.someNumber = IdGenerator.Next();
+var oldId = netId.someUniqueId;
+netId.someUniqueId = IdGenerator.Next();
 world.UpdateKey(oldId, netId, entity2.Id);
 ...
 void OnMessage(HealMsg msg)
@@ -469,24 +504,43 @@ void OnMessage(HealMsg msg)
 ```
 **Note**:
 - every key slightly increase time of AddComponent/RemoveComponent;
-- key field can be any type but it must be correct key for C# Dictionary<TKey, TVal>;
+- key field can be any type, but it must be a correct key for C# Dictionary<TKey, TVal>;
 - keys don't work with multiple components;
-- tables do not checks that key is unique, so it's up to you to be sure that your keys are unique.
+- tables do not check that key is unique, so it's up to you to be sure that your keys are unique.
+
+### <a id="gs-entities-customid"/> Entity's custom id
+Entities store in the same way as the components. And they may have an unique string index:
+```csharp
+// mark entity that it's a Player
+var playerEntity = world.NewEntity()
+    .AddComponent(new PlayerInput())
+    .AddComponent(new WeaponComponent())
+    .SetCustomId("Player");
+```
+```csharp
+// getting Player entity by custom id
+var playerEntity = world.EntityByCustomId("Player");
+
+// you also can get entity custom id
+// if custom id isn't set it returns usual entity id 
+var customId = entity.GetCustomId();
+```
+**Note**: for entities custom id works same rules that works for component indices. The main one is that you have to check there's no doubling of indices.
 
 ### <a id="gs-submodules"/>Submodules
 
-In the large project it will be good to keep thing as simple as possible. There is can be hundreds of dependencies and thousands of systems. To simplify complexity you can use submodules. 
+In the large project, it will be good to keep things as simple as possible. There can be hundreds of dependencies and thousands of systems. To simplify complexity, you can use submodules. 
 
-*Submodule* is just an another module but it has some differences. First of all submodule inherits dependencies from parent (and grandparent and so on).
+*Submodule* is just another module, but it has some differences. First of all submodule inherits dependencies from parent (and grandparent and so on).
 
-For creation of submodule you need just create module as usual and then add ```SubmoduleAttribute``` to it:
+To create submodule, you need to create module as usual and then add ```SubmoduleAttribute``` to it:
 
 ```csharp
 [Submodule(typeof(ParentModule), initWithParent: true, activeWithParent: true)]
 public class LootModule : EcsModule {}
 ```
 
-Parameters ```initWithParent``` and ```activeWithParent``` are optional and has ```true``` as default. So the second things about submodule is that they initialized and activated with parent module. You can turn off that behaviour by  ```initWithParent``` and ```activeWithParent```.
+Parameters ```initWithParent``` and ```activeWithParent``` are optional and has ```true``` as default. So the second thing about submodule is that they initialized and activated with parent module. You can turn off that behavior by  ```initWithParent``` and ```activeWithParent```.
 
 The order of executing init and activate parent module and submodules below:
 1. Parent module calls setup;
@@ -496,14 +550,56 @@ The order of executing init and activate parent module and submodules below:
 5. Parent module activation (including ```IActivateSystem```);
 6. Submodule activation.
 
-The order of destroy:
+The order of destruction:
 1. Submodule deactivation;
 2. Parent module deactivation;
 3. Submodule destroy;
 4. Parent module destroy.
 
+Submodules can be ordered like systems:
+```csharp
+// default order is 0 
+// sorted by ascending
+public override Dictionary<Type, int> GetSubmodulesOrder()
+{
+    return new Dictionary<Type, int>
+    {
+        {typeof(Submodule2), -2},
+        {typeof(Submodule1), 3},
+        {typeof(SubmoduleLast), 40},
+    };
+}
+```
+
+### <a id="gs-di"/>Dependency Injection
+MF doesn't have dependency resolving.
+It only inject dependency into systems.
+Thus you can and you should use your favorite DI. The only thing you need to do is
+to override method `object GetDependency(Type type)` in your module.
+Here's an example:
+```csharp
+public override Task Setup()
+{
+    // it's better to register dependency in setup
+    container.Register(/* your service */);
+}
+
+public override object GetDependency(Type type)
+{
+    // container is a IoC container
+    if (container.Contains(type))
+        return container.GetService(type);
+
+    return base.GetDependency(type);
+}
+```
+
 ### <a id="gs-multiple"/> Multiple Components
-What if you making the cool dynamic game with a lot of thins that happened simultaneously. Hundreds of entities fighting each other, long term effects continiously damage everyone. Base on who damage who the AI change the aggression or healing or buffing. And by the way the damage type can be different. So you need to know value of damage, it's type and source.
+What if you're making a cool dynamic game with a lot of things that happened simultaneously?
+Hundreds of entities fighting each other, long-term effects continuously damage everyone.
+Based on who damages who the AI change the aggression or healing or buffing.
+And by the way, the damage type can be different.
+So you need to know the value of damage, its type and source.
 
 ```csharp
 public struct Damage 
@@ -514,13 +610,22 @@ public struct Damage
 }
 ```
 
-Then you add this component to damaged entity. After that every frame you process alive entities with damage and health components. And everything seems fine. But what if more then one damage component will be added? In MF like in some other frameworks the damage component will be replaced by the new one. Thus previous damage will be lost. Sounds not good.
+Then you add this component to damaged entity.
+After that every frame, you process alive entities with damage and health components.
+And everything seems fine.
+But what if more than one damage component will be added?
+In MF, like in some other frameworks, the damage component will be replaced by the new one.
+Thus, previous damage will be lost.
+This does not sound not good.
 
-You can find different ways to workaround. For example it's not a bad idea to convert component's fields to arrays. However the MF introduce concept of the Multiple Components.
+You can find different ways to workaround.
+For example, it's not a bad idea to convert component fields to arrays.
+Or you can create an entity that describes damage.
+However, the MF introduces the concept of the Multiple Components.
 
-Please use this feature very accurate. Because it may overcomplicate the code you should use multiple components only when it has clear sense like with the damage or stacking buffs. 
+_Please_ use this feature very accurately. Because it may overcomplicate the code, you should use multiple components only when it has clear sense like with the damage or stacking buffs. 
 
-Multiple components have a different api in half of cases so you always know with what you work. Here is some examples:
+Multiple components have a different api in half of cases, so you always know with what you work. Here are some examples:
 
 ```csharp
 // add new components
@@ -544,12 +649,27 @@ var query = world.Select<MultipleComponent>();
 foreach (ref var damage in query.GetMultipleComponents<Damage>()){}
 ```
 In the cases like a `HasComponent<T>` multiple components behave like expected.
+Also, there are additional methods for query multiple components:
+```csharp
+// select entities with only magic damage
+world.Select<Damage>()
+    .WhereAll<Damage>(d => d.type == DamageType.Magic)
+    
+// select entities if there is at least one magic damage
+world.Select<Damage>()
+    .WhereAny<Damage>(d => d.type == DamageType.Magic)
+    
+// With<T> and Without<T> works like with usual components
+world.Select<Enemy>().With<Damage>();
+world.Select<Enemy>().Without<Damage>();
+```
+**Note**: if you add some component to an entity like a single, you cannot use it after as multiple and vice versa. Thus, if you see that component's using like a multiple, then you can be sure that it's _always_ multiple.
 
 ### <a id="gs-multiple-worlds"/> Multiple Worlds
 
-There are cases when you may want to have more then one worlds with their own modules or even with shared modules. For example for the host mode in online game. So all common logic will be in one world and local player logic in another. Anyway this feature is very rare need but because it's remove some unbreakable limits it's was added in core of MF.
+There are cases when you may want to have more than one world with their own modules or even with shared modules. For example for the host mode in online game. So all common logic will be in one world and local player logic in another. Anyway, this feature is very rare need but because it's remove some unbreakable limits it's been added to the core of MF.
 
-Here is example of working with worlds.
+Here is an example of working with the worlds.
 ```csharp
 // just pass number of worlds when creating MF object
 var ecs = new MF(2);
@@ -562,7 +682,7 @@ var mainWorld = ecs.MainWorld
 var mainWorldOtherWay = ecs.GetWorld(0);
 ```
 
-One module can be included in any count of worlds. By default modules include only in main world.
+One module can be included in any count of worlds. By default, modules include only in the main world.
 
 ```csharp
 public class SomeModule : EcsModule
@@ -572,7 +692,7 @@ public class SomeModule : EcsModule
 }
 ```
 
-**Note**: systems belong to module will run on every system. For example `IRunSystem`s run twice for module above. Same with all other systems. It allows to use same systems in different world making shared logic.
+**Note**: systems belong to module will run within every world. For example `IRunSystem`s run twice for the module above. Same with all other systems. It allows using same systems in different worlds and making shared logic.
 
 ## <a id="faq-0"/> FAQ
 
@@ -658,7 +778,7 @@ Here's the range of speed of getting components:
 1. `GetRawData` - as fast as the simple array;
 2. getting ecs table and iterate through entities id from query - it is 7 times slower then first method but still very fast cause we get data from table itself;
 3. iterate through components by `Query.GetComponents<T>` - slightly slower then previous;
-4. iterate through entities and getting component from entity - this is the five times slower then previous way cause every time we getting component from entity (or from world) MF checks if table exists.
+4. iterate through entities and getting component from entity - this is five times slower than previous way cause every time we're getting component from entity (or from world) MF checks if table exists.
 
 Note that this range has sense when there is thousands of components. In the other cases you can use any method.
 
@@ -671,27 +791,28 @@ Cause it may lead to very complex code you must use multiple components only whe
 ### Modules
 
 - follow "long initialization, fast activation" principle;
-- do not forget delete components when modules destroyed;
-- do not create very many small modules. Start with big one and separate them along project grow;
+- do not forget to delete components and entities when module destroyed;
+- do not create very many small modules. Start with big one and separate them along project growing;
 - any global module must be strongly separated from any other global module;
 - feel free to expand module setup for your favorite DI; 
+- before making submodules ordered, you should be sure that you can't rearrange systems and use systems order. Sometimes the need of module order is a sign that you did mistake when deciding to what module systems belong.
 
 ### Systems
 
 - create OneData in IPreInit. Fill in IInit;
-- do not forget using IDeactivate when there is IActivate;
+- remember using IDeactivate when there is IActivate;
 - use services or static stateless utils for common logic;
-- make small systems (less then 100-200 code lines is good metric);
+- make small systems (less than 100–200 code lines is good metric);
 
 ### Query
 
-- use `using` keyword when you select components. It will safe memory and time;
+- use `using` keyword when you select components. It will save memory and time;
 - start `Select<T>` from components with lesser count. It will reduce any other functions calls and iterations with that query;
 
 ### Keys
 
 - create keys as soon as possible. It will be perfect to create them when application is started;
-- do not change key field after creating component;
+- do not change key field after creating a component;
 
 ## <a id="api-0"/>API
 

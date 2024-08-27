@@ -9,6 +9,7 @@ namespace ModulesFramework.Data
     public abstract class EcsTable
     {
         internal abstract bool[] ActiveEntities { get; }
+        public abstract bool IsEmpty { get; }
         public abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
         public abstract void AddData(Entity entity, object component);
@@ -61,6 +62,7 @@ namespace ModulesFramework.Data
 
         private TableIndexer<T>? _indexer;
 
+        public override bool IsEmpty => _denseTable.Length == 0;
         public override bool IsMultiple => _isMultiple;
 
         internal override bool[] ActiveEntities => _entities;

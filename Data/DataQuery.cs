@@ -12,6 +12,7 @@ namespace ModulesFramework.Data
 
         private EcsTable _mainTable;
         private bool[] _inc = new bool[64];
+        private bool _isEmpty;
 
         public DataQuery(DataWorld world)
         {
@@ -21,6 +22,12 @@ namespace ModulesFramework.Data
         internal void Init(EcsTable table)
         {
             _mainTable = table;
+
+            if (table.IsEmpty)
+            {
+                _isEmpty = true;
+                return;
+            }
 
             if (_inc.Length < _mainTable.ActiveEntities.Length)
                 _inc = new bool[_mainTable.ActiveEntities.Length];
@@ -35,6 +42,12 @@ namespace ModulesFramework.Data
         public DataQuery With<T>() where T : struct
         {
             var table = _world.GetEcsTable<T>();
+            if (table.IsEmpty)
+            {
+                _isEmpty = true;
+                return this;
+            }
+
             for (var i = 0; i < _inc.Length; ++i)
             {
                 if (_inc[i])
@@ -58,6 +71,12 @@ namespace ModulesFramework.Data
         public DataQuery Without<T>() where T : struct
         {
             var table = _world.GetEcsTable<T>();
+            if (table.IsEmpty)
+            {
+                _isEmpty = true;
+                return this;
+            }
+
             for (var i = 0; i < _inc.Length; ++i)
             {
                 if (_inc[i])
@@ -70,6 +89,12 @@ namespace ModulesFramework.Data
         public DataQuery Where<T>(Func<T, bool> customFilter) where T : struct
         {
             var table = _world.GetEcsTable<T>();
+            if (table.IsEmpty)
+            {
+                _isEmpty = true;
+                return this;
+            }
+
             for (var i = 0; i < _inc.Length; ++i)
             {
                 if (_inc[i])
@@ -95,6 +120,12 @@ namespace ModulesFramework.Data
         public DataQuery WhereAny<T>(Func<T, bool> customFilter) where T : struct
         {
             var table = _world.GetEcsTable<T>();
+            if (table.IsEmpty)
+            {
+                _isEmpty = true;
+                return this;
+            }
+
             for (var i = 0; i < _inc.Length; ++i)
             {
                 if (!_inc[i])
@@ -116,6 +147,12 @@ namespace ModulesFramework.Data
         public DataQuery WhereAll<T>(Func<T, bool> customFilter) where T : struct
         {
             var table = _world.GetEcsTable<T>();
+            if (table.IsEmpty)
+            {
+                _isEmpty = true;
+                return this;
+            }
+
             for (var i = 0; i < _inc.Length; ++i)
             {
                 if (!_inc[i])
@@ -137,29 +174,46 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EntitiesEnumerable GetEntities()
         {
+            if (_isEmpty)
+                return new EntitiesEnumerable(Array.Empty<bool>(), Array.Empty<bool>(), _world);
+
             return new EntitiesEnumerable(_mainTable.ActiveEntities, _inc, _world);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EntityDataEnumerable GetEntitiesId()
         {
+            if (_isEmpty)
+                return new EntityDataEnumerable(Array.Empty<bool>(), Array.Empty<bool>());
+
             return new EntityDataEnumerable(_mainTable.ActiveEntities, _inc);
         }
 
         public ComponentsEnumerable<T> GetComponents<T>() where T : struct
         {
             var table = _world.GetEcsTable<T>();
+
+            if (_isEmpty)
+                return new ComponentsEnumerable<T>(table, Array.Empty<bool>());
+
             return new ComponentsEnumerable<T>(table, _inc);
         }
 
         public MultipleComponentsQueryEnumerable<T> GetMultipleComponents<T>() where T : struct
         {
             var table = _world.GetEcsTable<T>();
+
+            if (_isEmpty)
+                return new MultipleComponentsQueryEnumerable<T>(table, Array.Empty<bool>());
+
             return new MultipleComponentsQueryEnumerable<T>(table, _inc);
         }
 
         public bool Any()
         {
+            if (_isEmpty)
+                return false;
+
             foreach (var _ in GetEntitiesId())
                 return true;
 
@@ -168,6 +222,12 @@ namespace ModulesFramework.Data
 
         public bool TrySelectFirst<TRet>(out TRet c) where TRet : struct
         {
+            if (_isEmpty)
+            {
+                c = new TRet();
+                return false;
+            }
+
             foreach (var eid in GetEntitiesId())
             {
                 c = _world.GetComponent<TRet>(eid);
@@ -180,6 +240,9 @@ namespace ModulesFramework.Data
 
         public ref TRet SelectFirst<TRet>() where TRet : struct
         {
+            if (_isEmpty)
+                throw new QuerySelectException<TRet>();
+
             foreach (var eid in GetEntitiesId())
             {
                 if (_world.HasComponent<TRet>(eid))
@@ -192,6 +255,9 @@ namespace ModulesFramework.Data
         public bool TrySelectFirstEntity(out Entity e)
         {
             e = new Entity();
+            if (_isEmpty)
+                return false;
+
             foreach (var entity in GetEntities())
             {
                 e = entity;
@@ -203,6 +269,9 @@ namespace ModulesFramework.Data
 
         public Entity SelectFirstEntity()
         {
+            if (_isEmpty)
+                throw new QuerySelectEntityException();
+
             foreach (var entity in GetEntities())
             {
                 return entity;
@@ -213,6 +282,9 @@ namespace ModulesFramework.Data
 
         public void DestroyAll()
         {
+            if (_isEmpty)
+                return;
+
             foreach (var eid in GetEntitiesId())
             {
                 _world.DestroyEntity(eid);
@@ -221,6 +293,9 @@ namespace ModulesFramework.Data
 
         public int Count()
         {
+            if (_isEmpty)
+                return 0;
+
             var count = 0;
             foreach (var inc in _inc)
             {
