@@ -22,12 +22,9 @@ namespace ModulesFramework.Data
         internal void Init(EcsTable table)
         {
             _mainTable = table;
-
-            if (table.IsEmpty)
-            {
-                _isEmpty = true;
+            _isEmpty = table.IsEmpty;
+            if (_isEmpty)
                 return;
-            }
 
             if (_inc.Length < _mainTable.ActiveEntities.Length)
                 _inc = new bool[_mainTable.ActiveEntities.Length];
