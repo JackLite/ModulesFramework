@@ -115,17 +115,17 @@ namespace ModulesFramework.Modules
 
         private async Task SetupSubmodules()
         {
-            var tasks = new List<Task>();
             foreach (var submodules in _submodules.Values)
             {
+                var tasks = new List<Task>();
                 foreach (var submodule in submodules)
                 {
                     if (submodule.IsInitWithParent)
                         tasks.Add(submodule.StartInit());
                 }
+                await Task.WhenAll(tasks);
             }
 
-            await Task.WhenAll(tasks);
         }
 
         public virtual void AddSubmodule(EcsModule module)
