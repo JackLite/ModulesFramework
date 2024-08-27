@@ -299,6 +299,9 @@ namespace ModulesFramework.Data
 
         public bool Contains(int eid)
         {
+            if (_isEmpty)
+                return false;
+
             return eid >= 0 && _inc.Length > eid && _inc[eid];
         }
     }
