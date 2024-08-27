@@ -39,11 +39,9 @@ namespace ModulesFramework.Data
         public DataQuery With<T>() where T : struct
         {
             var table = _world.GetEcsTable<T>();
-            if (table.IsEmpty)
-            {
-                _isEmpty = true;
+            _isEmpty |= table.IsEmpty;
+            if (_isEmpty)
                 return this;
-            }
 
             for (var i = 0; i < _inc.Length; ++i)
             {
@@ -68,11 +66,8 @@ namespace ModulesFramework.Data
         public DataQuery Without<T>() where T : struct
         {
             var table = _world.GetEcsTable<T>();
-            if (table.IsEmpty)
-            {
-                _isEmpty = true;
+            if (_isEmpty)
                 return this;
-            }
 
             for (var i = 0; i < _inc.Length; ++i)
             {
