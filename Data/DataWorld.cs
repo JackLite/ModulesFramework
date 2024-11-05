@@ -460,11 +460,19 @@ namespace ModulesFramework.Data
             return true;
         }
 
+        /// <summary>
+        ///     Return entity with custom id. If there is no such entity - throw exception
+        ///     <seealso cref="IsEntityExists(string)"/>
+        /// </summary>
         public Entity EntityByCustomId(string customId)
         {
             return _entitiesTable.ByKey(customId);
         }
 
+        /// <summary>
+        ///     Set entity custom id - the string unique key that can be used to find this entity
+        /// </summary>
+        /// <param name="id">Entity id</param>
         public void SetEntityCustomId(int id, string customId)
         {
             ref var entity = ref _entitiesTable.GetData(id);
@@ -472,6 +480,14 @@ namespace ModulesFramework.Data
             entity.SetCustomIdInternal(customId);
             _entitiesTable.UpdateKey(oldId, entity, entity.Id);
             OnCustomIdChanged?.Invoke(id);
+        }
+
+        /// <summary>
+        ///     Return true if entity with specified customId exists
+        /// </summary>
+        public bool IsEntityExists(string customId)
+        {
+            return _entitiesTable.HasKey(customId);
         }
 
         /// <summary>
