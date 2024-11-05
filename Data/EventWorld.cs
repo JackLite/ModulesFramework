@@ -1,7 +1,12 @@
-﻿namespace ModulesFramework.Data
+﻿using System.Collections.Generic;
+using ModulesFramework.Modules;
+
+namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
+        private readonly List<EcsModule> _externalSubscribers = new(4);
+
         /// <summary>
         /// Create default event T and rise it
         /// The event will be handled by event systems
@@ -28,11 +33,11 @@
             #endif
 
             var wasHandled = false;
+            foreach (var module in _externalSubscribers)
+                wasHandled |= HandleEvent(ev, module);
+
             foreach (var (_, module) in _modules)
-            {
-                wasHandled |= module.RunSubscribers(ev);
-                wasHandled |= module.AddEvent(ev);
-            }
+                wasHandled |= HandleEvent(ev, module);
 
             if (!wasHandled)
             {
@@ -40,6 +45,16 @@
                 Logger.LogWarning($"No listeners for {typeof(T).Name} event");
                 #endif
             }
+        }
+
+        private static bool HandleEvent<T>(T ev, EcsModule module) where T : struct
+        {
+            return module.RunSubscribers(ev) || module.AddEvent(ev);
+        }
+
+        internal void RegisterEventSubscriber(EcsModule module)
+        {
+            _externalSubscribers.Add(module);
         }
     }
 }
