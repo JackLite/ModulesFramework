@@ -106,10 +106,19 @@ namespace ModulesFramework.Data
         /// <typeparam name="T">Type of one data</typeparam>
         public void RemoveOneData<T>() where T : struct
         {
-            if (_oneDatas.ContainsKey(typeof(T)))
+            RemoveOneData(typeof(T));
+        }
+
+        /// <summary>
+        /// Fully remove one data.
+        /// If you will use <see cref="OneData{T}"/> after removing it returns default value for type
+        /// </summary>
+        public void RemoveOneData(Type type)
+        {
+            if (_oneDatas.ContainsKey(type))
             {
-                _oneDatas.Remove(typeof(T));
-                OnOneDataRemoved?.Invoke(typeof(T));
+                _oneDatas.Remove(type);
+                OnOneDataRemoved?.Invoke(type);
             }
         }
 
