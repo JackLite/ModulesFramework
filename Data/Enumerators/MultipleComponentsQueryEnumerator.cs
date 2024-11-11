@@ -8,6 +8,7 @@ namespace ModulesFramework.Data.Enumerators
         private readonly bool[] _filter;
         private int _index;
         private int _innerIndex;
+        private bool _innerEnumeration;
 
         internal MultipleComponentsQueryEnumerator(EcsTable<T> table, bool[] filter)
         {
@@ -15,6 +16,7 @@ namespace ModulesFramework.Data.Enumerators
             _filter = filter;
             _index = 0;
             _innerIndex = 0;
+            _innerEnumeration = false;
         }
 
         public ref T Current
@@ -32,33 +34,44 @@ namespace ModulesFramework.Data.Enumerators
 
         public bool MoveNext()
         {
-            if(_index == 0)
-                ++_index;
+            // just start enumeration
+            if (_index == 0)
             {
-                ++_innerIndex;
-                var eid = _index - 1;
-                var indices = _table.GetMultipleDenseIndices(eid);
-                if (_innerIndex <= indices.Length)
-                    return true;
+                ++_index;
             }
 
-            ++_index;
-            _innerIndex = 0;
             while (true)
             {
                 var outOfRange = _index > _table.ActiveEntities.Length;
                 if (outOfRange)
-                    break;
+                    return false;
 
                 var eid = _index - 1;
-                var isActive = _table.ActiveEntities[eid];
-                if (isActive && _filter[eid])
-                    break;
 
-                ++_index;
+                if (!_innerEnumeration)
+                {
+                    var isActive = _table.ActiveEntities[eid];
+                    if (!isActive || !_filter[eid])
+                    {
+                        ++_index;
+                        _innerIndex = 0;
+                        continue;
+                    }
+                }
+
+                _innerIndex++;
+                var indices = _table.GetMultipleDenseIndices(eid);
+                if (_innerIndex > indices.Length)
+                {
+                    ++_index;
+                    _innerIndex = 0;
+                    _innerEnumeration = false;
+                    continue;
+                }
+                _innerEnumeration = true;
+                return true;
+
             }
-
-            return _index < _table.ActiveEntities.Length;
         }
 
         public void Reset()
