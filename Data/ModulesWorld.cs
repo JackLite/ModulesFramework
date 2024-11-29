@@ -14,7 +14,7 @@ namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
-        private readonly Dictionary<Type, EcsModule> _modules;
+        private readonly Map<EcsModule> _modules;
         private Dictionary<Type, List<Type>>? _allSystemTypes;
 
         /// <summary>
@@ -177,7 +177,8 @@ namespace ModulesFramework.Data
             var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
-                _modules.Add(module.GetType(), module);
+                var add = _modules.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(module.GetType());
+                add.Invoke(_modules, new object[] { module });
                 var submoduleAttr = module.GetType().GetCustomAttribute<SubmoduleAttribute>();
                 if (submoduleAttr != null)
                 {
@@ -224,7 +225,8 @@ namespace ModulesFramework.Data
         /// <exception cref="ModuleNotFoundException"></exception>
         public EcsModule GetModule(Type moduleType)
         {
-            if (_modules.TryGetValue(moduleType, out var module))
+            var module = _modules.Find(m => m.GetType() == moduleType);
+            if (module != null)
                 return module;
             throw new ModuleNotFoundException(moduleType);
         }

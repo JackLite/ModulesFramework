@@ -28,7 +28,7 @@ namespace ModulesFramework.Data
 
             if (_inc.Length < _mainTable.ActiveEntities.Length)
                 _inc = new bool[_mainTable.ActiveEntities.Length];
-            Array.Copy(_mainTable.ActiveEntities, _inc, _mainTable.ActiveEntities.Length);
+            _mainTable.ActiveEntities.AsSpan().CopyTo(_inc);
         }
 
         public void Dispose()

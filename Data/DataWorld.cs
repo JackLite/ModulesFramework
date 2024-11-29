@@ -13,7 +13,7 @@ namespace ModulesFramework.Data
     {
         private readonly AssemblyFilter _assemblyFilter;
         private int _entityCount;
-        private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
+        private readonly Map<EcsTable> _data = new Map<EcsTable>();
         private readonly EntityTable _entitiesTable = new EntityTable();
         private readonly EntityGenerationTable _generationsTable = new EntityGenerationTable();
         private readonly Queue<int> _freeEid = new Queue<int>(64);
@@ -31,7 +31,7 @@ namespace ModulesFramework.Data
         public DataWorld(int worldIndex, AssemblyFilter assemblyFilter)
         {
             _assemblyFilter = assemblyFilter;
-            _modules = new Dictionary<Type, EcsModule>();
+            _modules = new Map<EcsModule>();
             CtorModules(worldIndex);
             _queriesPool = new Stack<DataQuery>(128);
             _entitiesTable.CreateKey(e => e.GetCustomId());
@@ -295,7 +295,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable GetEcsTable(Type type)
         {
-            return _data[type];
+            return _data.Find(table => table.Type == type);
         }
 
         /// <summary>
@@ -364,13 +364,11 @@ namespace ModulesFramework.Data
         public EcsTable<T> CreateTableIfNeed<T>() where T : struct
         {
             var type = typeof(T);
-            if (_data.TryGetValue(type, out var table))
-            {
+            if (_data.TryGet<T>(out var table))
                 return (EcsTable<T>)table;
-            }
 
             var newTable = new EcsTable<T>(this);
-            _data[type] = newTable;
+            _data.Add<T>(newTable);
             return newTable;
         }
 
@@ -405,9 +403,11 @@ namespace ModulesFramework.Data
         /// </summary>
         public bool HasComponent(int eid, Type componentType)
         {
-            if (!_data.ContainsKey(componentType))
+            var table = _data.Find(table => table.Type == componentType);
+            if (table == null)
                 return false;
-            return _data[componentType].Contains(eid);
+            
+            return table.Contains(eid);
         }
 
         /// <summary>
@@ -431,9 +431,9 @@ namespace ModulesFramework.Data
 
         internal void MapTables(Action<Type, EcsTable> handler)
         {
-            foreach (var kvp in _data)
+            foreach (var table in _data.Values)
             {
-                handler.Invoke(kvp.Key, kvp.Value);
+                handler.Invoke(table.Type, table);
             }
         }
 

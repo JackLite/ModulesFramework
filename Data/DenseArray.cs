@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace ModulesFramework.Data
 {
-    public class DenseArray<T> where T : struct
+    public class DenseArray<T>
     {
         private Memory<T> _dataMem;
         
