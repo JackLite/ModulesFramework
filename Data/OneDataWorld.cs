@@ -1,11 +1,12 @@
-﻿using System;
+﻿using ModulesFramework.Utils;
+using System;
 using System.Collections.Generic;
 
 namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
-        private readonly Dictionary<Type, OneData> _oneDatas = new Dictionary<Type, OneData>();
+        private readonly Map<OneData> _oneDatas = new Map<OneData>();
 
         internal IEnumerable<OneData> OneDataCollection => _oneDatas.Values;
         /// <summary>
@@ -34,13 +35,13 @@ namespace ModulesFramework.Data
             var oneData = new EcsOneData<T>();
             oneData.SetDataIfNotExist(data);
 
-            if (_oneDatas.TryGetValue(typeof(T), out var oldData))
+            if (_oneDatas.TryGet<T>(out var oldData))
                 oneData.generation = oldData.generation;
 
             if (updateGeneration)
                 oneData.generation++;
 
-            _oneDatas[typeof(T)] = oneData;
+            _oneDatas.AddOrReplace<T>(oneData);
             OnOneDataCreated?.Invoke(typeof(T), oneData);
             return ref oneData.GetData();
         }
@@ -48,18 +49,12 @@ namespace ModulesFramework.Data
         internal OneData? GetOneData(Type containerType)
         {
             var dataType = containerType.GetGenericArguments()[0];
-            if (_oneDatas.TryGetValue(dataType, out var data))
-                return data;
-
-            return null;
+            return _oneDatas.Find(d => d != null && d.GetDataObject().GetType() == dataType);
         }
 
         public OneData? GetOneDataWrapper(Type dataType)
         {
-            if (_oneDatas.TryGetValue(dataType, out var data))
-                return data;
-
-            return null;
+            return _oneDatas.Find(d => d != null && d.GetDataObject().GetType() == dataType);
         }
 
         /// <summary>
@@ -71,7 +66,7 @@ namespace ModulesFramework.Data
         public ref T OneData<T>() where T : struct
         {
             var dataType = typeof(T);
-            if (!_oneDatas.TryGetValue(dataType, out var oneData))
+            if (!_oneDatas.TryGet<T>(out var oneData))
                 return ref CreateOneData<T>();
 
             return ref ((EcsOneData<T>)oneData).GetData();
@@ -84,7 +79,7 @@ namespace ModulesFramework.Data
         /// <returns>Number of generation or -1 if one data wasn't created yet</returns>
         public int OneDataGeneration<T>() where T : struct
         {
-            if (_oneDatas.TryGetValue(typeof(T), out var data))
+            if (_oneDatas.TryGet<T>(out var data))
                 return data.generation;
             return -1;
         }
@@ -106,18 +101,21 @@ namespace ModulesFramework.Data
         /// <typeparam name="T">Type of one data</typeparam>
         public void RemoveOneData<T>() where T : struct
         {
-            RemoveOneData(typeof(T));
+            if (_oneDatas.TryGet<T>(out var _))
+            {
+                _oneDatas.Remove<T>();
+                OnOneDataRemoved?.Invoke(typeof(T));
+            }
         }
 
         /// <summary>
-        /// Fully remove one data.
-        /// If you will use <see cref="OneData{T}"/> after removing it returns default value for type
+        ///     Fully remove one data by type.
+        ///     Note: it's less efficient then <see cref="RemoveOneData{T}"/> and shouldn't used too frequently
         /// </summary>
         public void RemoveOneData(Type type)
         {
-            if (_oneDatas.ContainsKey(type))
+            if (_oneDatas.Remove(d => d.GetDataObject().GetType() == type))
             {
-                _oneDatas.Remove(type);
                 OnOneDataRemoved?.Invoke(type);
             }
         }
@@ -131,7 +129,7 @@ namespace ModulesFramework.Data
         /// <returns>True if created</returns>
         public bool IsOneDataExists<T>() where T : struct
         {
-            return _oneDatas.ContainsKey(typeof(T));
+            return _oneDatas.TryGet<T>(out var _);
         }
     }
 }

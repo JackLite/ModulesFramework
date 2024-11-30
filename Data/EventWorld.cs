@@ -36,7 +36,7 @@ namespace ModulesFramework.Data
             foreach (var module in _externalSubscribers)
                 wasHandled |= HandleEvent(ev, module);
 
-            foreach (var (_, module) in _modules)
+            foreach (var module in _modules.Values)
                 wasHandled |= HandleEvent(ev, module);
 
             if (!wasHandled)
