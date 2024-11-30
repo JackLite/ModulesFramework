@@ -225,7 +225,7 @@ namespace ModulesFramework.Data
         /// <exception cref="ModuleNotFoundException"></exception>
         public EcsModule GetModule(Type moduleType)
         {
-            var module = _modules.Find(m => m.GetType() == moduleType);
+            var module = _modules.Find(m => m != null && m.GetType() == moduleType);
             if (module != null)
                 return module;
             throw new ModuleNotFoundException(moduleType);

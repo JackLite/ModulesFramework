@@ -106,7 +106,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         ///     Add component by type.
-        ///     Use this method only for debugging cause it's slower then <see cref="AddComponent<T>"/>
+        ///     Use this method only for debugging cause it use reflection in some cases
         /// </summary>
         public void AddComponent(int eid, Type type, object component)
         {
@@ -116,6 +116,13 @@ namespace ModulesFramework.Data
 #endif
 
             var table = GetEcsTable(type);
+            if (table == null)
+            {
+                var tableType = typeof(EcsTable<>).MakeGenericType(type);
+                table = (EcsTable)Activator.CreateInstance(tableType, this);
+                var meth = _data.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(type);
+                meth.Invoke(_data, new[] { table });
+            }
 
 #if MODULES_DEBUG
             if (table.Contains(eid))
@@ -344,7 +351,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable GetEcsTable(Type type)
         {
-            return _data.Find(table => table.Type == type);
+            return _data.Find(table => table != null && table.Type == type);
         }
 
         /// <summary>
@@ -452,7 +459,7 @@ namespace ModulesFramework.Data
         /// </summary>
         public bool HasComponent(int eid, Type componentType)
         {
-            var table = _data.Find(table => table.Type == componentType);
+            var table = _data.Find(table => table != null && table.Type == componentType);
             if (table == null)
                 return false;
             

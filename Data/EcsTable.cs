@@ -22,6 +22,7 @@ namespace ModulesFramework.Data
         public abstract bool Contains(int eid);
         public abstract void Remove(int eid);
         internal abstract void RemoveInternal(int eid);
+        internal abstract void RemoveByDenseIndex(int eid, int denseIndex);
         public abstract int GetMultipleDataLength(int eid);
     }
 
@@ -255,6 +256,7 @@ namespace ModulesFramework.Data
         /// <summary>
         /// Only for internal usage!
         /// This method is for debugging. You should never use it in production code.
+        /// Fill result by map of denseIndex into component
         /// </summary>
         /// <param name="eid">Id of Entity</param>
         /// <seealso cref="GetData"/>
@@ -334,6 +336,25 @@ namespace ModulesFramework.Data
 
             UpdateMultipleMap(affectedMap, denseIndex);
             OnRemoveComponent(eid);
+        }
+
+        /// <summary>
+        ///     Remove component by dense index.
+        ///     This is MultipleComponents API and should be used only for debug
+        ///     Don't forget that removing from dense array shifts last element
+        /// </summary>
+        internal override void RemoveByDenseIndex(int eid, int denseIndex)
+        {
+            var map = _multipleTableMap[eid];
+            for(var mtmIndex = 0; mtmIndex < map.Length; mtmIndex++)
+            {
+                if (map[mtmIndex] == denseIndex)
+                {
+                    RemoveAt(eid, mtmIndex);
+                    break;
+                }
+            };
+
         }
 
         private void UpdateMultipleMap(DenseArray<int>? map, int denseIndex)

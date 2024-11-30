@@ -49,12 +49,12 @@ namespace ModulesFramework.Data
         internal OneData? GetOneData(Type containerType)
         {
             var dataType = containerType.GetGenericArguments()[0];
-            return _oneDatas.Find(d => d.GetDataObject().GetType() == dataType);
+            return _oneDatas.Find(d => d != null && d.GetDataObject().GetType() == dataType);
         }
 
         public OneData? GetOneDataWrapper(Type dataType)
         {
-            return _oneDatas.Find(d => d.GetDataObject().GetType() == dataType);
+            return _oneDatas.Find(d => d != null && d.GetDataObject().GetType() == dataType);
         }
 
         /// <summary>
