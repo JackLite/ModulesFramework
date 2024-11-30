@@ -105,6 +105,34 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
+        ///     Add component by type.
+        ///     Use this method only for debugging cause it's slower then <see cref="AddComponent<T>"/>
+        /// </summary>
+        public void AddComponent(int eid, Type type, object component)
+        {
+#if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+#endif
+
+            var table = GetEcsTable(type);
+
+#if MODULES_DEBUG
+            if (table.Contains(eid))
+                Logger.LogWarning($"Component {type.Name} exists in {eid.ToString()} entity and will be replaced");
+#endif
+
+            table.Remove(eid);
+            table.AddData(eid, component);
+
+#if MODULES_DEBUG
+            Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
+#endif
+
+            OnEntityChanged?.Invoke(eid);
+        }
+
+        /// <summary>
         ///     Adds new component to entity.
         ///     This is MultipleComponents API and allowed to add multiple components to a single entity
         /// </summary>
@@ -121,6 +149,27 @@ namespace ModulesFramework.Data
             #if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} new {typeof(T).Name} component", LogFilter.EntityModifications);
             #endif
+
+            OnEntityChanged?.Invoke(eid);
+        }
+
+        /// <summary>
+        ///     Add component by type.
+        ///     Use this method only for debugging cause it's slower then <see cref="AddComponent<T>"/>
+        /// </summary>
+        public void AddNewComponent(int eid, Type type, object component)
+        {
+#if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+#endif
+
+            var table = GetEcsTable(type);
+            table.AddNewData(eid, component);
+
+#if MODULES_DEBUG
+            Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
+#endif
 
             OnEntityChanged?.Invoke(eid);
         }

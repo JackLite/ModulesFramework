@@ -109,6 +109,18 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
+        ///     Fully remove one data by type.
+        ///     Note: it's less efficient then <see cref="RemoveOneData{T}"/> and shouldn't used too frequently
+        /// </summary>
+        public void RemoveOneData(Type type)
+        {
+            if (_oneDatas.Remove(d => d.GetDataObject().GetType() == type))
+            {                
+                OnOneDataRemoved?.Invoke(type);
+            }
+        }
+
+        /// <summary>
         ///     Check if one data exists. You do not need this check when you get one data
         ///     cause it will be created with default fields. But in some cases you need to know if
         ///     one data was created. For example if it created by some async operations and you can't use await.

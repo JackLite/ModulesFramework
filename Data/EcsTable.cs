@@ -12,7 +12,8 @@ namespace ModulesFramework.Data
         public abstract bool IsEmpty { get; }
         public abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
-        public abstract void AddData(Entity entity, object component);
+        public abstract void AddData(int eid, object component);
+        public abstract void AddNewData(int eid, object component);
         internal abstract object GetDataObject(int eid);
         internal abstract object GetAt(int denseIndex);
         internal abstract object SetDataObject(int eid, object component);
@@ -85,9 +86,9 @@ namespace ModulesFramework.Data
             _multipleTableMap = new DenseArray<int>[64];
         }
 
-        public override void AddData(Entity entity, object component)
+        public override void AddData(int eid, object component)
         {
-            AddData(entity.Id, (T)component);
+            AddData(eid, (T)component);
         }
 
         /// <summary>
@@ -148,6 +149,11 @@ namespace ModulesFramework.Data
             OnAddComponent(eid);
         }
 
+        public override void AddNewData(int eid, object data)
+        {
+            AddNewData(eid, (T)data);
+        }
+
         /// <summary>
         /// Return component by entity id
         /// Use this method when you need more fast iterations without using query
@@ -158,9 +164,11 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetData(int eid)
         {
+#if MODULES_DEBUG
             CheckSingle();
             if (!Contains(eid))
                 throw new DataNotExistsInTableException<T>(eid);
+#endif
             return ref _denseTable.At(_tableMap[eid]);
         }
 
@@ -408,10 +416,10 @@ namespace ModulesFramework.Data
         /// </summary>
         public MultipleComponentsEnumerable<T> GetMultipleForEntity(int eid)
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (_isUsed && !_isMultiple)
                 throw new TableSingleWrongUseException<T>();
-            #endif
+#endif
             return new MultipleComponentsEnumerable<T>(this, eid);
         }
 
@@ -452,19 +460,18 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckSingle()
         {
-            #if MODULES_DEBUG
+
             if (_isMultiple)
                 throw new TableMultipleWrongUseException<T>();
-            #endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckMultiple()
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (_isUsed && !_isMultiple)
                 throw new TableSingleWrongUseException<T>();
-            #endif
+#endif
         }
 
         public void CreateKey<TIndex>(Func<T, TIndex> getIndex) where TIndex : notnull

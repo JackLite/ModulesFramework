@@ -11,10 +11,11 @@ namespace ModulesFramework.Utils
     {
         private readonly T[] _existed;
 
-        public IEnumerable<T> Values  {
+        public IEnumerable<T> Values
+        {
             get
             {
-                foreach(var value in _existed)
+                foreach (var value in _existed)
                 {
                     if (value != null)
                         yield return value;
@@ -39,7 +40,7 @@ namespace ModulesFramework.Utils
 
         public void AddOrReplace<TType>(T value)
         {
-            if(TryGet<TType>(out var _))
+            if (TryGet<TType>(out var _))
             {
                 var index = TypeID<T, TType>.id;
                 _existed[index] = value;
@@ -50,6 +51,10 @@ namespace ModulesFramework.Utils
             }
         }
 
+
+        /// <summary>
+        ///     Fast get element by TType
+        /// </summary>
         public bool TryGet<TType>(out T value)
         {
             value = null;
@@ -60,6 +65,12 @@ namespace ModulesFramework.Utils
             return value != null;
         }
 
+        /// <summary>
+        ///     Finds element by finder
+        ///     Note: O(n)
+        /// </summary>
+        /// <param name="finder"></param>
+        /// <returns></returns>
         public T Find(Func<T, bool> finder)
         {
             for (var i = 0; i < _existed.Length; i++)
@@ -68,10 +79,33 @@ namespace ModulesFramework.Utils
             return null;
         }
 
+        /// <summary>
+        ///     Fast remove of element by TType
+        /// </summary>
         public void Remove<TType>()
         {
             var idx = TypeID<T, TType>.id;
             _existed[idx] = null;
+        }
+
+
+        /// <summary>
+        ///     Remove element found by finder
+        ///     Return true if element was found and removed
+        ///     Note: O(n)
+        /// </summary>
+        public bool Remove(Func<T, bool> finder)
+        {
+            for (var i = 0; i < _existed.Length; i++)
+            {
+                if (finder(_existed[i]))
+                {
+                    _existed[i] = null;
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
