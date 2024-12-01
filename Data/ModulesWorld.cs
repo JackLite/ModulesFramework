@@ -66,11 +66,11 @@ namespace ModulesFramework.Data
             try
             {
                 var module = GetModule(moduleType);
-                #if MODULES_DEBUG
+#if MODULES_DEBUG
                 if (module == null) throw new ModuleNotFoundException(moduleType);
                 if (module.IsInitialized)
                     throw new ModuleAlreadyInitializedException(moduleType);
-                #endif
+#endif
                 await module.Init(activateImmediately);
             }
             catch (Exception e)
@@ -95,9 +95,9 @@ namespace ModulesFramework.Data
         public void DestroyModule(Type moduleType)
         {
             var module = GetModule(moduleType);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
-            #endif
+#endif
             module.Destroy();
         }
 
@@ -120,10 +120,10 @@ namespace ModulesFramework.Data
         public void ActivateModule(Type moduleType)
         {
             var module = GetModule(moduleType);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
             Logger.LogDebug($"Activate module {moduleType.Name}", LogFilter.ModulesFull);
-            #endif
+#endif
             module.SetActive(true);
         }
 
@@ -146,10 +146,10 @@ namespace ModulesFramework.Data
         public void DeactivateModule(Type moduleType)
         {
             var module = GetModule(moduleType);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
             Logger.LogDebug($"Deactivate module {moduleType.Name}", LogFilter.ModulesFull);
-            #endif
+#endif
             module.SetActive(false);
         }
 
@@ -168,7 +168,9 @@ namespace ModulesFramework.Data
         /// <typeparam name="T">Type of module. It must inherit from EcsModule</typeparam>
         public T GetModule<T>() where T : EcsModule
         {
-            return (T)GetModule(typeof(T));
+            if (_modules.TryGet<T>(out var module))
+                return (T)module;
+            throw new ModuleNotFoundException(typeof(T));
         }
 
         private void CtorModules(int worldIndex)
