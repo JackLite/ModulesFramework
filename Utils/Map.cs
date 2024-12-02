@@ -36,7 +36,7 @@ namespace ModulesFramework.Utils
                 index = TypeIDCollection<T>.Add<TType>();
             }
 
-            if (index > _existed.Length)
+            if (index >= _existed.Length)
             {
                 var newSize = Math.Max(_existed.Length * 2, index + 1);
                 Array.Resize(ref _existed, newSize);
