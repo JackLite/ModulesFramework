@@ -89,7 +89,7 @@ namespace ModulesFramework.Data
 
             var table = GetEcsTable<T>();
 
-            #if !MODULES_OPT
+            #if MODULES_DEBUG
             if (table.Contains(eid))
                 Logger.LogWarning($"Component {typeof(T).Name} exists in {eid.ToString()} entity and will be replaced");
             #endif
