@@ -9,7 +9,7 @@ namespace ModulesFramework.Utils
     /// </summary>
     internal class Map<T> where T : class
     {
-        private readonly T[] _existed;
+        private T[] _existed;
 
         public IEnumerable<T> Values
         {
@@ -35,6 +35,13 @@ namespace ModulesFramework.Utils
             {
                 index = TypeIDCollection<T>.Add<TType>();
             }
+
+            if (index > _existed.Length)
+            {
+                var newSize = Math.Max(_existed.Length * 2, index + 1);
+                Array.Resize(ref _existed, newSize);
+            }
+
             _existed[index] = value;
         }
 
