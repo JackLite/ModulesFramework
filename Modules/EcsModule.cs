@@ -1,4 +1,4 @@
-﻿#nullable enable
+#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,7 +16,7 @@ namespace ModulesFramework.Modules
     /// <summary>
     /// Base class for every module
     /// In modules you can create dependencies for your system and instantiate all prefabs that you need
-    /// Don't create any entities in modules - use IInitSystem instead
+    /// Don't create any entities in modules - use IPreInitSystem instead
     /// </summary>
     /// <seealso cref="IRunSystem"/>
     /// <seealso cref="GlobalModuleAttribute"/>
@@ -48,6 +48,7 @@ namespace ModulesFramework.Modules
         public bool IsInitWithParent { get; private set; }
         public bool IsActiveWithParent { get; private set; }
         public EcsModule? Parent { get; private set; }
+        public IEnumerable<EcsModule> Submodules => _submodules.Values.SelectMany(m => m);
 
         internal IEnumerable<Type> Systems => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
 
