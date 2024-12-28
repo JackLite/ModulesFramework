@@ -14,7 +14,7 @@ namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
-        private readonly Dictionary<Type, EcsModule> _modules;
+        private readonly Map<EcsModule> _modules;
         private Dictionary<Type, List<Type>>? _allSystemTypes;
 
         /// <summary>
@@ -66,11 +66,11 @@ namespace ModulesFramework.Data
             try
             {
                 var module = GetModule(moduleType);
-                #if MODULES_DEBUG
+#if MODULES_DEBUG
                 if (module == null) throw new ModuleNotFoundException(moduleType);
                 if (module.IsInitialized)
                     throw new ModuleAlreadyInitializedException(moduleType);
-                #endif
+#endif
                 await module.Init(activateImmediately);
             }
             catch (Exception e)
@@ -95,9 +95,9 @@ namespace ModulesFramework.Data
         public void DestroyModule(Type moduleType)
         {
             var module = GetModule(moduleType);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
-            #endif
+#endif
             module.Destroy();
         }
 
@@ -120,10 +120,10 @@ namespace ModulesFramework.Data
         public void ActivateModule(Type moduleType)
         {
             var module = GetModule(moduleType);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
             Logger.LogDebug($"Activate module {moduleType.Name}", LogFilter.ModulesFull);
-            #endif
+#endif
             module.SetActive(true);
         }
 
@@ -146,10 +146,10 @@ namespace ModulesFramework.Data
         public void DeactivateModule(Type moduleType)
         {
             var module = GetModule(moduleType);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
             Logger.LogDebug($"Deactivate module {moduleType.Name}", LogFilter.ModulesFull);
-            #endif
+#endif
             module.SetActive(false);
         }
 
@@ -168,7 +168,9 @@ namespace ModulesFramework.Data
         /// <typeparam name="T">Type of module. It must inherit from EcsModule</typeparam>
         public T GetModule<T>() where T : EcsModule
         {
-            return (T)GetModule(typeof(T));
+            if (_modules.TryGet<T>(out var module))
+                return (T)module;
+            throw new ModuleNotFoundException(typeof(T));
         }
 
         private void CtorModules(int worldIndex)
@@ -177,7 +179,8 @@ namespace ModulesFramework.Data
             var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
-                _modules.Add(module.GetType(), module);
+                var add = _modules.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(module.GetType());
+                add.Invoke(_modules, new object[] { module });
                 var submoduleAttr = module.GetType().GetCustomAttribute<SubmoduleAttribute>();
                 if (submoduleAttr != null)
                 {
@@ -224,7 +227,8 @@ namespace ModulesFramework.Data
         /// <exception cref="ModuleNotFoundException"></exception>
         public EcsModule GetModule(Type moduleType)
         {
-            if (_modules.TryGetValue(moduleType, out var module))
+            var module = _modules.Find(m => m != null && m.GetType() == moduleType);
+            if (module != null)
                 return module;
             throw new ModuleNotFoundException(moduleType);
         }

@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
 using ModulesFramework.Modules;
+using System.Collections.Generic;
 
 namespace ModulesFramework.Data
 {
@@ -28,28 +28,30 @@ namespace ModulesFramework.Data
         public void RiseEvent<T>(T ev) where T : struct
         {
             var type = typeof(T);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Rising {typeof(T).Name} event", LogFilter.EventsFull);
-            #endif
+#endif
 
             var wasHandled = false;
             foreach (var module in _externalSubscribers)
                 wasHandled |= HandleEvent(ev, module);
 
-            foreach (var (_, module) in _modules)
+            foreach (var module in _modules.Values)
                 wasHandled |= HandleEvent(ev, module);
 
             if (!wasHandled)
             {
-                #if MODULES_DEBUG
+#if MODULES_DEBUG
                 Logger.LogWarning($"No listeners for {typeof(T).Name} event");
-                #endif
+#endif
             }
         }
 
         private static bool HandleEvent<T>(T ev, EcsModule module) where T : struct
         {
-            return module.RunSubscribers(ev) || module.AddEvent(ev);
+            var isSubscribersExists = module.RunSubscribers(ev);
+            var isHandlerExists = module.AddEvent(ev);
+            return isSubscribersExists || isHandlerExists;
         }
 
         internal void RegisterEventSubscriber(EcsModule module)

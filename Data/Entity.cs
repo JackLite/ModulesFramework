@@ -125,10 +125,8 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsAlive()
         {
-            #if !MODULES_OPT
             if (World == null)
                 return false;
-            #endif
             return World.IsEntityAlive(this);
         }
 

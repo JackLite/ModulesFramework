@@ -13,7 +13,7 @@ namespace ModulesFramework.Data
     {
         private readonly AssemblyFilter _assemblyFilter;
         private int _entityCount;
-        private readonly Dictionary<Type, EcsTable> _data = new Dictionary<Type, EcsTable>();
+        private readonly Map<EcsTable> _data = new Map<EcsTable>();
         private readonly EntityTable _entitiesTable = new EntityTable();
         private readonly EntityGenerationTable _generationsTable = new EntityGenerationTable();
         private readonly Queue<int> _freeEid = new Queue<int>(64);
@@ -31,7 +31,7 @@ namespace ModulesFramework.Data
         public DataWorld(int worldIndex, AssemblyFilter assemblyFilter)
         {
             _assemblyFilter = assemblyFilter;
-            _modules = new Dictionary<Type, EcsModule>();
+            _modules = new Map<EcsModule>();
             CtorModules(worldIndex);
             _queriesPool = new Stack<DataQuery>(128);
             _entitiesTable.CreateKey(e => e.GetCustomId());
@@ -89,7 +89,7 @@ namespace ModulesFramework.Data
 
             var table = GetEcsTable<T>();
 
-            #if !MODULES_OPT
+            #if MODULES_DEBUG
             if (table.Contains(eid))
                 Logger.LogWarning($"Component {typeof(T).Name} exists in {eid.ToString()} entity and will be replaced");
             #endif
@@ -100,6 +100,41 @@ namespace ModulesFramework.Data
             #if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
             #endif
+
+            OnEntityChanged?.Invoke(eid);
+        }
+
+        /// <summary>
+        ///     Add component by type.
+        ///     Use this method only for debugging cause it use reflection in some cases
+        /// </summary>
+        public void AddComponent(int eid, Type type, object component)
+        {
+#if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+#endif
+
+            var table = GetEcsTable(type);
+            if (table == null)
+            {
+                var tableType = typeof(EcsTable<>).MakeGenericType(type);
+                table = (EcsTable)Activator.CreateInstance(tableType, this);
+                var meth = _data.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(type);
+                meth.Invoke(_data, new[] { table });
+            }
+
+#if MODULES_DEBUG
+            if (table.Contains(eid))
+                Logger.LogWarning($"Component {type.Name} exists in {eid.ToString()} entity and will be replaced");
+#endif
+
+            table.Remove(eid);
+            table.AddData(eid, component);
+
+#if MODULES_DEBUG
+            Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
+#endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -121,6 +156,27 @@ namespace ModulesFramework.Data
             #if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} new {typeof(T).Name} component", LogFilter.EntityModifications);
             #endif
+
+            OnEntityChanged?.Invoke(eid);
+        }
+
+        /// <summary>
+        ///     Add component by type.
+        ///     Use this method only for debugging cause it's slower then <see cref="AddComponent<T>"/>
+        /// </summary>
+        public void AddNewComponent(int eid, Type type, object component)
+        {
+#if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+#endif
+
+            var table = GetEcsTable(type);
+            table.AddNewData(eid, component);
+
+#if MODULES_DEBUG
+            Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
+#endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -295,7 +351,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable GetEcsTable(Type type)
         {
-            return _data[type];
+            return _data.Find(table => table != null && table.Type == type);
         }
 
         /// <summary>
@@ -364,13 +420,11 @@ namespace ModulesFramework.Data
         public EcsTable<T> CreateTableIfNeed<T>() where T : struct
         {
             var type = typeof(T);
-            if (_data.TryGetValue(type, out var table))
-            {
+            if (_data.TryGet<T>(out var table))
                 return (EcsTable<T>)table;
-            }
 
             var newTable = new EcsTable<T>(this);
-            _data[type] = newTable;
+            _data.Add<T>(newTable);
             return newTable;
         }
 
@@ -405,9 +459,11 @@ namespace ModulesFramework.Data
         /// </summary>
         public bool HasComponent(int eid, Type componentType)
         {
-            if (!_data.ContainsKey(componentType))
+            var table = _data.Find(table => table != null && table.Type == componentType);
+            if (table == null)
                 return false;
-            return _data[componentType].Contains(eid);
+            
+            return table.Contains(eid);
         }
 
         /// <summary>
@@ -431,9 +487,9 @@ namespace ModulesFramework.Data
 
         internal void MapTables(Action<Type, EcsTable> handler)
         {
-            foreach (var kvp in _data)
+            foreach (var table in _data.Values)
             {
-                handler.Invoke(kvp.Key, kvp.Value);
+                handler.Invoke(table.Type, table);
             }
         }
 

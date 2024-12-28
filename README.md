@@ -21,6 +21,11 @@
 #### [API](#api-0)
 #### [Projects](#projects-0)
 
+### N.B.
+_MF is not a pure ECS framework! Instead it has ECS pattern as part and allow you to develop whole project 
+basing only at one collection of abstractions. In another words it gives you homogeneous architecture 
+instead of mix some classic architecture pattern and ECS._
+
 ## <a id="getting-started"/> Getting started
 
 This is all abstraction that you need to create anything you want with MF.
