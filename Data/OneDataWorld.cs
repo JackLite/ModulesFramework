@@ -1,4 +1,4 @@
-﻿using ModulesFramework.Utils;
+using ModulesFramework.Utils;
 using System;
 using System.Collections.Generic;
 
