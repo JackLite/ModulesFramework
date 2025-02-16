@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Numerics;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Data.QueryUtils;
@@ -11,7 +13,7 @@ namespace ModulesFramework.Data
         private readonly DataWorld _world;
 
         private EcsTable _mainTable;
-        private bool[] _inc = new bool[64];
+        private ulong[] _bitMask = new ulong[4];
         private bool _isEmpty;
 
         public DataQuery(DataWorld world)
@@ -26,9 +28,14 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return;
 
-            if (_inc.Length < _mainTable.ActiveEntities.Length)
-                _inc = new bool[_mainTable.ActiveEntities.Length];
-            _mainTable.ActiveEntities.AsSpan().CopyTo(_inc);
+            // if (_inc.Length < _mainTable.ActiveEntities.Length)
+            //     _inc = new bool[_mainTable.ActiveEntities.Length];
+
+            if (_bitMask.Length < _mainTable.optimized.Length)
+                Array.Resize(ref _bitMask, _mainTable.optimized.Length);
+            // _mainTable.ActiveEntities.AsSpan().CopyTo(_inc);
+            // _mainTable.optimized.AsSpan().CopyTo(_bitMask);
+            Buffer.BlockCopy(_mainTable.optimized, 0, _bitMask, 0, _mainTable.optimized.Length * sizeof(ulong));
         }
 
         public void Dispose()
@@ -43,10 +50,14 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            for (var i = 0; i < _inc.Length; ++i)
+            for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (_inc[i])
-                    _inc[i] &= table.Contains(i);
+                if (i >= table.optimized.Length)
+                {
+                    _bitMask[i] = 0;
+                    continue;
+                }
+                _bitMask[i] &= table.optimized[i];
             }
 
             return this;
@@ -57,10 +68,14 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            for (var i = 0; i < _inc.Length; ++i)
+            for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (_inc[i])
-                    _inc[i] &= or.Check(i, _world);
+                for (var j = 0; j < 64; j++)
+                {
+                    var shift = j % 64;
+                    var check = or.Check(j + i * 64, _world);
+                    _bitMask[i] &= ~((1UL << shift) & Convert.ToUInt64(!check) << shift);
+                }
             }
 
             return this;
@@ -72,10 +87,15 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            for (var i = 0; i < _inc.Length; ++i)
+            var length = Math.Min(_bitMask.Length, table.optimized.Length);
+            for (var i = 0; i < length; ++i)
             {
-                if (_inc[i])
-                    _inc[i] &= !table.Contains(i);
+                if (i >= table.optimized.Length)
+                {
+                    _bitMask[i] = 0;
+                    continue;
+                }
+                _bitMask[i] &= ~table.optimized[i];
             }
 
             return this;
@@ -88,12 +108,31 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            for (var i = 0; i < _inc.Length; ++i)
+            for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (_inc[i])
-                    _inc[i] &= table.Contains(i);
-                if (_inc[i])
-                    _inc[i] &= customFilter.Invoke(table.GetData(i));
+                if (i >= table.optimized.Length)
+                {
+                    _bitMask[i] = 0;
+                    continue;
+                }
+                _bitMask[i] &= table.optimized[i];
+            }
+
+            for (var i = 0; i < _bitMask.Length; ++i)
+            {
+                if (BitOperations.PopCount(_bitMask[i]) == 0)
+                    continue;
+
+                for (var j = 0; j < 64; j++)
+                {
+                    var shift = j % 64;
+                    var eid = j + i * 64;
+                    if ((_bitMask[i] & (1UL << shift)) == 0)
+                        continue;
+
+                    var filterResult = customFilter.Invoke(table.GetData(eid));
+                    _bitMask[i] &= ~((1UL << shift) & Convert.ToUInt64(!filterResult) << shift);
+                }
             }
 
             return this;
@@ -104,10 +143,14 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            for (var i = 0; i < _inc.Length; ++i)
+            for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (_inc[i])
-                    _inc[i] &= whereOr.Check(i, _world);
+                for (var j = 0; j < 64; j++)
+                {
+                    var shift = j % 64;
+                    var check = whereOr.Check(j + i * 64, _world);
+                    _bitMask[i] &= ~((1UL << shift) & Convert.ToUInt64(!check) << shift);
+                }
             }
 
             return this;
@@ -120,19 +163,24 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            for (var i = 0; i < _inc.Length; ++i)
+            for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (!_inc[i])
-                    continue;
-
-                var indices = table.GetMultipleDenseIndices(i);
-                var inc = false;
-                foreach (var index in indices)
+                for (var j = 0; j < 64; j++)
                 {
-                    inc |= customFilter.Invoke(table.At(index));
-                }
+                    var eid = j + i * 64;
+                    if (!table.Contains(eid))
+                        continue;
 
-                _inc[i] &= inc;
+                    var indices = table.GetMultipleDenseIndices(eid);
+                    var inc = false;
+                    foreach (var index in indices)
+                    {
+                        inc |= customFilter.Invoke(table.At(index));
+                    }
+
+                    var shift = j % 64;
+                    _bitMask[i] &= ~((1UL << shift) & Convert.ToUInt64(!inc) << shift);
+                }
             }
 
             return this;
@@ -145,19 +193,24 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            for (var i = 0; i < _inc.Length; ++i)
+            for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (!_inc[i])
-                    continue;
-
-                var indices = table.GetMultipleDenseIndices(i);
-                var inc = true;
-                foreach (var index in indices)
+                for (var j = 0; j < 64; j++)
                 {
-                    inc &= customFilter.Invoke(table.At(index));
-                }
+                    var eid = j + i * 64;
+                    if (!table.Contains(eid))
+                        continue;
 
-                _inc[i] &= inc;
+                    var indices = table.GetMultipleDenseIndices(eid);
+                    var inc = true;
+                    foreach (var index in indices)
+                    {
+                        inc &= customFilter.Invoke(table.At(index));
+                    }
+
+                    var shift = j % 64;
+                    _bitMask[i] &= ~((1UL << shift) & Convert.ToUInt64(!inc) << shift);
+                }
             }
 
             return this;
@@ -167,18 +220,18 @@ namespace ModulesFramework.Data
         public EntitiesEnumerable GetEntities()
         {
             if (_isEmpty)
-                return new EntitiesEnumerable(Array.Empty<bool>(), Array.Empty<bool>(), _world);
+                return new EntitiesEnumerable(Array.Empty<ulong>(), Array.Empty<ulong>(), _world);
 
-            return new EntitiesEnumerable(_mainTable.ActiveEntities, _inc, _world);
+            return new EntitiesEnumerable(_mainTable.optimized, _bitMask, _world);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EntityDataEnumerable GetEntitiesId()
         {
             if (_isEmpty)
-                return new EntityDataEnumerable(Array.Empty<bool>(), Array.Empty<bool>());
+                return new EntityDataEnumerable(Array.Empty<ulong>(), Array.Empty<ulong>());
 
-            return new EntityDataEnumerable(_mainTable.ActiveEntities, _inc);
+            return new EntityDataEnumerable(_mainTable.optimized, _bitMask);
         }
 
         public ComponentsEnumerable<T> GetComponents<T>() where T : struct
@@ -186,9 +239,9 @@ namespace ModulesFramework.Data
             var table = _world.GetEcsTable<T>();
 
             if (_isEmpty)
-                return new ComponentsEnumerable<T>(table, Array.Empty<bool>());
+                return new ComponentsEnumerable<T>(table, Array.Empty<ulong>());
 
-            return new ComponentsEnumerable<T>(table, _inc);
+            return new ComponentsEnumerable<T>(table, _bitMask);
         }
 
         public MultipleComponentsQueryEnumerable<T> GetMultipleComponents<T>() where T : struct
@@ -196,9 +249,9 @@ namespace ModulesFramework.Data
             var table = _world.GetEcsTable<T>();
 
             if (_isEmpty)
-                return new MultipleComponentsQueryEnumerable<T>(table, Array.Empty<bool>());
+                return new MultipleComponentsQueryEnumerable<T>(table, Array.Empty<ulong>());
 
-            return new MultipleComponentsQueryEnumerable<T>(table, _inc);
+            return new MultipleComponentsQueryEnumerable<T>(table, _bitMask);
         }
 
         public bool Any()
@@ -289,9 +342,10 @@ namespace ModulesFramework.Data
                 return 0;
 
             var count = 0;
-            foreach (var inc in _inc)
+
+            foreach (var mask in _bitMask)
             {
-                count += Convert.ToInt32(inc);
+                count += BitOperations.PopCount(mask);
             }
 
             return count;
@@ -302,7 +356,15 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return false;
 
-            return eid >= 0 && _inc.Length > eid && _inc[eid];
+            var maskIdx = eid / 64;
+            if (maskIdx >= _bitMask.Length)
+                return false;
+
+            var shift = eid % 64;
+            var mask = _bitMask[maskIdx];
+            var isActiveBit = mask & (1UL << shift);
+
+            return isActiveBit > 0;
         }
     }
 }

@@ -2,15 +2,15 @@
 {
     public readonly struct EntityDataEnumerable
     {
-        private readonly bool[] _data;
-        private readonly bool[] _filter;
+        private readonly ulong[] _data;
+        private readonly ulong[] _filter;
 
-        public EntityDataEnumerable(bool[] data, bool[] filter)
+        public EntityDataEnumerable(ulong[] data, ulong[] filter)
         {
             _data = data;
             _filter = filter;
         }
-        
+
         public EntityDataEnumerator GetEnumerator()
         {
             return new EntityDataEnumerator(_data, _filter);
