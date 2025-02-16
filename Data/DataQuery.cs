@@ -1,10 +1,9 @@
 ﻿using System;
-using System.Diagnostics;
-using System.Numerics;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Data.QueryUtils;
 using ModulesFramework.Exceptions;
+using ModulesFramework.Utils;
 
 namespace ModulesFramework.Data
 {
@@ -120,7 +119,7 @@ namespace ModulesFramework.Data
 
             for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (BitOperations.PopCount(_bitMask[i]) == 0)
+                if (MFMath.CountBits(_bitMask[i]) == 0)
                     continue;
 
                 for (var j = 0; j < 64; j++)
@@ -345,7 +344,7 @@ namespace ModulesFramework.Data
 
             foreach (var mask in _bitMask)
             {
-                count += BitOperations.PopCount(mask);
+                count += MFMath.CountBits(mask);
             }
 
             return count;

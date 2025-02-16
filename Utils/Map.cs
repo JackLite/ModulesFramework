@@ -38,7 +38,7 @@ namespace ModulesFramework.Utils
 
             if (index >= _existed.Length)
             {
-                var newSize = Math.Max(_existed.Length * 2, index + 1);
+                var newSize = System.Math.Max(_existed.Length * 2, index + 1);
                 Array.Resize(ref _existed, newSize);
             }
 
