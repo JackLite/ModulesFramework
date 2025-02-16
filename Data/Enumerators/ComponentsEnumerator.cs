@@ -33,7 +33,7 @@ namespace ModulesFramework.Data.Enumerators
             var eid = _index - 1;
             while (true)
             {
-                var outOfRange = _index > _table.optimized.Length * 64;
+                var outOfRange = _index > _table.ActiveEntitiesBits.Length * 64;
                 if (outOfRange)
                     break;
 
@@ -43,14 +43,14 @@ namespace ModulesFramework.Data.Enumerators
 
                 var optIdx = eid / 64;
                 var bitMask = eid % 64;
-                var isActiveBit = _table.optimized[optIdx] & (1UL << bitMask);
+                var isActiveBit = _table.ActiveEntitiesBits[optIdx] & (1UL << bitMask);
                 var isFilteredBit = _filter[optIdx] & (1UL << bitMask);
                 if ((isActiveBit & isFilteredBit) > 0)
                     break;
                 ++_index;
             }
 
-            return _index <= _table.optimized.Length * 64 && eid < _filter.Length * 64;
+            return _index <= _table.ActiveEntitiesBits.Length * 64 && eid < _filter.Length * 64;
         }
 
         public void Reset()

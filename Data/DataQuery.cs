@@ -31,11 +31,11 @@ namespace ModulesFramework.Data
             // if (_inc.Length < _mainTable.ActiveEntities.Length)
             //     _inc = new bool[_mainTable.ActiveEntities.Length];
 
-            if (_bitMask.Length < _mainTable.optimized.Length)
-                Array.Resize(ref _bitMask, _mainTable.optimized.Length);
+            if (_bitMask.Length < _mainTable.ActiveEntitiesBits.Length)
+                Array.Resize(ref _bitMask, _mainTable.ActiveEntitiesBits.Length);
             // _mainTable.ActiveEntities.AsSpan().CopyTo(_inc);
             // _mainTable.optimized.AsSpan().CopyTo(_bitMask);
-            Buffer.BlockCopy(_mainTable.optimized, 0, _bitMask, 0, _mainTable.optimized.Length * sizeof(ulong));
+            Buffer.BlockCopy(_mainTable.ActiveEntitiesBits, 0, _bitMask, 0, _mainTable.ActiveEntitiesBits.Length * sizeof(ulong));
         }
 
         public void Dispose()
@@ -52,12 +52,12 @@ namespace ModulesFramework.Data
 
             for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (i >= table.optimized.Length)
+                if (i >= table.ActiveEntitiesBits.Length)
                 {
                     _bitMask[i] = 0;
                     continue;
                 }
-                _bitMask[i] &= table.optimized[i];
+                _bitMask[i] &= table.ActiveEntitiesBits[i];
             }
 
             return this;
@@ -87,15 +87,15 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return this;
 
-            var length = Math.Min(_bitMask.Length, table.optimized.Length);
+            var length = Math.Min(_bitMask.Length, table.ActiveEntitiesBits.Length);
             for (var i = 0; i < length; ++i)
             {
-                if (i >= table.optimized.Length)
+                if (i >= table.ActiveEntitiesBits.Length)
                 {
                     _bitMask[i] = 0;
                     continue;
                 }
-                _bitMask[i] &= ~table.optimized[i];
+                _bitMask[i] &= ~table.ActiveEntitiesBits[i];
             }
 
             return this;
@@ -110,12 +110,12 @@ namespace ModulesFramework.Data
 
             for (var i = 0; i < _bitMask.Length; ++i)
             {
-                if (i >= table.optimized.Length)
+                if (i >= table.ActiveEntitiesBits.Length)
                 {
                     _bitMask[i] = 0;
                     continue;
                 }
-                _bitMask[i] &= table.optimized[i];
+                _bitMask[i] &= table.ActiveEntitiesBits[i];
             }
 
             for (var i = 0; i < _bitMask.Length; ++i)
@@ -222,7 +222,7 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return new EntitiesEnumerable(Array.Empty<ulong>(), Array.Empty<ulong>(), _world);
 
-            return new EntitiesEnumerable(_mainTable.optimized, _bitMask, _world);
+            return new EntitiesEnumerable(_mainTable.ActiveEntitiesBits, _bitMask, _world);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -231,7 +231,7 @@ namespace ModulesFramework.Data
             if (_isEmpty)
                 return new EntityDataEnumerable(Array.Empty<ulong>(), Array.Empty<ulong>());
 
-            return new EntityDataEnumerable(_mainTable.optimized, _bitMask);
+            return new EntityDataEnumerable(_mainTable.ActiveEntitiesBits, _bitMask);
         }
 
         public ComponentsEnumerable<T> GetComponents<T>() where T : struct

@@ -42,7 +42,7 @@ namespace ModulesFramework.Data.Enumerators
 
             while (true)
             {
-                var outOfRange = _index > _table.optimized.Length * 64;
+                var outOfRange = _index > _table.ActiveEntitiesBits.Length * 64;
                 if (outOfRange)
                     return false;
 
@@ -53,7 +53,7 @@ namespace ModulesFramework.Data.Enumerators
                     var optIdx = eid / 64;
                     var bitMask = eid % 64;
 
-                    var isActiveBit = _table.optimized[optIdx] & (1UL << bitMask);
+                    var isActiveBit = _table.ActiveEntitiesBits[optIdx] & (1UL << bitMask);
                     var isFilteredBit = _filter[optIdx] & (1UL << bitMask);
                     if (isActiveBit == 0 || isFilteredBit == 0)
                     {

@@ -8,7 +8,7 @@ namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
-        internal abstract ulong[] optimized { get; }
+        internal abstract ulong[] ActiveEntitiesBits { get; }
         public abstract bool IsEmpty { get; }
         public abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
@@ -69,8 +69,8 @@ namespace ModulesFramework.Data
 
         internal override Type Type => typeof(T);
 
-        private ulong[] _optimized;
-        internal override ulong[] optimized => _optimized;
+        private ulong[] _activeEntitiesBits;
+        internal override ulong[] ActiveEntitiesBits => _activeEntitiesBits;
 
         public event Action<int> OnAddComponent = delegate
         {
@@ -86,7 +86,7 @@ namespace ModulesFramework.Data
             _tableMap = new int[64];
             _tableReverseMap = new int[64];
             _multipleTableMap = new DenseArray<int>[64];
-            _optimized = new ulong[4];
+            _activeEntitiesBits = new ulong[4];
         }
 
         public override void AddData(int eid, object component)
@@ -113,16 +113,16 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
             }
 
-            while (eid >= optimized.Length * 64)
+            while (eid >= ActiveEntitiesBits.Length * 64)
             {
-                Array.Resize(ref _optimized, optimized.Length * 2);
+                Array.Resize(ref _activeEntitiesBits, ActiveEntitiesBits.Length * 2);
             }
 
             _tableReverseMap[index] = eid;
             _tableMap[eid] = index;
             var optIdx = eid / 64;
             var bitMask = eid % 64;
-            optimized[optIdx] |= 1UL << bitMask;
+            ActiveEntitiesBits[optIdx] |= 1UL << bitMask;
 
             if (_indexer != null)
                 _indexer.Add(data, eid);
@@ -149,9 +149,9 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
             }
 
-            while (eid >= optimized.Length * 64)
+            while (eid >= ActiveEntitiesBits.Length * 64)
             {
-                Array.Resize(ref _optimized, optimized.Length * 2);
+                Array.Resize(ref _activeEntitiesBits, ActiveEntitiesBits.Length * 2);
             }
 
             _multipleTableMap[eid] ??= new DenseArray<int>();
@@ -160,7 +160,7 @@ namespace ModulesFramework.Data
             _tableReverseMap[index] = eid;
             var optIdx = eid / 64;
             var bitMask = eid % 64;
-            optimized[optIdx] |= 1UL << bitMask;
+            ActiveEntitiesBits[optIdx] |= 1UL << bitMask;
 
             OnAddComponent(eid);
         }
@@ -328,7 +328,7 @@ namespace ModulesFramework.Data
             _tableMap[updateEid] = index;
             var optIdx = eid / 64;
             var bitMask = eid % 64;
-            optimized[optIdx] &= ~(1UL << bitMask);
+            ActiveEntitiesBits[optIdx] &= ~(1UL << bitMask);
 
             OnRemoveComponent(eid);
         }
@@ -418,7 +418,7 @@ namespace ModulesFramework.Data
             _multipleTableMap[eid] = null;
             var optIdx = eid / 64;
             var bitMask = eid % 64;
-            optimized[optIdx] &= ~(1UL << bitMask);
+            ActiveEntitiesBits[optIdx] &= ~(1UL << bitMask);
         }
 
         /// <summary>
@@ -481,10 +481,10 @@ namespace ModulesFramework.Data
         private bool IsActive(int eid)
         {
             var optIdx = eid / 64;
-            if(optIdx >= optimized.Length)
+            if(optIdx >= ActiveEntitiesBits.Length)
                 return false;
             var bitMask = eid % 64;
-            return Convert.ToBoolean(optimized[optIdx] & (1UL << bitMask));
+            return Convert.ToBoolean(ActiveEntitiesBits[optIdx] & (1UL << bitMask));
         }
 
         /// <summary>
