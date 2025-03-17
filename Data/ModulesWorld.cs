@@ -173,10 +173,8 @@ namespace ModulesFramework.Data
             throw new ModuleNotFoundException(typeof(T));
         }
 
-        private void CtorModules(int worldIndex)
+        private void CtorModules(Dictionary<Type, EcsModule> modules)
         {
-            _allSystemTypes ??= EcsUtilities.FindSystems(_assemblyFilter.Filter);
-            var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
                 var add = _modules.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(module.GetType());
@@ -195,10 +193,9 @@ namespace ModulesFramework.Data
             }
         }
 
-        private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex)
+        private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex, List<Type> moduleTypes)
         {
-            var modules = EcsUtilities.GetModulesTypes(_assemblyFilter.Filter)
-                .Select(t => (EcsModule)Activator.CreateInstance(t)!);
+            var modules = moduleTypes.Select(t => (EcsModule)Activator.CreateInstance(t)!);
             foreach (var module in modules)
             {
                 var moduleWorlds = ModuleUtil.GetWorldIndex(module.GetType());

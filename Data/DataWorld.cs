@@ -1,17 +1,18 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
+using ModulesFramework.Systems;
 using ModulesFramework.Utils;
 
 namespace ModulesFramework.Data
 {
     public partial class DataWorld
     {
-        private readonly AssemblyFilter _assemblyFilter;
         private int _entityCount;
         private readonly Map<EcsTable> _data = new Map<EcsTable>();
         private readonly EntityTable _entitiesTable = new EntityTable();
@@ -28,13 +29,30 @@ namespace ModulesFramework.Data
         internal event Action<Type, OneData>? OnOneDataCreated;
         internal event Action<Type>? OnOneDataRemoved;
 
-        public DataWorld(int worldIndex, AssemblyFilter assemblyFilter)
+        internal DataWorld(int worldIndex, AssemblyFilter assemblyFilter)
         {
-            _assemblyFilter = assemblyFilter;
             _modules = new Map<EcsModule>();
-            CtorModules(worldIndex);
+            _allSystemTypes ??= EcsUtilities.FindSystems(assemblyFilter.Filter);
             _queriesPool = new Stack<DataQuery>(128);
             _entitiesTable.CreateKey(e => e.GetCustomId());
+
+            var moduleTypes = EcsUtilities.GetModulesTypes(assemblyFilter.Filter);
+            var modules = CreateAllEcsModules(worldIndex, moduleTypes.ToList());
+            CtorModules(modules.ToDictionary(m => m.GetType(), m => m));
+        }
+
+        internal DataWorld(
+            int worldIndex,
+            Dictionary<Type, List<Type>> allSystemTypes,
+            List<Type> moduleTypes)
+        {
+            _allSystemTypes = allSystemTypes;
+            _modules = new Map<EcsModule>();
+            _queriesPool = new Stack<DataQuery>(128);
+            _entitiesTable.CreateKey(e => e.GetCustomId());
+
+            var modules = CreateAllEcsModules(worldIndex, moduleTypes.ToList());
+            CtorModules(modules.ToDictionary(m => m.GetType(), m => m));
         }
 
         /// <summary>
@@ -110,10 +128,10 @@ namespace ModulesFramework.Data
         /// </summary>
         public void AddComponent(int eid, Type type, object component)
         {
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-#endif
+            #endif
 
             var table = GetEcsTable(type);
             if (table == null)
@@ -124,17 +142,17 @@ namespace ModulesFramework.Data
                 meth.Invoke(_data, new[] { table });
             }
 
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             if (table.Contains(eid))
                 Logger.LogWarning($"Component {type.Name} exists in {eid.ToString()} entity and will be replaced");
-#endif
+            #endif
 
             table.Remove(eid);
             table.AddData(eid, component);
 
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
-#endif
+            #endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -166,17 +184,17 @@ namespace ModulesFramework.Data
         /// </summary>
         public void AddNewComponent(int eid, Type type, object component)
         {
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-#endif
+            #endif
 
             var table = GetEcsTable(type);
             table.AddNewData(eid, component);
 
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
-#endif
+            #endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -462,7 +480,7 @@ namespace ModulesFramework.Data
             var table = _data.Find(table => table != null && table.Type == componentType);
             if (table == null)
                 return false;
-            
+
             return table.Contains(eid);
         }
 
