@@ -12,11 +12,12 @@ namespace ModulesFramework
     {
         private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
-        private ModuleSystem[] _moduleSystems;
+        private readonly List<ModuleSystem> _moduleSystems = new();
         private EmbeddedGlobalModule _embeddedGlobalModule;
 
-        private DataWorld[] _worlds;
+        private readonly List<DataWorld> _worlds = new();
         private AssemblyFilter _assemblyFilter;
+        private MFCache _cache;
         public DataWorld MainWorld => _worlds[0];
         public IEnumerable<DataWorld> Worlds => _worlds;
         private static MF Instance { get; set; }
@@ -24,10 +25,11 @@ namespace ModulesFramework
         public static bool IsInitialized => Instance is { _isInitialized: true };
         public static DataWorld World => Instance.MainWorld;
 
-        public MF(int worldsCount = 1, AssemblyFilter? filter = null)
+        public MF(AssemblyFilter? filter = null)
         {
             _assemblyFilter = filter ?? new AssemblyFilter();
-            CreateWorlds(worldsCount);
+            _cache = new MFCache(_assemblyFilter);
+            CreateMainWorld();
             CreateEmbedded();
             Instance = this;
         }
@@ -35,6 +37,11 @@ namespace ModulesFramework
         public DataWorld GetWorld(int index)
         {
             return _worlds[index];
+        }
+
+        public static DataWorld FromWorld(int index)
+        {
+            return Instance.GetWorld(index);
         }
 
         public IEnumerable<DataWorld> GetAllWorlds()
@@ -48,15 +55,19 @@ namespace ModulesFramework
             _embeddedGlobalModule.InjectWorld(MainWorld);
         }
 
-        private void CreateWorlds(int count)
+        private void CreateMainWorld()
         {
-            _worlds = new DataWorld[count];
-            _moduleSystems = new ModuleSystem[count];
-            for (var i = 0; i < count; i++)
-            {
-                _worlds[i] = new DataWorld(i, _assemblyFilter);
-                _moduleSystems[i] = new ModuleSystem(_worlds[i].GetAllModules().ToArray());
-            }
+            CreateWorld();
+        }
+
+        public int CreateWorld()
+        {
+            var index = _worlds.Count;
+            var world = new DataWorld(index, _cache.AllSystemTypes, _cache.AllModuleTypes);
+            _worlds.Add(world);
+            var moduleSystem = new ModuleSystem(world.GetAllModules().ToArray());
+            _moduleSystems.Add(moduleSystem);
+            return index;
         }
 
         public async Task Start()
