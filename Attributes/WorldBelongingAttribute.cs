@@ -4,18 +4,17 @@ using System.Collections.Generic;
 namespace ModulesFramework.Attributes
 {
     /// <summary>
-    ///     Marks that module belongs to specified world
+    ///     Marks that module belongs to a specified world.
+    ///     If not specified, module belongs to all worlds
     ///     Be careful cause all systems in module will run once per world
-    ///     Note: probably you will never need this, but for some complex multiplayer games it will be
-    ///     necessary in host mode
     /// </summary>
     public class WorldBelongingAttribute : Attribute
     {
-        public HashSet<int> WorldIndices { get; private set; }
+        public HashSet<string> Worlds { get; private set; }
 
-        public WorldBelongingAttribute(params int[] worldIndex)
+        public WorldBelongingAttribute(params string[] worldIndex)
         {
-            WorldIndices = new HashSet<int>(worldIndex);
+            Worlds = new HashSet<string>(worldIndex);
         }
     }
 }
