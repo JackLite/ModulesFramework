@@ -21,6 +21,8 @@ namespace ModulesFramework.Data
 
         private readonly Stack<DataQuery> _queriesPool;
 
+        public string WorldName { get; private set; }
+
         public event Action<int>? OnEntityCreated;
         public event Action<int>? OnEntityChanged;
         public event Action<int>? OnEntityDestroyed;
@@ -29,29 +31,18 @@ namespace ModulesFramework.Data
         internal event Action<Type, OneData>? OnOneDataCreated;
         internal event Action<Type>? OnOneDataRemoved;
 
-        internal DataWorld(int worldIndex, AssemblyFilter assemblyFilter)
-        {
-            _modules = new Map<EcsModule>();
-            _allSystemTypes ??= EcsUtilities.FindSystems(assemblyFilter.Filter);
-            _queriesPool = new Stack<DataQuery>(128);
-            _entitiesTable.CreateKey(e => e.GetCustomId());
-
-            var moduleTypes = EcsUtilities.GetModulesTypes(assemblyFilter.Filter);
-            var modules = CreateAllEcsModules(worldIndex, moduleTypes.ToList());
-            CtorModules(modules.ToDictionary(m => m.GetType(), m => m));
-        }
-
         internal DataWorld(
-            int worldIndex,
+            string worldName,
             Dictionary<Type, List<Type>> allSystemTypes,
             List<Type> moduleTypes)
         {
+            WorldName = worldName;
             _allSystemTypes = allSystemTypes;
             _modules = new Map<EcsModule>();
             _queriesPool = new Stack<DataQuery>(128);
             _entitiesTable.CreateKey(e => e.GetCustomId());
 
-            var modules = CreateAllEcsModules(worldIndex, moduleTypes.ToList());
+            var modules = CreateAllEcsModules(moduleTypes.ToList());
             CtorModules(modules.ToDictionary(m => m.GetType(), m => m));
         }
 

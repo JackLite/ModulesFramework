@@ -15,11 +15,10 @@ namespace ModulesFramework
         private readonly List<ModuleSystem> _moduleSystems = new();
         private EmbeddedGlobalModule _embeddedGlobalModule;
 
-        private readonly List<DataWorld> _worlds = new();
-        private AssemblyFilter _assemblyFilter;
-        private MFCache _cache;
-        public DataWorld MainWorld => _worlds[0];
-        public IEnumerable<DataWorld> Worlds => _worlds;
+        private readonly Dictionary<string, DataWorld> _worlds = new();
+        private readonly MFCache _cache;
+        public DataWorld MainWorld => _worlds["Default"];
+        public IEnumerable<DataWorld> Worlds => _worlds.Values;
         private static MF Instance { get; set; }
 
         public static bool IsInitialized => Instance is { _isInitialized: true };
@@ -27,26 +26,26 @@ namespace ModulesFramework
 
         public MF(AssemblyFilter? filter = null)
         {
-            _assemblyFilter = filter ?? new AssemblyFilter();
-            _cache = new MFCache(_assemblyFilter);
+            var assemblyFilter = filter ?? new AssemblyFilter();
+            _cache = new MFCache(assemblyFilter);
             CreateMainWorld();
             CreateEmbedded();
             Instance = this;
         }
 
-        public DataWorld GetWorld(int index)
+        public DataWorld GetWorld(string worldName)
         {
-            return _worlds[index];
+            return _worlds[worldName];
         }
 
-        public static DataWorld FromWorld(int index)
+        public static DataWorld FromWorld(string worldName)
         {
-            return Instance.GetWorld(index);
+            return Instance.GetWorld(worldName);
         }
 
         public IEnumerable<DataWorld> GetAllWorlds()
         {
-            return _worlds;
+            return _worlds.Values;
         }
 
         private void CreateEmbedded()
@@ -57,14 +56,14 @@ namespace ModulesFramework
 
         private void CreateMainWorld()
         {
-            CreateWorld();
+            CreateWorld("Default");
         }
 
-        public int CreateWorld()
+        public int CreateWorld(string name)
         {
             var index = _worlds.Count;
-            var world = new DataWorld(index, _cache.AllSystemTypes, _cache.AllModuleTypes);
-            _worlds.Add(world);
+            var world = new DataWorld(name, _cache.AllSystemTypes, _cache.AllModuleTypes);
+            _worlds.Add(name, world);
             var moduleSystem = new ModuleSystem(world.GetAllModules().ToArray());
             _moduleSystems.Add(moduleSystem);
             return index;
@@ -75,7 +74,7 @@ namespace ModulesFramework
             try
             {
                 await _embeddedGlobalModule.Init(true);
-                foreach (var world in _worlds)
+                foreach (var world in _worlds.Values)
                 {
                     _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
                     foreach (var module in _globalModules)
@@ -142,7 +141,7 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
 
-            foreach (var world in _worlds)
+            foreach (var world in _worlds.Values)
             {
                 foreach (var module in world.GetAllModules().Where(m => !m.IsSubmodule))
                 {

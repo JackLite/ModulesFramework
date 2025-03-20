@@ -193,17 +193,17 @@ namespace ModulesFramework.Data
             }
         }
 
-        private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex, List<Type> moduleTypes)
+        private IEnumerable<EcsModule> CreateAllEcsModules(List<Type> moduleTypes)
         {
-            var modules = moduleTypes.Select(t => (EcsModule)Activator.CreateInstance(t)!);
-            foreach (var module in modules)
+            foreach (var moduleType in moduleTypes)
             {
-                var moduleWorlds = ModuleUtil.GetWorldIndex(module.GetType());
-
-                if (!moduleWorlds.Contains(worldIndex))
-                    continue;
-                module.InjectWorld(this);
-                yield return module;
+                var worldAttribute = moduleType.GetCustomAttribute<WorldBelongingAttribute>();
+                if (worldAttribute == null || worldAttribute.Worlds.Contains(WorldName))
+                {
+                    var module = (EcsModule)Activator.CreateInstance(moduleType)!;
+                    module.InjectWorld(this);
+                    yield return module;
+                }
             }
         }
 
