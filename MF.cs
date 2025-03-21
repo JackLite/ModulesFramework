@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ModulesFramework.Data;
+using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 using ModulesFramework.Utils;
 
@@ -15,10 +16,12 @@ namespace ModulesFramework
         private readonly List<ModuleSystem> _moduleSystems = new();
         private EmbeddedGlobalModule _embeddedGlobalModule;
 
-        private readonly Dictionary<string, DataWorld> _worlds = new();
+        private readonly Dictionary<string, DataWorld> _worldsMap = new();
+        private DataWorld?[] _worlds = new DataWorld?[64];
+        private Queue<int> _freeWorldsIndices = new Queue<int>(64);
         private readonly MFCache _cache;
-        public DataWorld MainWorld => _worlds["Default"];
-        public IEnumerable<DataWorld> Worlds => _worlds.Values;
+        public DataWorld MainWorld => _worlds[0]!;
+        public IEnumerable<DataWorld> Worlds => _worldsMap.Values;
         private static MF Instance { get; set; }
 
         public static bool IsInitialized => Instance is { _isInitialized: true };
@@ -28,24 +31,37 @@ namespace ModulesFramework
         {
             var assemblyFilter = filter ?? new AssemblyFilter();
             _cache = new MFCache(assemblyFilter);
+            Instance = this;
             CreateMainWorld();
             CreateEmbedded();
-            Instance = this;
         }
 
-        public DataWorld GetWorld(string worldName)
+        public static DataWorld GetWorld(string worldName)
         {
-            return _worlds[worldName];
+            if (!Instance._worldsMap.TryGetValue(worldName, out var world))
+                throw new WorldNotFoundException(worldName);
+            return world;
         }
 
-        public static DataWorld FromWorld(string worldName)
+        public static DataWorld GetWorld(int worldIndex)
         {
-            return Instance.GetWorld(worldName);
+            if (Instance._worlds.Length <= worldIndex || Instance._worlds[worldIndex] == null)
+                throw new WorldNotFoundException(worldIndex);
+            return Instance._worlds[worldIndex];
         }
 
-        public IEnumerable<DataWorld> GetAllWorlds()
+        public static DataWorld CreateWorld(string worldName)
         {
-            return _worlds.Values;
+            var index = Instance.CreateWorldInternal(worldName);
+            return Instance._worlds[index];
+        }
+
+        public static void DestroyWorld(DataWorld world)
+        {
+            Instance._worlds[world.WorldIndex] = null;
+            Instance._worldsMap.Remove(world.WorldName);
+            world.Destroy();
+            Instance._freeWorldsIndices.Enqueue(world.WorldIndex);
         }
 
         private void CreateEmbedded()
@@ -59,11 +75,14 @@ namespace ModulesFramework
             CreateWorld("Default");
         }
 
-        public int CreateWorld(string name)
+        private int CreateWorldInternal(string name)
         {
-            var index = _worlds.Count;
-            var world = new DataWorld(name, _cache.AllSystemTypes, _cache.AllModuleTypes);
-            _worlds.Add(name, world);
+            var index = _freeWorldsIndices.Count > 0 ? _freeWorldsIndices.Dequeue() : _worldsMap.Count;
+            var world = new DataWorld(index, name, _cache.AllSystemTypes, _cache.AllModuleTypes);
+            while (index >= _worlds.Length)
+                Array.Resize(ref _worlds, _worlds.Length * 2);
+            _worlds[index] = world;
+            _worldsMap.Add(name, world);
             var moduleSystem = new ModuleSystem(world.GetAllModules().ToArray());
             _moduleSystems.Add(moduleSystem);
             return index;
@@ -74,7 +93,7 @@ namespace ModulesFramework
             try
             {
                 await _embeddedGlobalModule.Init(true);
-                foreach (var world in _worlds.Values)
+                foreach (var world in _worldsMap.Values)
                 {
                     _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
                     foreach (var module in _globalModules)
@@ -141,7 +160,7 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
 
-            foreach (var world in _worlds.Values)
+            foreach (var world in _worldsMap.Values)
             {
                 foreach (var module in world.GetAllModules().Where(m => !m.IsSubmodule))
                 {

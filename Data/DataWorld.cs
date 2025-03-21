@@ -21,6 +21,14 @@ namespace ModulesFramework.Data
 
         private readonly Stack<DataQuery> _queriesPool;
 
+        /// <summary>
+        ///     Index of world inside MF. Using for fast get world from array
+        /// </summary>
+        public int WorldIndex { get; private set; }
+
+        /// <summary>
+        ///     Name of the world. For main worlds it's "Default"
+        /// </summary>
         public string WorldName { get; private set; }
 
         public event Action<int>? OnEntityCreated;
@@ -32,6 +40,7 @@ namespace ModulesFramework.Data
         internal event Action<Type>? OnOneDataRemoved;
 
         internal DataWorld(
+            int worldIndex,
             string worldName,
             Dictionary<Type, List<Type>> allSystemTypes,
             List<Type> moduleTypes)
@@ -587,6 +596,17 @@ namespace ModulesFramework.Data
         internal void RiseEntityChanged(int eid)
         {
             OnEntityChanged?.Invoke(eid);
+        }
+
+        public void Destroy()
+        {
+            foreach(var module in _modules.Values)
+                module.Destroy();
+
+            foreach (var table in _data.Values)
+                table.ClearTable();
+
+            _entitiesTable.ClearTable();
         }
     }
 }
