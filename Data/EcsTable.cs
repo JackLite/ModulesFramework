@@ -24,6 +24,8 @@ namespace ModulesFramework.Data
         internal abstract void RemoveInternal(int eid);
         internal abstract void RemoveByDenseIndex(int eid, int denseIndex);
         public abstract int GetMultipleDataLength(int eid);
+
+        public abstract void ClearTable();
     }
 
     public class EcsTable<T> : BaseEcsTable<T> where T : struct
@@ -582,7 +584,7 @@ namespace ModulesFramework.Data
             return _denseTable.Enumerate();
         }
 
-        public void ClearTable()
+        public override void ClearTable()
         {
             for (var eid = 0; eid < _tableMap.Length; eid++)
             {
