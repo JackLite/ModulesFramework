@@ -98,7 +98,7 @@ namespace ModulesFramework
             try
             {
                 await _embeddedGlobalModule.Init(true);
-                foreach (var world in _worldsMap.Values)
+                foreach (var world in _worldsMap.Values.ToList())
                 {
                     _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
                     foreach (var module in _globalModules)
