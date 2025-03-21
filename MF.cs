@@ -64,6 +64,11 @@ namespace ModulesFramework
             Instance._freeWorldsIndices.Enqueue(world.WorldIndex);
         }
 
+        public static IEnumerable<DataWorld> GetAllWorlds()
+        {
+            return Instance._worldsMap.Values;
+        }
+
         private void CreateEmbedded()
         {
             _embeddedGlobalModule = new EmbeddedGlobalModule();
