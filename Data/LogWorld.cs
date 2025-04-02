@@ -2,7 +2,7 @@
 {
     public partial class DataWorld
     {
-        internal IModulesLogger Logger { get; private set; } = new DefaultLogger();
+        public IModulesLogger Logger { get; private set; } = new DefaultLogger();
 
         /// <summary>
         /// Set custom logger instead default
