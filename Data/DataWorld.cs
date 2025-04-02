@@ -45,6 +45,7 @@ namespace ModulesFramework.Data
             Dictionary<Type, List<Type>> allSystemTypes,
             List<Type> moduleTypes)
         {
+            WorldIndex = worldIndex;
             WorldName = worldName;
             _allSystemTypes = allSystemTypes;
             _modules = new Map<EcsModule>();

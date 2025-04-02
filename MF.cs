@@ -56,6 +56,11 @@ namespace ModulesFramework
             return Instance._worlds[index];
         }
 
+        public static bool IsWorldExists(string worldName)
+        {
+            return Instance._worldsMap.ContainsKey(worldName);
+        }
+
         public static void DestroyWorld(DataWorld world)
         {
             Instance._worlds[world.WorldIndex] = null;
