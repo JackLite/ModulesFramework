@@ -13,8 +13,6 @@ namespace ModulesFramework
     {
         private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
-        private readonly List<ModuleSystem> _moduleSystems = new();
-        private EmbeddedGlobalModule _embeddedGlobalModule;
 
         private readonly Dictionary<string, DataWorld> _worldsMap = new();
         private DataWorld?[] _worlds = new DataWorld?[64];
@@ -33,7 +31,6 @@ namespace ModulesFramework
             _cache = new MFCache(assemblyFilter);
             Instance = this;
             CreateMainWorld();
-            CreateEmbedded();
         }
 
         public static DataWorld GetWorld(string worldName)
@@ -74,11 +71,7 @@ namespace ModulesFramework
             return Instance._worldsMap.Values;
         }
 
-        private void CreateEmbedded()
-        {
-            _embeddedGlobalModule = new EmbeddedGlobalModule();
-            _embeddedGlobalModule.InjectWorld(MainWorld);
-        }
+        
 
         private void CreateMainWorld()
         {
@@ -93,30 +86,18 @@ namespace ModulesFramework
                 Array.Resize(ref _worlds, _worlds.Length * 2);
             _worlds[index] = world;
             _worldsMap.Add(name, world);
-            var moduleSystem = new ModuleSystem(world.GetAllModules().ToArray());
-            _moduleSystems.Add(moduleSystem);
             return index;
         }
 
         public async Task Start()
         {
-            try
+            var tasks = new List<Task>();
+            foreach (var world in _worldsMap.Values.ToList())
             {
-                await _embeddedGlobalModule.Init(true);
-                foreach (var world in _worldsMap.Values.ToList())
-                {
-                    _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
-                    foreach (var module in _globalModules)
-                    {
-                        await module.Init(true);
-                    }
-                }
+                tasks.Add(world.Start());
             }
-            catch (Exception e)
-            {
-                MainWorld.Logger.RethrowException(e);
-                throw;
-            }
+
+            await Task.WhenAll(tasks);
 
             _isInitialized = true;
         }
@@ -125,13 +106,10 @@ namespace ModulesFramework
         {
             if (!_isInitialized)
                 return;
-            if (ExceptionsPool.TryPop(out var e))
-                throw e;
 
-            _embeddedGlobalModule.Run();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.Run();
+                world.Run();
             }
         }
 
@@ -140,16 +118,14 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
 
-            _embeddedGlobalModule.PostRun();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.PostRun();
+                world.PostRun();
             }
 
-            _embeddedGlobalModule.FrameEnd();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.FrameEnd();
+                world.FrameEnd();
             }
         }
 
@@ -158,10 +134,9 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
 
-            _embeddedGlobalModule.RunPhysics();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.RunPhysic();
+                world.RunPhysic();
             }
         }
 
@@ -172,17 +147,8 @@ namespace ModulesFramework
 
             foreach (var world in _worldsMap.Values)
             {
-                foreach (var module in world.GetAllModules().Where(m => !m.IsSubmodule))
-                {
-                    if (module.IsActive)
-                        module.SetActive(false);
-
-                    if (module.IsInitialized)
-                        module.Destroy();
-                }
+                world.Destroy();
             }
-
-            _embeddedGlobalModule.Destroy();
         }
     }
 }

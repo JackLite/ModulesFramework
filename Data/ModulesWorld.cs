@@ -16,6 +16,7 @@ namespace ModulesFramework.Data
     {
         private readonly Map<EcsModule> _modules;
         private Dictionary<Type, List<Type>>? _allSystemTypes;
+        private EmbeddedGlobalModule _embeddedGlobalModule;
 
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
@@ -190,11 +191,13 @@ namespace ModulesFramework.Data
                     );
                     parent.AddSubmodule(module);
                 }
+                
             }
         }
 
-        private IEnumerable<EcsModule> CreateAllEcsModules(List<Type> moduleTypes)
+        private Dictionary<Type, EcsModule> CreateAllEcsModules(List<Type> moduleTypes)
         {
+            var result = new Dictionary<Type, EcsModule>();
             foreach (var moduleType in moduleTypes)
             {
                 var worldAttribute = moduleType.GetCustomAttribute<WorldBelongingAttribute>();
@@ -202,9 +205,20 @@ namespace ModulesFramework.Data
                 {
                     var module = (EcsModule)Activator.CreateInstance(moduleType)!;
                     module.InjectWorld(this);
-                    yield return module;
+                    result.Add(moduleType, module);
                 }
             }
+
+            foreach (var module in result.Values)
+            {
+                foreach (var composedModule in module.ComposedOf)
+                {
+                    result[composedModule].IsComposed = true;
+                    module.AddComposedModule(result[composedModule]);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -239,6 +253,12 @@ namespace ModulesFramework.Data
             {
                 yield return (ISystem)Activator.CreateInstance(system)!;
             }
+        }
+        
+        private void CreateEmbedded()
+        {
+            _embeddedGlobalModule = new EmbeddedGlobalModule();
+            _embeddedGlobalModule.InjectWorld(this);
         }
     }
 }

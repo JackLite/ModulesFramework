@@ -36,6 +36,12 @@ namespace ModulesFramework.Data
 #endif
             var wasHandled = false;
 
+            foreach (var module in _externalSubscribers)
+                wasHandled |= HandleEvent(ev, module);
+
+            foreach (var module in _modules.Values)
+                wasHandled |= HandleEvent(ev, module);
+
             if (_externalListeners.TryGet<T>(out var listenersList))
             {
                 foreach (var listener in listenersList)
@@ -43,12 +49,6 @@ namespace ModulesFramework.Data
 
                 wasHandled = true;
             }
-
-            foreach (var module in _externalSubscribers)
-                wasHandled |= HandleEvent(ev, module);
-
-            foreach (var module in _modules.Values)
-                wasHandled |= HandleEvent(ev, module);
 
             if (!wasHandled)
             {
@@ -60,7 +60,9 @@ namespace ModulesFramework.Data
 
         private static bool HandleEvent<T>(T ev, EcsModule module) where T : struct
         {
-            var isSubscribersExists = module.RunSubscribers(ev);
+            var isSubscribersExists = false;
+            if (module.IsRoot)
+                isSubscribersExists = module.RunSubscribers(ev);
             var isHandlerExists = module.AddEvent(ev);
             return isSubscribersExists || isHandlerExists;
         }

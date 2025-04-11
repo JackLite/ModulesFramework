@@ -15,16 +15,32 @@ namespace ModulesFramework.Modules
         /// </summary>
         public bool RunSubscribers<T>(T ev) where T : struct
         {
+            var wasHandled = false;
+            foreach (var composedModule in _composedModules)
+            {
+                wasHandled |= composedModule.RunSubscribers(ev);
+            }
+
             var type = typeof(T);
             if (_subscribeInitSystems.TryGetValue(type, out var subscribers))
                 subscribers.HandleEvent(world, ev, true);
 
-            var wasHandled = subscribers != null;
+            wasHandled |= subscribers != null;
 
-            if (_subscribeActivateSystems.TryGetValue(type, out subscribers))
+            if (IsActive && _subscribeActivateSystems.TryGetValue(type, out subscribers))
                 subscribers.HandleEvent(world, ev);
 
-            return wasHandled || subscribers != null;
+            wasHandled |= subscribers != null;
+
+            foreach (var submodules in _submodules.Values)
+            {
+                foreach (var submodule in submodules)
+                {
+                    wasHandled = submodule.RunSubscribers(ev);
+                }
+            }
+
+            return wasHandled;
         }
 
         internal void RegisterSubscriber(Type eventType, SystemsGroup systemsGroup, int order, bool isInit = false)
