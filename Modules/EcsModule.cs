@@ -129,7 +129,7 @@ namespace ModulesFramework.Modules
             {
                 submodule.ProcessSystems();
             }
-            
+
             if (_createdSystem == null)
                 CreateSystems();
 
@@ -322,7 +322,7 @@ namespace ModulesFramework.Modules
             {
                 module.RunPhysics();
             }
-            
+
             foreach (var p in _systemsArr)
             {
                 p.RunPhysic(world);
@@ -349,7 +349,7 @@ namespace ModulesFramework.Modules
             {
                 module.PostRun();
             }
-            
+
             foreach (var p in _systemsArr)
             {
                 foreach (var eventType in p.EventTypes)
@@ -371,7 +371,7 @@ namespace ModulesFramework.Modules
         {
             if (!IsActive)
                 return;
-            
+
             foreach (var module in _composedModules)
             {
                 module.FrameEnd();
@@ -495,7 +495,7 @@ namespace ModulesFramework.Modules
             {
                 composedModule.Destroy();
             }
-            
+
             IsInitialized = false;
             OnDestroyed?.Invoke();
         }
@@ -649,7 +649,16 @@ namespace ModulesFramework.Modules
 
             if (IsSubmodule)
             {
-                return Parent.GetDependency(type);
+                dependency = Parent.GetDependency(type);
+                if (dependency != null)
+                    return dependency;
+            }
+
+            foreach (var composedModule in _composedModules)
+            {
+                dependency = composedModule.GetDependency(type);
+                if (dependency != null)
+                    return dependency;
             }
 
             return null;
