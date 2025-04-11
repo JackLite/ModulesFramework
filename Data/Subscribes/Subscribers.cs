@@ -6,7 +6,8 @@ namespace ModulesFramework.Data.Subscribes
 {
     internal class Subscribers
     {
-        private readonly Dictionary<int, List<SystemsGroup>> _subscribers = new Dictionary<int, List<SystemsGroup>>();
+        private readonly SortedDictionary<int, List<SystemsGroup>> _subscribers 
+            = new SortedDictionary<int, List<SystemsGroup>>();
         private readonly Queue<SystemsGroup> _groupsToCall = new Queue<SystemsGroup>();
 
         public void AddSystems(int order, SystemsGroup systemsGroup)

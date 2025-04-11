@@ -53,7 +53,8 @@ namespace ModulesFramework.Data
             _entitiesTable.CreateKey(e => e.GetCustomId());
 
             var modules = CreateAllEcsModules(moduleTypes.ToList());
-            CtorModules(modules.ToDictionary(m => m.GetType(), m => m));
+            CreateEmbedded();
+            CtorModules(modules);
         }
 
         /// <summary>
@@ -87,9 +88,9 @@ namespace ModulesFramework.Data
 
             _entitiesTable.AddData(entity.Id, entity);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Entity {entity.Id.ToString()} created", LogFilter.EntityLife);
-            #endif
+#endif
 
             OnEntityCreated?.Invoke(entity.Id);
             return entity;
@@ -101,24 +102,24 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void AddComponent<T>(int eid, T component) where T : struct
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-            #endif
+#endif
 
             var table = GetEcsTable<T>();
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (table.Contains(eid))
                 Logger.LogWarning($"Component {typeof(T).Name} exists in {eid.ToString()} entity and will be replaced");
-            #endif
+#endif
 
             table.Remove(eid);
             table.AddData(eid, component);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
-            #endif
+#endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -129,10 +130,10 @@ namespace ModulesFramework.Data
         /// </summary>
         public void AddComponent(int eid, Type type, object component)
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-            #endif
+#endif
 
             var table = GetEcsTable(type);
             if (table == null)
@@ -143,17 +144,17 @@ namespace ModulesFramework.Data
                 meth.Invoke(_data, new[] { table });
             }
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (table.Contains(eid))
                 Logger.LogWarning($"Component {type.Name} exists in {eid.ToString()} entity and will be replaced");
-            #endif
+#endif
 
             table.Remove(eid);
             table.AddData(eid, component);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
-            #endif
+#endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -164,17 +165,17 @@ namespace ModulesFramework.Data
         /// </summary>
         public void AddNewComponent<T>(int eid, T component) where T : struct
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-            #endif
+#endif
 
             var table = GetEcsTable<T>();
             table.AddNewData(eid, component);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} new {typeof(T).Name} component", LogFilter.EntityModifications);
-            #endif
+#endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -185,17 +186,17 @@ namespace ModulesFramework.Data
         /// </summary>
         public void AddNewComponent(int eid, Type type, object component)
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-            #endif
+#endif
 
             var table = GetEcsTable(type);
             table.AddNewData(eid, component);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
-            #endif
+#endif
 
             OnEntityChanged?.Invoke(eid);
         }
@@ -206,16 +207,16 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void RemoveComponent<T>(int eid) where T : struct
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-            #endif
+#endif
 
             GetEcsTable<T>().Remove(eid);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
-            #endif
+#endif
             OnEntityChanged?.Invoke(eid);
         }
 
@@ -225,17 +226,17 @@ namespace ModulesFramework.Data
         /// </summary>
         public void RemoveFirstComponent<T>(int eid) where T : struct
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-            #endif
+#endif
 
             GetEcsTable<T>().RemoveFirst(eid);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component",
                 LogFilter.EntityModifications);
-            #endif
+#endif
             OnEntityChanged?.Invoke(eid);
         }
 
@@ -245,17 +246,17 @@ namespace ModulesFramework.Data
         /// </summary>
         public void RemoveAll<T>(int eid) where T : struct
         {
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             if (!IsEntityAlive(eid))
                 throw new EntityDestroyedException(eid);
-            #endif
+#endif
 
             GetEcsTable<T>().RemoveAll(eid);
 
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}",
                 LogFilter.EntityModifications);
-            #endif
+#endif
             OnEntityChanged?.Invoke(eid);
         }
 
@@ -498,9 +499,9 @@ namespace ModulesFramework.Data
 
             _entitiesTable.Remove(id);
             _freeEid.Enqueue(id);
-            #if MODULES_DEBUG
+#if MODULES_DEBUG
             Logger.LogDebug($"Entity {id.ToString()} destroyed", LogFilter.EntityLife);
-            #endif
+#endif
             OnEntityDestroyed?.Invoke(id);
         }
 
@@ -601,8 +602,19 @@ namespace ModulesFramework.Data
 
         public void Destroy()
         {
-            foreach(var module in _modules.Values)
-                module.Destroy();
+            foreach (var module in _modules.Values)
+            {
+                if (module.IsActive)
+                    module.SetActive(false);
+            }
+
+            foreach (var module in _modules.Values)
+            {
+                if (module.IsInitialized)
+                    module.Destroy();
+            }
+
+            _embeddedGlobalModule.Destroy();
 
             foreach (var table in _data.Values)
                 table.ClearTable();
