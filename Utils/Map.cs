@@ -114,5 +114,13 @@ namespace ModulesFramework.Utils
 
             return false;
         }
+
+        /// <summary>
+        ///     Clear internal array
+        /// </summary>
+        public void Clear()
+        {
+            Array.Clear(_existed, 0, _existed.Length);
+        }
     }
 }

@@ -36,8 +36,8 @@ namespace ModulesFramework.Data
         public event Action<int>? OnEntityDestroyed;
         public event Action<int>? OnCustomIdChanged;
 
-        internal event Action<Type, OneData>? OnOneDataCreated;
-        internal event Action<Type>? OnOneDataRemoved;
+        public event Action<Type, OneData>? OnOneDataCreated;
+        public event Action<Type>? OnOneDataRemoved;
 
         internal DataWorld(
             int worldIndex,
@@ -598,28 +598,6 @@ namespace ModulesFramework.Data
         internal void RiseEntityChanged(int eid)
         {
             OnEntityChanged?.Invoke(eid);
-        }
-
-        public void Destroy()
-        {
-            foreach (var module in _modules.Values)
-            {
-                if (module.IsActive)
-                    module.SetActive(false);
-            }
-
-            foreach (var module in _modules.Values)
-            {
-                if (module.IsInitialized)
-                    module.Destroy();
-            }
-
-            _embeddedGlobalModule.Destroy();
-
-            foreach (var table in _data.Values)
-                table.ClearTable();
-
-            _entitiesTable.ClearTable();
         }
     }
 }

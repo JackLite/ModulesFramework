@@ -9,6 +9,9 @@ namespace ModulesFramework.Data
     /// </summary>
     public partial class DataWorld
     {
+        /// <summary>
+        ///     Starts the world. It inits global systems and global modules
+        /// </summary>
         public async Task Start()
         {
             await _embeddedGlobalModule.Init(true);
@@ -32,6 +35,9 @@ namespace ModulesFramework.Data
             }
         }
 
+        /// <summary>
+        ///     Update tick (IRunSystem and IRunEventSystem)
+        /// </summary>
         public void Run()
         {
             _embeddedGlobalModule.Run();
@@ -42,6 +48,9 @@ namespace ModulesFramework.Data
             }
         }
 
+        /// <summary>
+        ///     Physic tick (IRunPhysicSystem) 
+        /// </summary>
         public void RunPhysic()
         {
             _embeddedGlobalModule.RunPhysics();
@@ -52,6 +61,9 @@ namespace ModulesFramework.Data
             }
         }
 
+        /// <summary>
+        ///     Post or late update tick (IPostRunSystem and IPostRunEventSystem)
+        /// </summary>
         public void PostRun()
         {
             _embeddedGlobalModule.PostRun();
@@ -62,6 +74,9 @@ namespace ModulesFramework.Data
             }
         }
 
+        /// <summary>
+        ///     Frame end tick (IFrameEndEventSystem)
+        /// </summary>
         public void FrameEnd()
         {
             _embeddedGlobalModule.FrameEnd();
@@ -70,6 +85,34 @@ namespace ModulesFramework.Data
                 if (module.IsRoot)
                     module.FrameEnd();
             }
+        }
+        
+        /// <summary>
+        ///     Deactivate and destroys all modules, clear all OneData, components and entities<br/>
+        ///     <b>Important:</b> it's not guaranteed that you can start same world again
+        /// </summary>
+        internal void Destroy()
+        {
+            foreach (var module in _modules.Values)
+            {
+                if (module.IsActive)
+                    module.SetActive(false);
+            }
+
+            foreach (var module in _modules.Values)
+            {
+                if (module.IsInitialized)
+                    module.Destroy();
+            }
+
+            _embeddedGlobalModule.Destroy();
+
+            foreach (var table in _data.Values)
+                table.ClearTable();
+
+            _entitiesTable.ClearTable();
+            _oneDatas.Clear();
+            _entityCount = 0;
         }
     }
 }

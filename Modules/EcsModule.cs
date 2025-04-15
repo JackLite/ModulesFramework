@@ -661,7 +661,7 @@ namespace ModulesFramework.Modules
                     return dependency;
             }
 
-            return null;
+            return world.GetGlobalDependency(type);
         }
 
         /// <summary>
