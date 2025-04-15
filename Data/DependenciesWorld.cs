@@ -20,7 +20,7 @@ namespace ModulesFramework.Data
         ///     and before it starts
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void SetDependenciesGetter(Func<Type, object> getter)
+        public void SetDependenciesGetter(Func<Type, object?> getter)
         {
             _getGlobalDependenciesFunc = getter;
         }
