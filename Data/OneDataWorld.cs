@@ -9,6 +9,7 @@ namespace ModulesFramework.Data
         private readonly Map<OneData> _oneDatas = new Map<OneData>();
 
         internal IEnumerable<OneData> OneDataCollection => _oneDatas.Values;
+
         /// <summary>
         /// Create one data container
         /// </summary>
@@ -32,6 +33,10 @@ namespace ModulesFramework.Data
 
         private ref T CreateOneData<T>(T data, bool updateGeneration) where T : struct
         {
+#if MODULES_DEBUG
+            var action = updateGeneration ? "Create" : "Replace";
+            Logger.LogDebug($"{action} one data {typeof(T).Name}", LogFilter.OneDataFull);
+#endif
             var oneData = new EcsOneData<T>();
             oneData.SetDataIfNotExist(data);
 
@@ -115,7 +120,7 @@ namespace ModulesFramework.Data
         public void RemoveOneData(Type type)
         {
             if (_oneDatas.Remove(d => d.GetDataObject().GetType() == type))
-            {                
+            {
                 OnOneDataRemoved?.Invoke(type);
             }
         }
