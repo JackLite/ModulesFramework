@@ -9,6 +9,7 @@ using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 using ModulesFramework.Systems;
 using ModulesFramework.Utils;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
 {
@@ -123,7 +124,7 @@ namespace ModulesFramework.Data
             var module = GetModule(moduleType);
 #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
-            Logger.LogDebug($"Activate module {moduleType.Name}", LogFilter.ModulesFull);
+            Logger.LogDebug($"Activate module {moduleType.GetTypeName()}", LogFilter.ModulesFull);
 #endif
             module.SetActive(true);
         }
@@ -149,7 +150,7 @@ namespace ModulesFramework.Data
             var module = GetModule(moduleType);
 #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
-            Logger.LogDebug($"Deactivate module {moduleType.Name}", LogFilter.ModulesFull);
+            Logger.LogDebug($"Deactivate module {moduleType.GetTypeName()}", LogFilter.ModulesFull);
 #endif
             module.SetActive(false);
         }

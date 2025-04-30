@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ModulesFramework.Exceptions;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Modules
 {
@@ -65,7 +66,7 @@ namespace ModulesFramework.Modules
             if (!submoduleCheck)
             {
                 throw new SubmoduleException(
-                    $"Module {module.ConcreteType.Name} is not a submodule of {ConcreteType.Name}"
+                    $"Module {module.ConcreteType.GetTypeName()} is not a submodule of {ConcreteType.GetTypeName()}"
                 );
             }
 
