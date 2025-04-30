@@ -8,6 +8,7 @@ using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 using ModulesFramework.Systems;
 using ModulesFramework.Utils;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
 {
@@ -146,14 +147,14 @@ namespace ModulesFramework.Data
 
 #if MODULES_DEBUG
             if (table.Contains(eid))
-                Logger.LogWarning($"Component {type.Name} exists in {eid.ToString()} entity and will be replaced");
+                Logger.LogWarning($"Component {type.GetTypeName()} exists in {eid.ToString()} entity and will be replaced");
 #endif
 
             table.Remove(eid);
             table.AddData(eid, component);
 
 #if MODULES_DEBUG
-            Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
+            Logger.LogDebug($"Add to {eid.ToString()} {type.GetTypeName()} component", LogFilter.EntityModifications);
 #endif
 
             OnEntityChanged?.Invoke(eid);
@@ -195,7 +196,7 @@ namespace ModulesFramework.Data
             table.AddNewData(eid, component);
 
 #if MODULES_DEBUG
-            Logger.LogDebug($"Add to {eid.ToString()} {type.Name} component", LogFilter.EntityModifications);
+            Logger.LogDebug($"Add to {eid.ToString()} {type.GetTypeName()} component", LogFilter.EntityModifications);
 #endif
 
             OnEntityChanged?.Invoke(eid);
