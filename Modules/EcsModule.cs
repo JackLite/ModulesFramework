@@ -9,6 +9,7 @@ using ModulesFramework.Attributes;
 using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Systems;
+using ModulesFramework.Utils.Types;
 using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework.Modules
@@ -89,7 +90,7 @@ namespace ModulesFramework.Modules
         private async Task StartInit()
         {
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Start init module {GetType().Name}", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Start init module {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
 
             await SetupComposition();
@@ -97,7 +98,7 @@ namespace ModulesFramework.Modules
             await Setup();
 
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Module {GetType().Name} setup is done", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Module {GetType().GetTypeName()} setup is done", LogFilter.ModulesFull);
 #endif
 
             UpdateGlobalDependencies();
@@ -145,7 +146,7 @@ namespace ModulesFramework.Modules
 
             IsInitialized = true;
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Call OnInit in {GetType().Name}", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Call OnInit in {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
             OnInit();
             OnInitialized?.Invoke();
@@ -176,7 +177,7 @@ namespace ModulesFramework.Modules
         internal void InitSystems()
         {
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Module {GetType().Name} systems pre-init", LogFilter.SystemsInit);
+            world.Logger.LogDebug($"Module {GetType().GetTypeName()} systems pre-init", LogFilter.SystemsInit);
 #endif
 
             foreach (var system in _createdSystem)
@@ -186,7 +187,7 @@ namespace ModulesFramework.Modules
                 p.Value.PreInit(world);
 
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Module {GetType().Name} systems init", LogFilter.SystemsInit);
+            world.Logger.LogDebug($"Module {GetType().GetTypeName()} systems init", LogFilter.SystemsInit);
 #endif
 
             foreach (var p in _systems)
@@ -210,7 +211,7 @@ namespace ModulesFramework.Modules
         {
 #if MODULES_DEBUG
             var logMsgStart = isActive ? "activate" : "deactivate";
-            world.Logger.LogDebug($"Start {logMsgStart} module {GetType().Name}", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Start {logMsgStart} module {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
 
             if (!IsInitialized)
@@ -240,7 +241,7 @@ namespace ModulesFramework.Modules
         private void Activate()
         {
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Activate systems in {GetType().Name}", LogFilter.SystemsInit);
+            world.Logger.LogDebug($"Activate systems in {GetType().GetTypeName()}", LogFilter.SystemsInit);
 #endif
             foreach (var p in _systems)
             {
@@ -253,14 +254,14 @@ namespace ModulesFramework.Modules
                 p.Value.Activate(world);
             }
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Call OnActivate in {GetType().Name}", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Call OnActivate in {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
         }
 
         private void Deactivate()
         {
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Deactivate systems in {GetType().Name}", LogFilter.SystemsDestroy);
+            world.Logger.LogDebug($"Deactivate systems in {GetType().GetTypeName()}", LogFilter.SystemsDestroy);
 #endif
 
             _runEvents.Clear();
@@ -276,7 +277,7 @@ namespace ModulesFramework.Modules
                     UnregisterSubscriber(eventType, p.Value);
             }
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Call OnDeactivate in {GetType().Name}", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Call OnDeactivate in {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
         }
 
@@ -434,7 +435,7 @@ namespace ModulesFramework.Modules
         private void DestroySystems()
         {
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Destroy systems in {GetType().Name}", LogFilter.SystemsDestroy);
+            world.Logger.LogDebug($"Destroy systems in {GetType().GetTypeName()}", LogFilter.SystemsDestroy);
 #endif
 
             foreach (var p in _systems)
@@ -458,12 +459,12 @@ namespace ModulesFramework.Modules
         {
             if (!IsInitialized)
             {
-                world.Logger.LogWarning($"Destroy module {GetType().Name} that not initialized");
+                world.Logger.LogWarning($"Destroy module {GetType().GetTypeName()} that not initialized");
                 return;
             }
 
 #if MODULES_DEBUG
-            world.Logger.LogDebug($"Start destroy module {GetType().Name}", LogFilter.ModulesFull);
+            world.Logger.LogDebug($"Start destroy module {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
 
             // even if module was manually activate it still must be deactivated when parent module destroyed

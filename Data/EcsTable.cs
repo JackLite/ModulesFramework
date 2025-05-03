@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
 {
@@ -543,7 +544,7 @@ namespace ModulesFramework.Data
             CheckSingle();
             var eid = FindEidByKey(index);
             if (eid < 0)
-                throw new ComponentNotFoundException<T>($"Component {typeof(T).Name} not found by index {index}");
+                throw new ComponentNotFoundException<T>($"Component {typeof(T).GetTypeName()} not found by index {index}");
 
             var denseIndex = _tableMap[eid];
             return ref _denseTable.At(denseIndex);

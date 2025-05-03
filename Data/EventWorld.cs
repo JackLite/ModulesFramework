@@ -2,6 +2,7 @@ using ModulesFramework.Modules;
 using System.Collections.Generic;
 using ModulesFramework.Data.Events;
 using ModulesFramework.Utils;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
 {
@@ -32,7 +33,7 @@ namespace ModulesFramework.Data
         {
             var type = typeof(T);
 #if MODULES_DEBUG
-            Logger.LogDebug($"Rising {typeof(T).Name} event", LogFilter.EventsFull);
+            Logger.LogDebug($"Rising {typeof(T).GetTypeName()} event", LogFilter.EventsFull);
 #endif
             var wasHandled = false;
 
@@ -53,7 +54,7 @@ namespace ModulesFramework.Data
             if (!wasHandled)
             {
 #if MODULES_DEBUG
-                Logger.LogWarning($"No listeners for {typeof(T).Name} event");
+                Logger.LogWarning($"No listeners for {typeof(T).GetTypeName()} event");
 #endif
             }
         }
@@ -88,7 +89,7 @@ namespace ModulesFramework.Data
             if (!_externalListeners.TryGet<T>(out var list))
             {
 #if MODULES_DEBUG
-                Logger.LogWarning($"Listener {listener.GetType().Name} is not registered");
+                Logger.LogWarning($"Listener {listener.GetType().GetTypeName()} is not registered");
 #endif
                 return;
             }

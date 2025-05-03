@@ -112,14 +112,14 @@ namespace ModulesFramework.Data
 
 #if MODULES_DEBUG
             if (table.Contains(eid))
-                Logger.LogWarning($"Component {typeof(T).Name} exists in {eid.ToString()} entity and will be replaced");
+                Logger.LogWarning($"Component {typeof(T).GetTypeName()} exists in {eid.ToString()} entity and will be replaced");
 #endif
 
             table.Remove(eid);
             table.AddData(eid, component);
 
 #if MODULES_DEBUG
-            Logger.LogDebug($"Add to {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
+            Logger.LogDebug($"Add to {eid.ToString()} {typeof(T).GetTypeName()} component", LogFilter.EntityModifications);
 #endif
 
             OnEntityChanged?.Invoke(eid);
@@ -175,7 +175,7 @@ namespace ModulesFramework.Data
             table.AddNewData(eid, component);
 
 #if MODULES_DEBUG
-            Logger.LogDebug($"Add to {eid.ToString()} new {typeof(T).Name} component", LogFilter.EntityModifications);
+            Logger.LogDebug($"Add to {eid.ToString()} new {typeof(T).GetTypeName()} component", LogFilter.EntityModifications);
 #endif
 
             OnEntityChanged?.Invoke(eid);
@@ -216,7 +216,7 @@ namespace ModulesFramework.Data
             GetEcsTable<T>().Remove(eid);
 
 #if MODULES_DEBUG
-            Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).Name} component", LogFilter.EntityModifications);
+            Logger.LogDebug($"Remove from {eid.ToString()} {typeof(T).GetTypeName()} component", LogFilter.EntityModifications);
 #endif
             OnEntityChanged?.Invoke(eid);
         }
@@ -235,7 +235,7 @@ namespace ModulesFramework.Data
             GetEcsTable<T>().RemoveFirst(eid);
 
 #if MODULES_DEBUG
-            Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).Name} component",
+            Logger.LogDebug($"Remove from {eid.ToString()} first {typeof(T).GetTypeName()} component",
                 LogFilter.EntityModifications);
 #endif
             OnEntityChanged?.Invoke(eid);
@@ -255,7 +255,7 @@ namespace ModulesFramework.Data
             GetEcsTable<T>().RemoveAll(eid);
 
 #if MODULES_DEBUG
-            Logger.LogDebug($"Remove all {typeof(T).Name} components from {eid.ToString()}",
+            Logger.LogDebug($"Remove all {typeof(T).GetTypeName()} components from {eid.ToString()}",
                 LogFilter.EntityModifications);
 #endif
             OnEntityChanged?.Invoke(eid);
