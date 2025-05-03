@@ -1,6 +1,7 @@
 using ModulesFramework.Utils;
 using System;
 using System.Collections.Generic;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
 {
@@ -35,7 +36,7 @@ namespace ModulesFramework.Data
         {
 #if MODULES_DEBUG
             var action = updateGeneration ? "Create" : "Replace";
-            Logger.LogDebug($"{action} one data {typeof(T).Name}", LogFilter.OneDataFull);
+            Logger.LogDebug($"{action} one data {typeof(T).GetTypeName()}", LogFilter.OneDataFull);
 #endif
             var oneData = new EcsOneData<T>();
             oneData.SetDataIfNotExist(data);
