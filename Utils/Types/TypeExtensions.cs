@@ -11,7 +11,7 @@ namespace ModulesFramework.Utils.Types
                 return type.Name;
 
             var result = type.Name.Substring(0, type.Name.Length - 2);
-            result += $"<{string.Join(", ", type.GenericTypeArguments.Select(t => t.GetTypeName()))}>";
+            result += $"<{string.Join(", ", type.GetGenericArguments().Select(t => t.GetTypeName()))}>";
             return result;
         }
     }
