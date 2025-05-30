@@ -729,28 +729,32 @@ There are cases when you may want to have more than one world with their own mod
 
 Here is an example of working with the worlds.
 ```csharp
-// just pass number of worlds when creating MF object
-var ecs = new MF(2);
+// creating world with name
+MF.CreateWorld("another world")
 
-// get second world
-var secondWorld = ecs.GetWorld(1); // 1 - index of world, starting from 0
+// check if world exists
+MF.IsWorldExists("another world");
 
-// get main world - it is the world on index 0
-var mainWorld = ecs.MainWorld
-var mainWorldOtherWay = ecs.GetWorld(0);
+// get created world
+var world = MF.GetWorld("another world");
+
+// destroy world
+world.Destroy();
+// or
+MF.DestroyWorld("another world");
 ```
 
-One module can be included in any count of worlds. By default, modules include only in the main world.
+One module can be included in any count of worlds. By default, modules include in every world. You can specify any count of worlds for module.
 
 ```csharp
+[WorldBelonging("another world")]
 public class SomeModule : EcsModule
 {
-    // here we override hash set of indices of worlds
-    public override HashSet<int> WorldIndex { get; } = new(){0, 1};
 }
 ```
 
-**Note**: systems belong to module will run within every world. For example `IRunSystem`s run twice for the module above. Same with all other systems. It allows using same systems in different worlds and making shared logic.
+**Note**: systems belong to module will run within every world. 
+It allows using same systems in different worlds and making shared logic.
 
 ## <a id="faq-0"/> FAQ
 
