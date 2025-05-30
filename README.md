@@ -19,6 +19,7 @@ instead of mix some classic architecture pattern and ECS.
 - [Indices](#gs-indices)
 - [Entity's Custom Id](#gs-entities-customid)
 - [Submodules](#gs-submodules)
+- [Composition of modules](#gs-composition-modules)
 - [Dependency Injection](#gs-di)
 - [Multiple Components](#gs-multiple)
 - [Multiple Worlds](#gs-multiple-worlds)
