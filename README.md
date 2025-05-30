@@ -1,4 +1,18 @@
-# ModulesFramework
+## What is ModulesFramework
+
+**Modules** is a low-level framework that allows you to build your project based on maintanable and transparent types of objects. It allows you to focus on the product instead of wastign your time on code fundament.
+
+## Why ModulesFramework
+
+Every programm in this world works with a data. It tooks the data from one place and put it in another form into another place. The more easily you can work with your data the more fast and effectively you will create your product.
+
+ModulesFramework uses data-driven approach with ECS support with focus on modularity and simplicity of creating and changing your project. It gives you small kit of abstraction that's enough to create anything you want. You can create very complex project while saving maintainability of it. You can reuse modules between projects withou modifying them. You can create your own architecture sustainable exactly for your project without being limited by framework. You can start with simple simple components and systems and then refactor them without changing architecture, i.e. you can create prototype without throwing them later in a trash.
+
+### N.B.
+
+MF is not a pure ECS framework! Instead it has ECS pattern as part and allows you to develop whole project 
+basing only at one collection of abstractions. In another words it gives you homogeneous architecture 
+instead of mix some classic architecture pattern and ECS.
 
 - [Queries](#gs-queries)
 - [Events](#gs-events)
@@ -21,10 +35,7 @@
 #### [API](#api-0)
 #### [Projects](#projects-0)
 
-### N.B.
-_MF is not a pure ECS framework! Instead it has ECS pattern as part and allow you to develop whole project 
-basing only at one collection of abstractions. In another words it gives you homogeneous architecture 
-instead of mix some classic architecture pattern and ECS._
+
 
 ## <a id="getting-started"/> Getting started
 
@@ -147,7 +158,7 @@ Let's start from creating players and enemies.
 public class InitBattleSystem : IInitSystem
 {
     // the DataWorld give access to all data and modules
-    // in injects automatically into any system
+    // it injects automatically into any system
     private DataWorld _world;
     
     // init calls after module setup is done and all IPreInitSystem
@@ -199,7 +210,7 @@ public class DamageSystem : IRunSystem
             .With<Damage>();
             
         // GetEntities() returns enumerator for Entity that appropriates to query
-        foreach(var entity in query.GetEntities())
+        foreach (var entity in query.GetEntities())
         {
             // use ref to change the component data
             ref var hp = ref entity.GetComponent<Hp>();
@@ -232,7 +243,7 @@ public class DeathSystem : IPostRunSystem
         // get dead entities
         using var query = _world.Select<DeadTag>();
             
-        foreach(var entity in query.GetEntities())
+        foreach (var entity in query.GetEntities())
         {
             if (entity.HasComponent<PlayerTag>())
             {
@@ -244,7 +255,7 @@ public class DeathSystem : IPostRunSystem
 }
 ```
 This is a basic example, but it shows the main  
-concepts of ModulesFramework and Ecs. Let's do a 
+concepts of ModulesFramework and ECS. Let's do a 
 couple more things.
 
 First, let's create a settings, so we are able to control the
@@ -301,10 +312,12 @@ You can create any dependencies and inject them in any
 system of your module.
 If a module is global, *all* systems can use its dependencies.
 
+### OneData
+
 Now let's take a look at another thing.
 We want to give player a coin for every killed enemy.
 We could create new component `Wallet` and add it to some entity that lives between battles.
-But it must live forever, must be created at the start (to live between sessions) and take it by query too boilerplated.
+But it must live forever, must be created at the start (to live between battles) and take it by query too boilerplated.
 There is a better way: the **one data** concept.
 
 **OneData** is a struct that holds some information 
@@ -345,7 +358,7 @@ public class DeathSystem : IPostRunSystem
         using var query = _world.Select<DeadTag>();
         // get Wallet one data 
         ref var wallet = ref _world.OneData<Wallet>();
-        foreach(var entity in query.GetEntities())
+        foreach (var entity in query.GetEntities())
         {
             if (entity.HasComponent<PlayerTag>())
                 // game over
@@ -475,6 +488,15 @@ There are two types of subscription systems:
 - `ISubscribeInitSystem<T>` - subscribes and unsubscribes when module initializes/destroys;
 - `ISubscribeActivateSystem` - subscribes and unsubscribes when module activates/deactivates.
 
+You also can subscribe to event from outside code as showing below:
+
+```csharp
+// subscribe
+_world.RegisterListener<SomeEvent>(MyEventListener listener);
+//unsubscribe 
+_world.UnregisterListener<SomeEvent>(MyEventListener listener);
+```
+
 ### <a id="gs-indices"/> Keys
 
 Sometimes you may want to get a particular component (or entity) by particular field.
@@ -510,7 +532,7 @@ void OnMessage(HealMsg msg)
 **Note**:
 - every key slightly increase time of AddComponent/RemoveComponent;
 - key field can be any type, but it must be a correct key for C# Dictionary<TKey, TVal>;
-- keys don't work with multiple components;
+- keys doesn't work with multiple components;
 - tables do not check that key is unique, so it's up to you to be sure that your keys are unique.
 
 ### <a id="gs-entities-customid"/> Entity's custom id
@@ -527,10 +549,10 @@ var playerEntity = world.NewEntity()
 var playerEntity = world.EntityByCustomId("Player");
 
 // you also can get entity custom id
-// if custom id isn't set it returns usual entity id 
+// if custom id isn't set it returns usual entity id as string
 var customId = entity.GetCustomId();
 ```
-**Note**: for entities custom id works same rules that works for component indices. The main one is that you have to check there's no doubling of indices.
+**Note**: for entities custom id works same rules that works for component indices. The main one is that you have to check there's no doubling of custom id.
 
 ### <a id="gs-submodules"/>Submodules
 
@@ -575,6 +597,37 @@ public override Dictionary<Type, int> GetSubmodulesOrder()
     };
 }
 ```
+
+### <a id="gs-composition-modules"> Composition of modules
+
+While submodules is an aggregation of features there's another way to organize modules.
+```csharp
+// main module of the game
+public class GameModule 
+{
+    // this modules will live (init, activate, deactivate and destroy) with the GameModule
+    // GameModule use their GetDependency method to find dependency for it's systems
+    public override IEnumerable<Type> ComposedOf { get; } = new[]
+    {
+        typeof(NetworkModule),
+        typeof(AudioModule),
+        typeof(AnalyticModule)
+        // other common modules that can be used in different projects
+    };
+}
+```
+
+The order of executing composition modules is different from submodules:
+1. Call ```Setup()``` of composition modules;
+2. ```IPreInitSystem``` and ```IInitSystem``` of composition modules;
+3. Call ```Setup()``` of module-container;
+4. ```IPreInitSystem``` and ```IInitSystem``` of module-container;
+5. Activate of composition modules;
+6. Activate of module-container.
+
+Order of composition modules is the same as in ```ComposedOf``` property.
+
+There's no way to prevent initialization or activation of composition modules because their work as parts of module-container.
 
 ### <a id="gs-di"/>Dependency Injection
 MF doesn't have dependency resolving.
@@ -621,7 +674,7 @@ And everything seems fine.
 But what if more than one damage component will be added?
 In MF, like in some other frameworks, the damage component will be replaced by the new one.
 Thus, previous damage will be lost.
-This does not sound not good.
+This does not sound good.
 
 You can find different ways to workaround.
 For example, it's not a bad idea to convert component fields to arrays.

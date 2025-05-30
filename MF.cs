@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using ModulesFramework.Data;
+using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 using ModulesFramework.Utils;
 
@@ -12,72 +13,91 @@ namespace ModulesFramework
     {
         private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
-        private ModuleSystem[] _moduleSystems;
-        private EmbeddedGlobalModule _embeddedGlobalModule;
 
-        private DataWorld[] _worlds;
-        private AssemblyFilter _assemblyFilter;
-        public DataWorld MainWorld => _worlds[0];
-        public IEnumerable<DataWorld> Worlds => _worlds;
+        private readonly Dictionary<string, DataWorld> _worldsMap = new();
+        private DataWorld?[] _worlds = new DataWorld?[64];
+        private Queue<int> _freeWorldsIndices = new Queue<int>(64);
+        private readonly MFCache _cache;
+        public DataWorld MainWorld => _worlds[0]!;
+        public IEnumerable<DataWorld> Worlds => _worldsMap.Values;
         private static MF Instance { get; set; }
 
         public static bool IsInitialized => Instance is { _isInitialized: true };
         public static DataWorld World => Instance.MainWorld;
 
-        public MF(int worldsCount = 1, AssemblyFilter? filter = null)
+        public MF(AssemblyFilter? filter = null)
         {
-            _assemblyFilter = filter ?? new AssemblyFilter();
-            CreateWorlds(worldsCount);
-            CreateEmbedded();
+            var assemblyFilter = filter ?? new AssemblyFilter();
+            _cache = new MFCache(assemblyFilter);
             Instance = this;
+            CreateMainWorld();
         }
 
-        public DataWorld GetWorld(int index)
+        public static DataWorld GetWorld(string worldName)
         {
-            return _worlds[index];
+            if (!Instance._worldsMap.TryGetValue(worldName, out var world))
+                throw new WorldNotFoundException(worldName);
+            return world;
         }
 
-        public IEnumerable<DataWorld> GetAllWorlds()
+        public static DataWorld GetWorld(int worldIndex)
         {
-            return _worlds;
+            if (Instance._worlds.Length <= worldIndex || Instance._worlds[worldIndex] == null)
+                throw new WorldNotFoundException(worldIndex);
+            return Instance._worlds[worldIndex];
         }
 
-        private void CreateEmbedded()
+        public static DataWorld CreateWorld(string worldName)
         {
-            _embeddedGlobalModule = new EmbeddedGlobalModule();
-            _embeddedGlobalModule.InjectWorld(MainWorld);
+            var index = Instance.CreateWorldInternal(worldName);
+            return Instance._worlds[index];
         }
 
-        private void CreateWorlds(int count)
+        public static bool IsWorldExists(string worldName)
         {
-            _worlds = new DataWorld[count];
-            _moduleSystems = new ModuleSystem[count];
-            for (var i = 0; i < count; i++)
-            {
-                _worlds[i] = new DataWorld(i, _assemblyFilter);
-                _moduleSystems[i] = new ModuleSystem(_worlds[i].GetAllModules().ToArray());
-            }
+            return Instance._worldsMap.ContainsKey(worldName);
+        }
+
+        public static void DestroyWorld(DataWorld world)
+        {
+            Instance._worlds[world.WorldIndex] = null;
+            Instance._worldsMap.Remove(world.WorldName);
+            world.Destroy();
+            Instance._freeWorldsIndices.Enqueue(world.WorldIndex);
+        }
+
+        public static IEnumerable<DataWorld> GetAllWorlds()
+        {
+            return Instance._worldsMap.Values;
+        }
+
+        
+
+        private void CreateMainWorld()
+        {
+            CreateWorld("Default");
+        }
+
+        private int CreateWorldInternal(string name)
+        {
+            var index = _freeWorldsIndices.Count > 0 ? _freeWorldsIndices.Dequeue() : _worldsMap.Count;
+            var world = new DataWorld(index, name, _cache.AllSystemTypes, _cache.AllModuleTypes);
+            while (index >= _worlds.Length)
+                Array.Resize(ref _worlds, _worlds.Length * 2);
+            _worlds[index] = world;
+            _worldsMap.Add(name, world);
+            return index;
         }
 
         public async Task Start()
         {
-            try
+            var tasks = new List<Task>();
+            foreach (var world in _worldsMap.Values.ToList())
             {
-                await _embeddedGlobalModule.Init(true);
-                foreach (var world in _worlds)
-                {
-                    _globalModules = world.GetAllModules().Where(m => m.IsGlobal).ToArray();
-                    foreach (var module in _globalModules)
-                    {
-                        await module.Init(true);
-                    }
-                }
+                tasks.Add(world.Start());
             }
-            catch (Exception e)
-            {
-                MainWorld.Logger.RethrowException(e);
-                throw;
-            }
+
+            await Task.WhenAll(tasks);
 
             _isInitialized = true;
         }
@@ -86,13 +106,10 @@ namespace ModulesFramework
         {
             if (!_isInitialized)
                 return;
-            if (ExceptionsPool.TryPop(out var e))
-                throw e;
 
-            _embeddedGlobalModule.Run();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.Run();
+                world.Run();
             }
         }
 
@@ -101,16 +118,14 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
 
-            _embeddedGlobalModule.PostRun();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.PostRun();
+                world.PostRun();
             }
 
-            _embeddedGlobalModule.FrameEnd();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.FrameEnd();
+                world.FrameEnd();
             }
         }
 
@@ -119,10 +134,9 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
 
-            _embeddedGlobalModule.RunPhysics();
-            foreach (var system in _moduleSystems)
+            foreach (var world in _worldsMap.Values)
             {
-                system.RunPhysic();
+                world.RunPhysic();
             }
         }
 
@@ -131,19 +145,10 @@ namespace ModulesFramework
             if (!_isInitialized)
                 return;
 
-            foreach (var world in _worlds)
+            foreach (var world in _worldsMap.Values)
             {
-                foreach (var module in world.GetAllModules().Where(m => !m.IsSubmodule))
-                {
-                    if (module.IsActive)
-                        module.SetActive(false);
-
-                    if (module.IsInitialized)
-                        module.Destroy();
-                }
+                world.Destroy();
             }
-
-            _embeddedGlobalModule.Destroy();
         }
     }
 }

@@ -1,11 +1,12 @@
 ﻿using System;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Exceptions
 {
     public class ComponentNotFoundException<T> : Exception
     {
         public ComponentNotFoundException()
-            : base($"Component {typeof(T).Name} not found")
+            : base($"Component {typeof(T).GetTypeName()} not found")
         {
         }
         
