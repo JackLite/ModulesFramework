@@ -36,7 +36,7 @@ namespace ModulesFramework.Modules
             {
                 foreach (var submodule in submodules)
                 {
-                    wasHandled = submodule.RunSubscribers(ev);
+                    wasHandled |= submodule.RunSubscribers(ev);
                 }
             }
 
