@@ -32,9 +32,9 @@ namespace ModulesFramework.Modules
 
             wasHandled |= subscribers != null;
 
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     wasHandled |= submodule.RunSubscribers(ev);
                 }

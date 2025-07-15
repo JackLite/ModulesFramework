@@ -135,9 +135,9 @@ namespace ModulesFramework.Modules
                 CreateSystems();
 
             InitSystems();
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     if (submodule.IsInitWithParent)
                         submodule.ProcessSystems();
@@ -302,9 +302,9 @@ namespace ModulesFramework.Modules
                 p.Run(world);
             }
 
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     submodule.Run();
                 }
@@ -329,9 +329,9 @@ namespace ModulesFramework.Modules
                 p.RunPhysic(world);
             }
 
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     submodule.RunPhysics();
                 }
@@ -359,9 +359,9 @@ namespace ModulesFramework.Modules
                 p.PostRun(world);
             }
 
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     submodule.PostRun();
                 }
@@ -384,9 +384,9 @@ namespace ModulesFramework.Modules
                     FrameEndEvents(eventType);
             }
 
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     submodule.FrameEnd();
                 }
@@ -468,9 +468,9 @@ namespace ModulesFramework.Modules
 #endif
 
             // even if module was manually activate it still must be deactivated when parent module destroyed
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     if (submodule.IsActive)
                         submodule.SetActive(false);
@@ -480,9 +480,9 @@ namespace ModulesFramework.Modules
             SetActive(false);
 
             // any submodule must be destroyed with parent cause it has dependencies from it that may being destroyed
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     if (submodule.IsInitialized)
                         submodule.Destroy();
