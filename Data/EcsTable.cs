@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
-        internal abstract bool[] ActiveEntities { get; }
+        internal abstract ulong[] ActiveEntitiesBits { get; }
         public abstract bool IsEmpty { get; }
         public abstract bool IsMultiple { get; }
         internal abstract Type Type { get; }
@@ -24,6 +25,8 @@ namespace ModulesFramework.Data
         internal abstract void RemoveInternal(int eid);
         internal abstract void RemoveByDenseIndex(int eid, int denseIndex);
         public abstract int GetMultipleDataLength(int eid);
+
+        public abstract void ClearTable();
     }
 
     public class EcsTable<T> : BaseEcsTable<T> where T : struct
@@ -67,8 +70,10 @@ namespace ModulesFramework.Data
         public override bool IsEmpty => _denseTable.Length == 0;
         public override bool IsMultiple => _isMultiple;
 
-        internal override bool[] ActiveEntities => _entities;
         internal override Type Type => typeof(T);
+
+        private ulong[] _activeEntitiesBits;
+        internal override ulong[] ActiveEntitiesBits => _activeEntitiesBits;
 
         public event Action<int> OnAddComponent = delegate
         {
@@ -83,8 +88,8 @@ namespace ModulesFramework.Data
             _denseTable = new DenseArray<T>();
             _tableMap = new int[64];
             _tableReverseMap = new int[64];
-            _entities = new bool[64];
             _multipleTableMap = new DenseArray<int>[64];
+            _activeEntitiesBits = new ulong[4];
         }
 
         public override void AddData(int eid, object component)
@@ -104,7 +109,6 @@ namespace ModulesFramework.Data
             while (eid >= _tableMap.Length)
             {
                 Array.Resize(ref _tableMap, _tableMap.Length * 2);
-                Array.Resize(ref _entities, _tableMap.Length);
             }
 
             while (index >= _tableReverseMap.Length)
@@ -112,9 +116,16 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
             }
 
+            while (eid >= ActiveEntitiesBits.Length * 64)
+            {
+                Array.Resize(ref _activeEntitiesBits, ActiveEntitiesBits.Length * 2);
+            }
+
             _tableReverseMap[index] = eid;
             _tableMap[eid] = index;
-            _entities[eid] = true;
+            var optIdx = eid / 64;
+            var bitMask = eid % 64;
+            ActiveEntitiesBits[optIdx] |= 1UL << bitMask;
 
             if (_indexer != null)
                 _indexer.Add(data, eid);
@@ -134,7 +145,6 @@ namespace ModulesFramework.Data
             while (eid >= _multipleTableMap.Length)
             {
                 Array.Resize(ref _multipleTableMap, _multipleTableMap.Length * 2);
-                Array.Resize(ref _entities, _entities.Length * 2);
             }
 
             while (index >= _tableReverseMap.Length)
@@ -142,11 +152,19 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _tableReverseMap, _tableReverseMap.Length * 2);
             }
 
+            while (eid >= ActiveEntitiesBits.Length * 64)
+            {
+                Array.Resize(ref _activeEntitiesBits, ActiveEntitiesBits.Length * 2);
+            }
+
             _multipleTableMap[eid] ??= new DenseArray<int>();
 
             _multipleTableMap[eid].AddData(index);
             _tableReverseMap[index] = eid;
-            _entities[eid] = true;
+            var optIdx = eid / 64;
+            var bitMask = eid % 64;
+            ActiveEntitiesBits[optIdx] |= 1UL << bitMask;
+
             OnAddComponent(eid);
         }
 
@@ -165,11 +183,11 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ref T GetData(int eid)
         {
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             CheckSingle();
             if (!Contains(eid))
                 throw new DataNotExistsInTableException<T>(eid);
-#endif
+            #endif
             return ref _denseTable.At(_tableMap[eid]);
         }
 
@@ -311,7 +329,10 @@ namespace ModulesFramework.Data
             var updateEid = _tableReverseMap[_denseTable.Length];
             _tableReverseMap[index] = updateEid;
             _tableMap[updateEid] = index;
-            _entities[eid] = false;
+            var optIdx = eid / 64;
+            var bitMask = eid % 64;
+            ActiveEntitiesBits[optIdx] &= ~(1UL << bitMask);
+
             OnRemoveComponent(eid);
         }
 
@@ -346,15 +367,16 @@ namespace ModulesFramework.Data
         internal override void RemoveByDenseIndex(int eid, int denseIndex)
         {
             var map = _multipleTableMap[eid];
-            for(var mtmIndex = 0; mtmIndex < map.Length; mtmIndex++)
+            for (var mtmIndex = 0; mtmIndex < map.Length; mtmIndex++)
             {
                 if (map[mtmIndex] == denseIndex)
                 {
                     RemoveAt(eid, mtmIndex);
                     break;
                 }
-            };
+            }
 
+            ;
         }
 
         private void UpdateMultipleMap(DenseArray<int>? map, int denseIndex)
@@ -397,7 +419,9 @@ namespace ModulesFramework.Data
         private void ClearMultipleForEntity(int eid)
         {
             _multipleTableMap[eid] = null;
-            _entities[eid] = false;
+            var optIdx = eid / 64;
+            var bitMask = eid % 64;
+            ActiveEntitiesBits[optIdx] &= ~(1UL << bitMask);
         }
 
         /// <summary>
@@ -437,10 +461,10 @@ namespace ModulesFramework.Data
         /// </summary>
         public MultipleComponentsEnumerable<T> GetMultipleForEntity(int eid)
         {
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             if (_isUsed && !_isMultiple)
                 throw new TableSingleWrongUseException<T>();
-#endif
+            #endif
             return new MultipleComponentsEnumerable<T>(this, eid);
         }
 
@@ -459,7 +483,11 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private bool IsActive(int eid)
         {
-            return _entities[eid];
+            var optIdx = eid / 64;
+            if(optIdx >= ActiveEntitiesBits.Length)
+                return false;
+            var bitMask = eid % 64;
+            return Convert.ToBoolean(ActiveEntitiesBits[optIdx] & (1UL << bitMask));
         }
 
         /// <summary>
@@ -481,18 +509,19 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckSingle()
         {
-
+            #if MODULES_DEBUG
             if (_isMultiple)
                 throw new TableMultipleWrongUseException<T>();
+            #endif
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void CheckMultiple()
         {
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             if (_isUsed && !_isMultiple)
                 throw new TableSingleWrongUseException<T>();
-#endif
+            #endif
         }
 
         public void CreateKey<TIndex>(Func<T, TIndex> getIndex) where TIndex : notnull
@@ -501,7 +530,7 @@ namespace ModulesFramework.Data
             var indexer = new TableIndexer<T, TIndex>(getIndex);
             for (var i = 0; i < _tableMap.Length; i++)
             {
-                if (!ActiveEntities[i])
+                if (!IsActive(i))
                     continue;
                 var data = _denseTable[_tableMap[i]];
                 indexer.Add(data, i);
@@ -515,7 +544,7 @@ namespace ModulesFramework.Data
             CheckSingle();
             var eid = FindEidByKey(index);
             if (eid < 0)
-                throw new ComponentNotFoundException<T>($"Component {typeof(T).Name} not found by index {index}");
+                throw new ComponentNotFoundException<T>($"Component {typeof(T).GetTypeName()} not found by index {index}");
 
             var denseIndex = _tableMap[eid];
             return ref _denseTable.At(denseIndex);
@@ -556,11 +585,11 @@ namespace ModulesFramework.Data
             return _denseTable.Enumerate();
         }
 
-        public void ClearTable()
+        public override void ClearTable()
         {
-            for (var eid = 0; eid < _entities.Length; eid++)
+            for (var eid = 0; eid < _tableMap.Length; eid++)
             {
-                var isActive = _entities[eid];
+                var isActive = IsActive(eid);
                 if (isActive)
                     RemoveInternal(eid);
             }

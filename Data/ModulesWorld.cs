@@ -9,6 +9,7 @@ using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 using ModulesFramework.Systems;
 using ModulesFramework.Utils;
+using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
 {
@@ -16,6 +17,7 @@ namespace ModulesFramework.Data
     {
         private readonly Map<EcsModule> _modules;
         private Dictionary<Type, List<Type>>? _allSystemTypes;
+        private EmbeddedGlobalModule _embeddedGlobalModule;
 
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
@@ -122,7 +124,7 @@ namespace ModulesFramework.Data
             var module = GetModule(moduleType);
 #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
-            Logger.LogDebug($"Activate module {moduleType.Name}", LogFilter.ModulesFull);
+            Logger.LogDebug($"Activate module {moduleType.GetTypeName()}", LogFilter.ModulesFull);
 #endif
             module.SetActive(true);
         }
@@ -148,7 +150,7 @@ namespace ModulesFramework.Data
             var module = GetModule(moduleType);
 #if MODULES_DEBUG
             if (module == null) throw new ModuleNotFoundException(moduleType);
-            Logger.LogDebug($"Deactivate module {moduleType.Name}", LogFilter.ModulesFull);
+            Logger.LogDebug($"Deactivate module {moduleType.GetTypeName()}", LogFilter.ModulesFull);
 #endif
             module.SetActive(false);
         }
@@ -173,10 +175,8 @@ namespace ModulesFramework.Data
             throw new ModuleNotFoundException(typeof(T));
         }
 
-        private void CtorModules(int worldIndex)
+        private void CtorModules(Dictionary<Type, EcsModule> modules)
         {
-            _allSystemTypes ??= EcsUtilities.FindSystems(_assemblyFilter.Filter);
-            var modules = CreateAllEcsModules(worldIndex).ToDictionary(m => m.GetType(), m => m);
             foreach (var (_, module) in modules)
             {
                 var add = _modules.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(module.GetType());
@@ -192,22 +192,34 @@ namespace ModulesFramework.Data
                     );
                     parent.AddSubmodule(module);
                 }
+                
             }
         }
 
-        private IEnumerable<EcsModule> CreateAllEcsModules(int worldIndex)
+        private Dictionary<Type, EcsModule> CreateAllEcsModules(List<Type> moduleTypes)
         {
-            var modules = EcsUtilities.GetModulesTypes(_assemblyFilter.Filter)
-                .Select(t => (EcsModule)Activator.CreateInstance(t)!);
-            foreach (var module in modules)
+            var result = new Dictionary<Type, EcsModule>();
+            foreach (var moduleType in moduleTypes)
             {
-                var moduleWorlds = ModuleUtil.GetWorldIndex(module.GetType());
-
-                if (!moduleWorlds.Contains(worldIndex))
-                    continue;
-                module.InjectWorld(this);
-                yield return module;
+                var worldAttribute = moduleType.GetCustomAttribute<WorldBelongingAttribute>();
+                if (worldAttribute == null || worldAttribute.Worlds.Contains(WorldName))
+                {
+                    var module = (EcsModule)Activator.CreateInstance(moduleType)!;
+                    module.InjectWorld(this);
+                    result.Add(moduleType, module);
+                }
             }
+
+            foreach (var module in result.Values)
+            {
+                foreach (var composedModule in module.ComposedOf)
+                {
+                    result[composedModule].IsComposed = true;
+                    module.AddComposedModule(result[composedModule]);
+                }
+            }
+
+            return result;
         }
 
         /// <summary>
@@ -242,6 +254,12 @@ namespace ModulesFramework.Data
             {
                 yield return (ISystem)Activator.CreateInstance(system)!;
             }
+        }
+        
+        private void CreateEmbedded()
+        {
+            _embeddedGlobalModule = new EmbeddedGlobalModule();
+            _embeddedGlobalModule.InjectWorld(this);
         }
     }
 }

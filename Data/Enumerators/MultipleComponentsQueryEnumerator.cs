@@ -5,12 +5,12 @@ namespace ModulesFramework.Data.Enumerators
     public struct MultipleComponentsQueryEnumerator<T> where T : struct
     {
         private readonly EcsTable<T> _table;
-        private readonly bool[] _filter;
+        private readonly ulong[] _filter;
         private int _index;
         private int _innerIndex;
         private bool _innerEnumeration;
 
-        internal MultipleComponentsQueryEnumerator(EcsTable<T> table, bool[] filter)
+        internal MultipleComponentsQueryEnumerator(EcsTable<T> table, ulong[] filter)
         {
             _table = table;
             _filter = filter;
@@ -42,7 +42,7 @@ namespace ModulesFramework.Data.Enumerators
 
             while (true)
             {
-                var outOfRange = _index > _table.ActiveEntities.Length;
+                var outOfRange = _index > _table.ActiveEntitiesBits.Length * 64;
                 if (outOfRange)
                     return false;
 
@@ -50,8 +50,12 @@ namespace ModulesFramework.Data.Enumerators
 
                 if (!_innerEnumeration)
                 {
-                    var isActive = _table.ActiveEntities[eid];
-                    if (!isActive || !_filter[eid])
+                    var optIdx = eid / 64;
+                    var bitMask = eid % 64;
+
+                    var isActiveBit = _table.ActiveEntitiesBits[optIdx] & (1UL << bitMask);
+                    var isFilteredBit = _filter[optIdx] & (1UL << bitMask);
+                    if (isActiveBit == 0 || isFilteredBit == 0)
                     {
                         ++_index;
                         _innerIndex = 0;

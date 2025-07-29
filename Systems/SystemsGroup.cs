@@ -21,9 +21,9 @@ namespace ModulesFramework.Systems
             typeof(IRunPhysicSystem), typeof(IPostRunSystem), typeof(IDeactivateSystem), typeof(IDestroySystem)
         };
 
-        // Type of event -> list of subscribers
-        private readonly Dictionary<Type, List<ISubscribeSystem>> _subscribes
-            = new Dictionary<Type, List<ISubscribeSystem>>();
+        // Type of event -> list of  tuples (isActivate, subscriber)
+        private readonly Dictionary<Type, List<(bool, ISubscribeSystem)>> _subscribes
+            = new Dictionary<Type, List<(bool, ISubscribeSystem)>>();
 
         internal IEnumerable<Type> EventTypes => _eventSystems.Keys;
         internal IEnumerable<Type> SubscriptionTypes => _subscribes.Keys;
@@ -223,13 +223,13 @@ namespace ModulesFramework.Systems
                 var eventType = type.GetGenericArguments()[0];
                 if (_subscribes.TryGetValue(eventType, out var systems))
                 {
-                    systems.Add(subscribeSystem);
+                    systems.Add((isSubActivate, subscribeSystem));
                     continue;
                 }
 
-                systems = new List<ISubscribeSystem>
+                systems = new List<(bool, ISubscribeSystem)>
                 {
-                    subscribeSystem
+                    (isSubActivate, subscribeSystem)
                 };
                 _subscribes[eventType] = systems;
             }
@@ -250,13 +250,13 @@ namespace ModulesFramework.Systems
             if (!_subscribes.TryGetValue(typeof(T), out var subscribeSystems))
                 return;
 
-            foreach (var system in subscribeSystems)
+            foreach (var (isActivate, system) in subscribeSystems)
             {
-                if (!isInit && system is ISubscribeActivateSystem<T> activateSystem)
-                {
-                    activateSystem.HandleEvent(ev);
+                if (isActivate != !isInit)
                     continue;
-                }
+                
+                if (!isInit && system is ISubscribeActivateSystem<T> activateSystem)
+                    activateSystem.HandleEvent(ev);
 
                 if (isInit && system is ISubscribeInitSystem<T> initSystem)
                     initSystem.HandleEvent(ev);
