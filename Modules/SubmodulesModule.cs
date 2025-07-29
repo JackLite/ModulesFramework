@@ -12,17 +12,24 @@ namespace ModulesFramework.Modules
     /// </summary>
     public partial class EcsModule
     {
-        private readonly SortedDictionary<int, List<EcsModule>> _submodules
-            = new SortedDictionary<int, List<EcsModule>>();
+        private struct SubmodulesGroup
+        {
+            public int order;
+            public List<EcsModule> modules;
+        }
+        
+        private readonly HashSet<int> _orders = new HashSet<int>();
+        
+        private readonly LinkedList<SubmodulesGroup> _submodulesGroups = new LinkedList<SubmodulesGroup>();
 
-        public IEnumerable<EcsModule> Submodules => _submodules.Values.SelectMany(m => m);
+        public IEnumerable<EcsModule> Submodules => _submodulesGroups.SelectMany(g => g.modules);
 
         private async Task SetupSubmodules()
         {
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
                 var tasks = new List<Task>();
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     if (submodule.IsInitWithParent)
                         tasks.Add(submodule.StartInit());
@@ -41,9 +48,45 @@ namespace ModulesFramework.Modules
 
         public virtual void AddSubmodule(EcsModule module, int order)
         {
-            if (!_submodules.ContainsKey(order))
-                _submodules[order] = new List<EcsModule>();
-            _submodules[order].Add(module);
+            if (!_orders.Add(order))
+            {
+                foreach (var group in _submodulesGroups)
+                {
+                    if (group.order == order)
+                    {
+                        group.modules.Add(module);
+                    }
+                }
+            }
+            else
+            {
+                var group = new SubmodulesGroup
+                {
+                    order = order,
+                    modules = new List<EcsModule>
+                    {
+                        module
+                    }
+                };
+
+                if (_submodulesGroups.Count == 0)
+                {
+                    _submodulesGroups.AddLast(group);
+                    return;
+                }
+                
+                var node = _submodulesGroups.First;
+                while (node.Value.order < order)
+                {
+                    if (node.Next == null)
+                    {
+                        _submodulesGroups.AddLast(group);
+                        return;
+                    }
+                    node = node.Next;
+                }
+                _submodulesGroups.AddBefore(node, group);
+            }
         }
 
         /// <summary>
@@ -54,11 +97,11 @@ namespace ModulesFramework.Modules
         public virtual void SetSubmoduleOrder(EcsModule module, int order)
         {
             var submoduleCheck = false;
-            foreach (var (_, list) in _submodules)
+            foreach (var group in _submodulesGroups)
             {
-                if (!list.Contains(module))
+                if (!group.modules.Contains(module))
                     continue;
-                list.Remove(module);
+                group.modules.Remove(module);
                 submoduleCheck = true;
                 break;
             }
@@ -75,9 +118,9 @@ namespace ModulesFramework.Modules
 
         private void SetSubmodulesActive(bool isActive)
         {
-            foreach (var submodules in _submodules.Values)
+            foreach (var group in _submodulesGroups)
             {
-                foreach (var submodule in submodules)
+                foreach (var submodule in group.modules)
                 {
                     if (submodule.IsActiveWithParent)
                         submodule.SetActive(isActive);

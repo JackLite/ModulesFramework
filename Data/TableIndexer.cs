@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using ModulesFramework.Exceptions;
 
 namespace ModulesFramework.Data
 {
@@ -27,6 +28,10 @@ namespace ModulesFramework.Data
 
         public override void Add(T data, int eid)
         {
+            #if MODULES_DEBUG
+            if (_indices.ContainsKey(_getIndex(data)))
+                throw new IndexAlreadyExistsException<T>(eid);
+            #endif
             _indices[_getIndex(data)] = eid;
             _reverseMap[eid] = _getIndex(data);
         }
