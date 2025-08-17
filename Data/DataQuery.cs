@@ -34,7 +34,8 @@ namespace ModulesFramework.Data
                 Array.Resize(ref _bitMask, _mainTable.ActiveEntitiesBits.Length);
             // _mainTable.ActiveEntities.AsSpan().CopyTo(_inc);
             // _mainTable.optimized.AsSpan().CopyTo(_bitMask);
-            Buffer.BlockCopy(_mainTable.ActiveEntitiesBits, 0, _bitMask, 0, _mainTable.ActiveEntitiesBits.Length * sizeof(ulong));
+            Buffer.BlockCopy(_mainTable.ActiveEntitiesBits, 0, _bitMask, 0,
+                _mainTable.ActiveEntitiesBits.Length * sizeof(ulong));
         }
 
         public void Dispose()
@@ -56,6 +57,7 @@ namespace ModulesFramework.Data
                     _bitMask[i] = 0;
                     continue;
                 }
+
                 _bitMask[i] &= table.ActiveEntitiesBits[i];
             }
 
@@ -94,6 +96,7 @@ namespace ModulesFramework.Data
                     _bitMask[i] = 0;
                     continue;
                 }
+
                 _bitMask[i] &= ~table.ActiveEntitiesBits[i];
             }
 
@@ -114,6 +117,7 @@ namespace ModulesFramework.Data
                     _bitMask[i] = 0;
                     continue;
                 }
+
                 _bitMask[i] &= table.ActiveEntitiesBits[i];
             }
 
@@ -237,8 +241,12 @@ namespace ModulesFramework.Data
         {
             var table = _world.GetEcsTable<T>();
 
-            if (_isEmpty)
-                return new ComponentsEnumerable<T>(table, Array.Empty<ulong>());
+#if MODULES_DEBUG
+            if (table.IsMultiple)
+                throw new TableMultipleWrongUseException<T>();
+#endif
+                if (_isEmpty)
+                    return new ComponentsEnumerable<T>(table, Array.Empty<ulong>());
 
             return new ComponentsEnumerable<T>(table, _bitMask);
         }

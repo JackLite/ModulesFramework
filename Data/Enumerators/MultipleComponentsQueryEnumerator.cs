@@ -34,6 +34,8 @@ namespace ModulesFramework.Data.Enumerators
 
         public bool MoveNext()
         {
+            if (_filter.Length == 0) // empty table
+                return false;
             // just start enumeration
             if (_index == 0)
             {
@@ -72,9 +74,9 @@ namespace ModulesFramework.Data.Enumerators
                     _innerEnumeration = false;
                     continue;
                 }
+
                 _innerEnumeration = true;
                 return true;
-
             }
         }
 
