@@ -1,11 +1,11 @@
-﻿namespace ModulesFramework
+﻿namespace ModulesFramework.Data
 {
-    public class EcsOneData<T> : OneData where T : struct
+    public class OneData<T> : OneData where T : struct
     {
         private T _data;
         private bool _isSet;
 
-        public EcsOneData(bool isCreateDefault = false)
+        public OneData(bool isCreateDefault = false)
         {
             _isSet = isCreateDefault;
         }

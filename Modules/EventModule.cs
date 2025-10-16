@@ -39,6 +39,21 @@ namespace ModulesFramework.Modules
             return wasAdded;
         }
 
+        internal void DequeueRunEventRunner(Type eventType)
+        {
+            _runEvents[eventType].Dequeue();
+        }
+
+        internal void DequeuePostRunEventRunner(Type eventType)
+        {
+            _postRunEvents[eventType].Dequeue();
+        }
+
+        internal void DequeueFrameEndEventRunner(Type eventType)
+        {
+            _frameEndEvents[eventType].Dequeue();
+        }
+
         private void CheckRunEventType(Type type)
         {
             CreateQueueIfNeed(type, _runEvents);

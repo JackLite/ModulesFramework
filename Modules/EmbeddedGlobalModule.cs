@@ -3,7 +3,7 @@ using ModulesFramework.Attributes;
 
 namespace ModulesFramework.Modules
 {
-    internal sealed class EmbeddedGlobalModule : EcsModule
+    public sealed class EmbeddedGlobalModule : EcsModule
     {
         protected override Task Setup()
         {

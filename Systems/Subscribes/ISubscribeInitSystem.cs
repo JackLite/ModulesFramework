@@ -4,7 +4,7 @@
     {
     }
 
-    public interface ISubscribeInitSystem<T> : ISubscribeInitSystem where T : struct
+    public interface ISubscribeInitSystem<T> : ISubscribeInitSystem
     {
         public void HandleEvent(T ev);
     }
