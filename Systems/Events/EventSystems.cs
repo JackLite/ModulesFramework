@@ -5,6 +5,9 @@ using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework.Systems.Events
 {
+    /// <summary>
+    ///     Wrapper for all event systems. Runs them when event need to be handled
+    /// </summary>
     internal class EventSystems
     {
         private readonly Dictionary<Type, List<IEventSystem>> _systems =
@@ -101,6 +104,27 @@ namespace ModulesFramework.Systems.Events
                     world.Logger.RethrowException(e);
                 }
             }
+        }
+
+        internal void RunSystem<T, TSystem>(T ev, TSystem system) where T : struct
+        {
+            var type = typeof(TSystem);
+            if (type == typeof(IRunEventSystem))
+                ((IRunEventSystem<T>)system).RunEvent(ev);
+            if (type == typeof(IPostRunEventSystem))
+                ((IPostRunEventSystem<T>)system).PostRunEvent(ev);
+            if (type == typeof(IFrameEndEventSystem))
+                ((IFrameEndEventSystem<T>)system).FrameEndEvent(ev);
+
+            throw new Exception($"System {type} is not a valid event system");
+        }
+
+        /// <summary>
+        ///     Returns all event systems giving type TSystem
+        /// </summary>
+        internal IEnumerable<TSystem> GetEventSystems<TSystem>() where TSystem : IEventSystem
+        {
+            return _systems[typeof(TSystem)].Cast<TSystem>();
         }
     }
 }

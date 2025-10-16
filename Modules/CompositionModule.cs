@@ -11,6 +11,8 @@ namespace ModulesFramework.Modules
         private readonly List<EcsModule> _composedModules = new List<EcsModule>();
         private readonly List<Task> _tasksCache = new List<Task>();
 
+        public IEnumerable<EcsModule> ComposedModules => _composedModules;
+
         public void AddComposedModule(EcsModule module)
         {
             _composedModules.Add(module);

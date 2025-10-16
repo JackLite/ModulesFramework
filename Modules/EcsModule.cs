@@ -6,9 +6,12 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using ModulesFramework.Attributes;
+using ModulesFramework.Data;
+using ModulesFramework.Data.Events;
 using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Systems;
+using ModulesFramework.Systems.Events;
 using ModulesFramework.Utils.Types;
 using DataWorld = ModulesFramework.Data.DataWorld;
 
@@ -50,7 +53,7 @@ namespace ModulesFramework.Modules
         public bool IsActiveWithParent { get; private set; }
         public EcsModule? Parent { get; private set; }
 
-        internal IEnumerable<Type> Systems => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
+        internal IEnumerable<Type> SystemTypes => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
 
         public event Action? OnInitialized;
         public event Action? OnActivated;
@@ -282,7 +285,7 @@ namespace ModulesFramework.Modules
         }
 
         /// <summary>
-        /// Just call Run at systems
+        /// Run composed modules, its own systems and submodules
         /// </summary>
         internal void Run()
         {
@@ -294,13 +297,7 @@ namespace ModulesFramework.Modules
                 module.Run();
             }
 
-            foreach (var p in _systemsArr)
-            {
-                foreach (var eventType in p.EventTypes)
-                    RunEvents(eventType);
-
-                p.Run(world);
-            }
+            RunSystems();
 
             foreach (var group in _submodulesGroups)
             {
@@ -308,6 +305,23 @@ namespace ModulesFramework.Modules
                 {
                     submodule.Run();
                 }
+            }
+        }
+
+        /// <summary>
+        ///     Run systems of this module
+        /// </summary>
+        internal void RunSystems()
+        {
+            foreach (var p in _systemsArr)
+            {
+                foreach (var eventType in p.EventTypes)
+                    RunEvents(eventType);
+            }
+
+            foreach (var p in _systemsArr)
+            {
+                p.Run(world);
             }
         }
 
@@ -355,7 +369,10 @@ namespace ModulesFramework.Modules
             {
                 foreach (var eventType in p.EventTypes)
                     PostRunEvents(eventType);
+            }
 
+            foreach (var p in _systemsArr)
+            {
                 p.PostRun(world);
             }
 
@@ -672,6 +689,31 @@ namespace ModulesFramework.Modules
         protected virtual Dictionary<Type, int> GetSystemsOrder()
         {
             return new Dictionary<Type, int>(0);
+        }
+
+        internal IEnumerable<ISystem> GetSystems(Type systemType)
+        {
+            return _systemsArr.SelectMany(g => g.GetSystems(systemType));
+        }
+
+        internal IEnumerable<IEventRunner> GetEventRunners(Type eventSystemInterface)
+        {
+            if (typeof(IRunEventSystem).IsAssignableFrom(eventSystemInterface))
+            {
+                return _runEvents.Values.SelectMany(q => q);
+            }
+
+            if (typeof(IPostRunEventSystem).IsAssignableFrom(eventSystemInterface))
+            {
+                return _postRunEvents.Values.SelectMany(q => q);
+            }
+
+            if (typeof(IFrameEndEventSystem).IsAssignableFrom(eventSystemInterface))
+            {
+                return _frameEndEvents.Values.SelectMany(q => q);
+            }
+
+            throw new ArgumentException($"Type {eventSystemInterface} is not event system interface");
         }
     }
 }

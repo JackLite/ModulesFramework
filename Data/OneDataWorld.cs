@@ -38,7 +38,7 @@ namespace ModulesFramework.Data
             var action = updateGeneration ? "Create" : "Replace";
             Logger.LogDebug($"{action} one data {typeof(T).GetTypeName()}", LogFilter.OneDataFull);
 #endif
-            var oneData = new EcsOneData<T>();
+            var oneData = new OneData<T>();
             oneData.SetDataIfNotExist(data);
 
             if (_oneDatas.TryGet<T>(out var oldData))
@@ -65,17 +65,16 @@ namespace ModulesFramework.Data
 
         /// <summary>
         /// Return ref to one data component by T
-        /// If one data component does not exist it create it
+        /// If one data does not exist it create it
         /// </summary>
         /// <typeparam name="T">Type of one data</typeparam>
         /// <returns>Ref to one data component</returns>
         public ref T OneData<T>() where T : struct
         {
-            var dataType = typeof(T);
             if (!_oneDatas.TryGet<T>(out var oneData))
                 return ref CreateOneData<T>();
 
-            return ref ((EcsOneData<T>)oneData).GetData();
+            return ref ((OneData<T>)oneData).GetData();
         }
 
         /// <summary>

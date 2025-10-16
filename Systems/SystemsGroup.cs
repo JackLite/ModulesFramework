@@ -262,5 +262,16 @@ namespace ModulesFramework.Systems
                     initSystem.HandleEvent(ev);
             }
         }
+
+        internal IEnumerable<ISystem> GetSystems(Type systemType)
+        {
+            return _systems[systemType];
+        }
+
+        internal EventSystems GetEventSystems<T>() where T : struct
+        {
+            var eventType = typeof(T);
+            return _eventSystems.GetValueOrDefault(eventType);
+        }
     }
 }

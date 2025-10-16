@@ -19,6 +19,8 @@ namespace ModulesFramework.Data
         private Dictionary<Type, List<Type>>? _allSystemTypes;
         private EmbeddedGlobalModule _embeddedGlobalModule;
 
+        public EmbeddedGlobalModule EmbeddedGlobalModule => _embeddedGlobalModule;
+
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
         /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
