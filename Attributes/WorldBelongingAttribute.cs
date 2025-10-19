@@ -12,9 +12,9 @@ namespace ModulesFramework.Attributes
     {
         public HashSet<string> Worlds { get; private set; }
 
-        public WorldBelongingAttribute(params string[] worldIndex)
+        public WorldBelongingAttribute(params string[] worldName)
         {
-            Worlds = new HashSet<string>(worldIndex);
+            Worlds = new HashSet<string>(worldName);
         }
     }
 }
