@@ -545,17 +545,16 @@ namespace ModulesFramework.Modules
                         continue;
                     }
 
-                    object? dependency = null;
-                    foreach (var module in _globalModules)
-                    {
-                        dependency = module.GetDependency(t);
-                        if (dependency != null)
-                            break;
-                    }
+                    object? dependency = GetDependency(t);
 
                     if (dependency == null)
                     {
-                        dependency = GetDependency(t);
+                        foreach (var module in _globalModules)
+                        {
+                            dependency = module.GetDependency(t);
+                            if (dependency != null)
+                                break;
+                        }
                     }
 
                     if (dependency == null)
@@ -592,17 +591,16 @@ namespace ModulesFramework.Modules
                     continue;
                 }
 
-                object? dependency = null;
-                foreach (var module in _globalModules)
-                {
-                    dependency = module.GetDependency(t);
-                    if (dependency != null)
-                        break;
-                }
+                object? dependency = GetDependency(t);
 
                 if (dependency == null)
                 {
-                    dependency = GetDependency(t);
+                    foreach (var module in _globalModules)
+                    {
+                        dependency = module.GetDependency(t);
+                        if (dependency != null)
+                            break;
+                    }
                 }
 
                 if (dependency != null)
