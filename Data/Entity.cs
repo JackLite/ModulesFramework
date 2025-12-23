@@ -1,10 +1,11 @@
-﻿using System.Globalization;
+﻿using System;
+using System.Globalization;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 
 namespace ModulesFramework.Data
 {
-    public struct Entity
+    public struct Entity : IEquatable<Entity>
     {
         public int generation;
         private string _customId;
@@ -171,6 +172,34 @@ namespace ModulesFramework.Data
         internal void SetCustomIdInternal(string newCustomId)
         {
             _customId = newCustomId;
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(generation, Id, World, _customId);
+        }
+        
+        public override bool Equals(object? obj)
+        {
+            if (obj is Entity other)
+                return other == this;
+            
+            return false;
+        }
+
+        public static bool operator ==(Entity left, Entity right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(Entity left, Entity right)
+        {
+            return !(left == right);
+        }
+
+        public bool Equals(Entity other)
+        {
+            return generation == other.generation && Id == other.Id && World == other.World;
         }
     }
 }
