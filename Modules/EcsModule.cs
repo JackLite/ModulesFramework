@@ -560,7 +560,8 @@ namespace ModulesFramework.Modules
                     if (dependency == null)
                     {
                         throw new Exception(
-                            $"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}");
+                            $"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}" +
+                            $" for system {system.GetType().GetTypeName()}");
                     }
 
                     injections[i++] = dependency;
@@ -607,7 +608,8 @@ namespace ModulesFramework.Modules
                     field.SetValue(system, dependency);
                 else
                     world.Logger.LogDebug(
-                        $"Can't inject dependency for {field.Name}. Ignore this message if you create field by yourself",
+                        $"Can't inject dependency for {field.Name} for system {system.GetType().GetTypeName()}." +
+                        " Ignore this message if you create field by yourself",
                         LogFilter.ModulesFull
                     );
             }
