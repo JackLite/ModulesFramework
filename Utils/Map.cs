@@ -66,7 +66,7 @@ namespace ModulesFramework.Utils
         {
             value = null;
             var idx = TypeID<T, TType>.id;
-            if (idx < 0)
+            if (idx < 0 || idx >= _existed.Length)
                 return false;
             value = _existed[idx];
             return value != null;
