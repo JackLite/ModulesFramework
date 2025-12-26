@@ -49,8 +49,8 @@ namespace ModulesFramework.Modules
         public bool IsSubmodule { get; private set; }
         public bool IsComposed { get; internal set; }
         public bool IsRoot => !IsSubmodule && !IsComposed;
-        public bool IsInitWithParent { get; private set; }
-        public bool IsActiveWithParent { get; private set; }
+        public virtual bool IsInitWithParent { get; protected set; }
+        public virtual bool IsActiveWithParent { get; protected set; }
         public EcsModule? Parent { get; private set; }
 
         internal IEnumerable<Type> SystemTypes => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
