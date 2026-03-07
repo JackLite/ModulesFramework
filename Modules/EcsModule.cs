@@ -6,12 +6,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using ModulesFramework.Attributes;
-using ModulesFramework.Data;
-using ModulesFramework.Data.Events;
-using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
-using ModulesFramework.Systems;
-using ModulesFramework.Systems.Events;
 using ModulesFramework.Utils.Types;
 using DataWorld = ModulesFramework.Data.DataWorld;
 
@@ -19,17 +14,15 @@ namespace ModulesFramework.Modules
 {
     /// <summary>
     /// Base class for every module
-    /// In modules you can create dependencies for your system and instantiate all prefabs that you need
-    /// Don't create any entities in modules - use IPreInitSystem instead
+    /// In modules you can create dependencies for your system
+    /// Don't create any entities in modules - use IPreInitSystem instead. It's an advice, not a rule.
     /// </summary>
-    /// <seealso cref="IRunSystem"/>
     /// <seealso cref="GlobalModuleAttribute"/>
+    /// <seealso cref="SubmoduleAttribute"/>
     public abstract partial class EcsModule
     {
-        private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
-        private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
         private static readonly List<EcsModule> _globalModules = new List<EcsModule>();
-        private List<ISystem>? _createdSystem;
+        private bool _isSetup;
 
         protected DataWorld world = null!;
 
@@ -52,8 +45,6 @@ namespace ModulesFramework.Modules
         public virtual bool IsInitWithParent { get; protected set; }
         public virtual bool IsActiveWithParent { get; protected set; }
         public EcsModule? Parent { get; private set; }
-
-        internal IEnumerable<Type> SystemTypes => _systemsArr.SelectMany(g => g.AllSystems).Distinct();
 
         public event Action? OnInitialized;
         public event Action? OnActivated;
@@ -79,6 +70,7 @@ namespace ModulesFramework.Modules
         {
             try
             {
+                _systemTypes = SystemTypes;
                 await StartInit();
                 ProcessSystems();
                 if (activateImmediately)
@@ -105,6 +97,15 @@ namespace ModulesFramework.Modules
 #endif
 
             UpdateGlobalDependencies();
+
+            if (_createdSystem == null)
+                CreateSystems();
+
+            foreach (var system in _createdSystem!)
+                InsertDependencies(system, world);
+
+            _isSetup = true;
+
             await SetupSubmodules();
 
             await OnSetupEnd();
@@ -134,10 +135,7 @@ namespace ModulesFramework.Modules
                 submodule.ProcessSystems();
             }
 
-            if (_createdSystem == null)
-                CreateSystems();
-
-            InitSystems();
+            ProcessInitSystems();
             foreach (var group in _submodulesGroups)
             {
                 foreach (var submodule in group.modules)
@@ -155,54 +153,45 @@ namespace ModulesFramework.Modules
             OnInitialized?.Invoke();
         }
 
-        private void CreateSystems()
-        {
-            var systemOrder = GetSystemsOrder();
-            _createdSystem = GetSystems().ToList();
-            foreach (var system in _createdSystem)
-            {
-                var order = 0;
-                if (systemOrder.ContainsKey(system.GetType()))
-                    order = systemOrder[system.GetType()];
-
-                if (!_systems.ContainsKey(order))
-                    _systems[order] = new SystemsGroup();
-
-                _systems[order].Add(system);
-            }
-        }
-
-        protected virtual IEnumerable<ISystem> GetSystems()
-        {
-            return world.GetSystems(ConcreteType);
-        }
-
-        internal void InitSystems()
+        internal void ProcessInitSystems()
         {
 #if MODULES_DEBUG
             world.Logger.LogDebug($"Module {GetType().GetTypeName()} systems pre-init", LogFilter.SystemsInit);
 #endif
 
-            foreach (var system in _createdSystem)
-                InsertDependencies(system, world);
-
-            foreach (var p in _systems)
-                p.Value.PreInit(world);
+            PreInitSystems();
 
 #if MODULES_DEBUG
             world.Logger.LogDebug($"Module {GetType().GetTypeName()} systems init", LogFilter.SystemsInit);
 #endif
 
-            foreach (var p in _systems)
-            {
-                p.Value.Init(world);
-                foreach (var subscriptionType in p.Value.SubscriptionTypes)
-                {
-                    RegisterSubscriber(subscriptionType, p.Value, p.Key, true);
-                }
-            }
+            InitSystems();
+            RegisterInitSubscribers();
 
             _systemsArr = _systems.Values.ToArray();
+        }
+
+        protected virtual void PreInitSystems()
+        {
+            foreach (var p in _systems)
+                p.Value.PreInit(world);
+        }
+
+        protected virtual void InitSystems()
+        {
+            foreach (var p in _systems)
+                p.Value.Init(world);
+        }
+
+        private void RegisterInitSubscribers()
+        {
+            foreach (var p in _systems)
+            {
+                foreach (var subscriptionType in p.Value.SubscriptionTypes)
+                {
+                    RegisterSubscriber(subscriptionType, p.Value, true);
+                }
+            }
         }
 
         /// <summary>
@@ -231,8 +220,8 @@ namespace ModulesFramework.Modules
             }
             else if (!isActive && IsActive)
             {
-                SetActiveComposition(false);
                 SetSubmodulesActive(false);
+                SetActiveComposition(false);
                 Deactivate();
                 OnDeactivate();
                 OnDeactivated?.Invoke();
@@ -249,16 +238,25 @@ namespace ModulesFramework.Modules
             foreach (var p in _systems)
             {
                 foreach (var eventType in p.Value.EventTypes)
-                    RegisterListener(eventType, p.Value);
+                {
+                    foreach (var systemGenericType in p.Value.GetEventSystemsGenericTypes(eventType))
+                        RegisterSystemsGroupForEvent(eventType, systemGenericType, p.Value);
+                }
 
                 foreach (var eventType in p.Value.SubscriptionTypes)
-                    RegisterSubscriber(eventType, p.Value, p.Key);
-
-                p.Value.Activate(world);
+                    RegisterSubscriber(eventType, p.Value);
             }
+
+            ActivateSystems();
 #if MODULES_DEBUG
             world.Logger.LogDebug($"Call OnActivate in {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
+        }
+
+        protected virtual void ActivateSystems()
+        {
+            foreach (var p in _systems)
+                p.Value.Activate(world);
         }
 
         private void Deactivate()
@@ -267,14 +265,18 @@ namespace ModulesFramework.Modules
             world.Logger.LogDebug($"Deactivate systems in {GetType().GetTypeName()}", LogFilter.SystemsDestroy);
 #endif
 
-            _runEvents.Clear();
-            _postRunEvents.Clear();
-            _frameEndEvents.Clear();
+            //todo: clean!
+            // _runEvents.Clear();
+            // _postRunEvents.Clear();
+            // _frameEndEvents.Clear();
+            DeactivateSystems();
             foreach (var p in _systems)
             {
-                p.Value.Deactivate(world);
                 foreach (var eventType in p.Value.EventTypes)
-                    UnregisterListener(eventType, p.Value);
+                {
+                    foreach (var systemGenericType in p.Value.GetEventSystemsGenericTypes(eventType))
+                        UnregisterSystemsGroupForEvent(eventType, systemGenericType, p.Value);
+                }
 
                 foreach (var eventType in p.Value.SubscriptionTypes)
                     UnregisterSubscriber(eventType, p.Value);
@@ -282,6 +284,12 @@ namespace ModulesFramework.Modules
 #if MODULES_DEBUG
             world.Logger.LogDebug($"Call OnDeactivate in {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
+        }
+
+        protected virtual void DeactivateSystems()
+        {
+            foreach (var p in _systems)
+                p.Value.Deactivate(world);
         }
 
         /// <summary>
@@ -311,7 +319,7 @@ namespace ModulesFramework.Modules
         /// <summary>
         ///     Run systems of this module
         /// </summary>
-        internal void RunSystems()
+        public virtual void RunSystems()
         {
             foreach (var p in _systemsArr)
             {
@@ -419,7 +427,7 @@ namespace ModulesFramework.Modules
         }
 
         /// <summary>
-        /// Calls after all <see cref="IPreInitSystem"/> and <see cref="IInitSystem"/> proceed
+        /// Calls after PreInitSystems and InitSystems called
         /// </summary>
         public virtual void OnInit()
         {
@@ -449,23 +457,25 @@ namespace ModulesFramework.Modules
         {
         }
 
-        private void DestroySystems()
+        private void DestroySystemsInternal()
         {
 #if MODULES_DEBUG
             world.Logger.LogDebug($"Destroy systems in {GetType().GetTypeName()}", LogFilter.SystemsDestroy);
 #endif
-
+            DestroySystems();
             foreach (var p in _systems)
             {
-                p.Value.Destroy(world);
-
                 foreach (var subscriptionType in p.Value.SubscriptionTypes)
-                {
                     UnregisterSubscriber(subscriptionType, p.Value, true);
-                }
             }
 
             IsInitialized = false;
+        }
+
+        protected virtual void DestroySystems()
+        {
+            foreach (var p in _systems)
+                p.Value.Destroy(world);
         }
 
         /// <summary>
@@ -507,131 +517,22 @@ namespace ModulesFramework.Modules
             }
 
             OnDestroy();
-            DestroySystems();
+            DestroySystemsInternal();
 
             foreach (var composedModule in _composedModules)
             {
                 composedModule.Destroy();
             }
 
+            _isSetup = false;
             IsInitialized = false;
             OnDestroyed?.Invoke();
-        }
-
-        private void InsertDependencies(ISystem system, DataWorld world)
-        {
-            var setupMethod = GetSetupMethod(system);
-            if (setupMethod != null)
-            {
-                var parameters = setupMethod.GetParameters();
-                var injections = new object[parameters.Length];
-                var i = 0;
-                foreach (var parameter in parameters)
-                {
-                    var t = parameter.ParameterType;
-                    if (t == typeof(DataWorld))
-                    {
-                        injections[i++] = world;
-                        continue;
-                    }
-
-                    if (t.BaseType == typeof(OneData))
-                    {
-                        var data = world.GetOneData(t);
-                        if (data == null)
-                            ThrowOneDataException(t);
-                        else
-                            injections[i++] = data;
-                        continue;
-                    }
-
-                    object? dependency = GetDependency(t);
-
-                    if (dependency == null)
-                    {
-                        foreach (var module in _globalModules)
-                        {
-                            dependency = module.GetDependency(t);
-                            if (dependency != null)
-                                break;
-                        }
-                    }
-
-                    if (dependency == null)
-                    {
-                        throw new Exception(
-                            $"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}" +
-                            $" for system {system.GetType().GetTypeName()}");
-                    }
-
-                    injections[i++] = dependency;
-                }
-
-                setupMethod.Invoke(system, injections);
-                return;
-            }
-
-            var fields = system.GetType().GetFields(BindingFlags.NonPublic | BindingFlags.Instance);
-
-            foreach (var field in fields)
-            {
-                var t = field.FieldType;
-                if (t == typeof(DataWorld))
-                {
-                    field.SetValue(system, world);
-                    continue;
-                }
-
-                if (t.BaseType == typeof(OneData))
-                {
-                    var data = world.GetOneData(t);
-                    if (data == null)
-                        ThrowOneDataException(t);
-                    else
-                        field.SetValue(system, data);
-                    continue;
-                }
-
-                object? dependency = GetDependency(t);
-
-                if (dependency == null)
-                {
-                    foreach (var module in _globalModules)
-                    {
-                        dependency = module.GetDependency(t);
-                        if (dependency != null)
-                            break;
-                    }
-                }
-
-                if (dependency != null)
-                    field.SetValue(system, dependency);
-                else
-                    world.Logger.LogDebug(
-                        $"Can't inject dependency for {field.Name} for system {system.GetType().GetTypeName()}." +
-                        " Ignore this message if you create field by yourself",
-                        LogFilter.ModulesFull
-                    );
-            }
         }
 
         private void ThrowOneDataException(Type t)
         {
             throw new ApplicationException(
                 $"Type {t.GetGenericArguments()[0]} does not exist. You should use {nameof(DataWorld.OneData)}");
-        }
-
-        private MethodInfo? GetSetupMethod(ISystem system)
-        {
-            var methods = system.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var methodInfo in methods)
-            {
-                if (methodInfo.GetCustomAttribute<SetupAttribute>() == null)
-                    continue;
-                return methodInfo;
-            }
-
-            return null;
         }
 
         /// <summary>
@@ -680,40 +581,6 @@ namespace ModulesFramework.Modules
             }
 
             return world.GetGlobalDependency(type);
-        }
-
-        /// <summary>
-        /// Let you set order of systems. Default order is 0. Systems will be ordered by ascending
-        /// </summary>
-        /// <returns>Dictionary with key - type of system and value - order</returns>
-        protected virtual Dictionary<Type, int> GetSystemsOrder()
-        {
-            return new Dictionary<Type, int>(0);
-        }
-
-        internal IEnumerable<ISystem> GetSystems(Type systemType)
-        {
-            return _systemsArr.SelectMany(g => g.GetSystems(systemType));
-        }
-
-        internal IEnumerable<IEventRunner> GetEventRunners(Type eventSystemInterface)
-        {
-            if (typeof(IRunEventSystem).IsAssignableFrom(eventSystemInterface))
-            {
-                return _runEvents.Values.SelectMany(q => q);
-            }
-
-            if (typeof(IPostRunEventSystem).IsAssignableFrom(eventSystemInterface))
-            {
-                return _postRunEvents.Values.SelectMany(q => q);
-            }
-
-            if (typeof(IFrameEndEventSystem).IsAssignableFrom(eventSystemInterface))
-            {
-                return _frameEndEvents.Values.SelectMany(q => q);
-            }
-
-            throw new ArgumentException($"Type {eventSystemInterface} is not event system interface");
         }
     }
 }

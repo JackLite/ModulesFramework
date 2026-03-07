@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+using ModulesFramework.Modules;
 using ModulesFramework.Systems.Events;
 using ModulesFramework.Systems.Subscribes;
 using DataWorld = ModulesFramework.Data.DataWorld;
@@ -10,169 +12,133 @@ namespace ModulesFramework.Systems
 {
     internal class SystemsGroup
     {
+        private readonly List<Task> _tasks = new List<Task>(16);
         private readonly Dictionary<Type, List<ISystem>> _systems = new Dictionary<Type, List<ISystem>>();
 
-        // Type of event -> event systems
-        private readonly Dictionary<Type, EventSystems> _eventSystems = new Dictionary<Type, EventSystems>();
 
-        private static readonly Type[] _systemTypes = new Type[]
-        {
-            typeof(IPreInitSystem), typeof(IInitSystem), typeof(IActivateSystem), typeof(IRunSystem),
-            typeof(IRunPhysicSystem), typeof(IPostRunSystem), typeof(IDeactivateSystem), typeof(IDestroySystem)
-        };
-
-        // Type of event -> list of  tuples (isActivate, subscriber)
+        // Type of event -> list of tuples (isActivate, subscriber)
         private readonly Dictionary<Type, List<(bool, ISubscribeSystem)>> _subscribes
             = new Dictionary<Type, List<(bool, ISubscribeSystem)>>();
 
-        internal IEnumerable<Type> EventTypes => _eventSystems.Keys;
+        // Type of event -> (interface of event system -> list of wrappers)
+        private readonly Dictionary<Type, Dictionary<Type, List<RunEventSystemWrapper>>> _runEventSystems
+            = new Dictionary<Type, Dictionary<Type, List<RunEventSystemWrapper>>>();
+
+        internal IEnumerable<Type> EventTypes => _runEventSystems.Keys;
         internal IEnumerable<Type> SubscriptionTypes => _subscribes.Keys;
 
         internal IEnumerable<Type> AllSystems =>
             _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()))
-                .Concat(_eventSystems.SelectMany(kvp => kvp.Value.AllSystems));
+                .Concat(
+                    _runEventSystems.SelectMany(kvp =>
+                        kvp.Value.SelectMany(p => p.Value.Select(w => w.system.GetType()))
+                    )
+                );
 
-        internal SystemsGroup()
+        public int Order { get; private set; }
+
+        public SystemsGroup(int order)
         {
-            foreach (var type in _systemTypes)
-            {
-                _systems[type] = new List<ISystem>(64);
-            }
+            Order = order;
         }
 
         internal void PreInit(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IPreInitSystem)])
-            {
-                try
-                {
-                    ((IPreInitSystem)s).PreInit();
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
-            }
+            CallSystems<IPreInitSystem>(world, s => s.PreInit());
         }
 
         internal void Init(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IInitSystem)])
-            {
-                try
-                {
-                    ((IInitSystem)s).Init();
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
-            }
+            CallSystems<IInitSystem>(world, s => s.Init());
         }
 
         internal void Activate(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IActivateSystem)])
-            {
-                try
-                {
-                    ((IActivateSystem)s).Activate();
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
-            }
+            CallSystems<IActivateSystem>(world, s => s.Activate());
         }
 
         internal void Run(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IRunSystem)])
+            CallSystems<IRunSystem>(world, s => s.Run());
+        }
+
+        public void CallSystems<TSystemType>(DataWorld world, Action<TSystemType> call)
+        {
+            if (!_systems.TryGetValue(typeof(TSystemType), out var systems))
+                return;
+
+            foreach (var s in systems)
             {
                 try
                 {
-                    ((IRunSystem)s).Run();
+                    call((TSystemType)s);
                 }
                 catch (Exception e)
                 {
                     world.Logger.RethrowException(e);
                 }
             }
+        }
+
+        public async Task CallSystemsAsync<TSystemType>(DataWorld world, Func<TSystemType, Task> call)
+        {
+            if (!_systems.TryGetValue(typeof(TSystemType), out var systems))
+                return;
+
+            _tasks.Clear();
+            foreach (var s in systems)
+            {
+                try
+                {
+                    _tasks.Add(call((TSystemType)s));
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
+
+            await Task.WhenAll(_tasks);
         }
 
         internal void RunPhysic(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IRunPhysicSystem)])
-            {
-                try
-                {
-                    ((IRunPhysicSystem)s).RunPhysic();
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
-            }
+            CallSystems<IRunPhysicSystem>(world, s => s.RunPhysic());
         }
 
         internal void PostRun(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IPostRunSystem)])
-            {
-                try
-                {
-                    ((IPostRunSystem)s).PostRun();
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
-            }
+            CallSystems<IPostRunSystem>(world, s => s.PostRun());
         }
 
         internal void Deactivate(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IDeactivateSystem)])
-            {
-                try
-                {
-                    ((IDeactivateSystem)s).Deactivate();
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
-            }
+            CallSystems<IDeactivateSystem>(world, s => s.Deactivate());
         }
 
         internal void Destroy(DataWorld world)
         {
-            foreach (var s in _systems[typeof(IDestroySystem)])
-            {
-                try
-                {
-                    ((IDestroySystem)s).Destroy();
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
-            }
+            CallSystems<IDestroySystem>(world, s => s.Destroy());
         }
 
-        internal void Add(ISystem s)
+        internal void Add(ISystem s, EcsModule module)
         {
-            foreach (var type in _systemTypes)
+            foreach (var type in module.SystemTypes)
             {
                 if (type.IsInstanceOfType(s))
+                {
+                    if (!_systems.ContainsKey(type))
+                        _systems[type] = new List<ISystem>(32);
+
                     _systems[type].Add(s);
+                }
             }
 
-            CheckEvents(s);
+            CheckEvents(s, module.EventSystems);
             CheckSubscriptions(s);
         }
 
-        private void CheckEvents(ISystem s)
+        private void CheckEvents(ISystem s, Dictionary<Type, RunEventSystemDefinition> systemTypes)
         {
             if (s is not IEventSystem eventSystem) return;
 
@@ -181,22 +147,22 @@ namespace ModulesFramework.Systems
             {
                 if (!type.IsGenericType)
                     continue;
-                var isRun = type.GetInterface(nameof(IRunEventSystem)) != null;
-                var isPostRun = type.GetInterface(nameof(IPostRunEventSystem)) != null;
-                var isFrameEnd = type.GetInterface(nameof(IFrameEndEventSystem)) != null;
-                if (isRun || isPostRun || isFrameEnd)
+
+                var parentInterfaces = type.GetInterfaces();
+                foreach (var parentInterface in parentInterfaces)
                 {
+                    if (!systemTypes.ContainsKey(parentInterface))
+                        continue;
+                    
                     var eventType = type.GetGenericArguments()[0];
-                    _eventSystems.TryAdd(eventType, new EventSystems());
+                    if (!_runEventSystems.ContainsKey(eventType))
+                        _runEventSystems[eventType] = new Dictionary<Type, List<RunEventSystemWrapper>>();
 
-                    if (isRun)
-                        _eventSystems[eventType].AddRunEventSystem(eventSystem);
+                    if (!_runEventSystems[eventType].ContainsKey(parentInterface))
+                        _runEventSystems[eventType][parentInterface] = new List<RunEventSystemWrapper>();
 
-                    if (isPostRun)
-                        _eventSystems[eventType].AddPostRunEventSystem(eventSystem);
-
-                    if (isFrameEnd)
-                        _eventSystems[eventType].AddFrameEndEventSystem(eventSystem);
+                    var wrapper = new RunEventSystemWrapper(eventSystem, systemTypes[parentInterface]);
+                    _runEventSystems[eventType][parentInterface].Add(wrapper);
                 }
             }
         }
@@ -232,13 +198,20 @@ namespace ModulesFramework.Systems
             }
         }
 
-        internal void HandleEvent<T>(T ev, Type eventSystemType, DataWorld world) where T : struct
+        internal void HandleEvent<T>(T ev, Type systemType, DataWorld world) where T : struct
         {
             var eventType = typeof(T);
-            if (!_eventSystems.TryGetValue(eventType, out var systems))
+            if (!_runEventSystems.TryGetValue(eventType, out var systems))
                 return;
 
-            systems.HandleEvent(ev, eventSystemType, world);
+            if (!systems.TryGetValue(systemType, out var wrappers))
+                return;
+
+            foreach (var wrapper in wrappers)
+            {
+                world.Logger.LogDebug($"Handle event {eventType} by {wrapper.system.GetType()}", LogFilter.EventsFull);
+                wrapper.definition.systemInvoker.Invoke(ev, wrapper.system);
+            }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -251,7 +224,7 @@ namespace ModulesFramework.Systems
             {
                 if (isActivate != !isInit)
                     continue;
-                
+
                 if (!isInit && system is ISubscribeActivateSystem<T> activateSystem)
                     activateSystem.HandleEvent(ev);
 
@@ -265,10 +238,12 @@ namespace ModulesFramework.Systems
             return _systems[systemType];
         }
 
-        internal EventSystems GetEventSystems<T>() where T : struct
+        internal IEnumerable<Type> GetEventSystemsGenericTypes(Type eventType)
         {
-            var eventType = typeof(T);
-            return _eventSystems.GetValueOrDefault(eventType);
+            if (!_runEventSystems.TryGetValue(eventType, out var systems))
+                throw new ArgumentException($"Event {eventType} does not exists in systems group");
+
+            return systems.Select(p => p.Key);
         }
     }
 }

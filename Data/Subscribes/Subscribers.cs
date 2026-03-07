@@ -10,15 +10,15 @@ namespace ModulesFramework.Data.Subscribes
             = new SortedDictionary<int, List<SystemsGroup>>();
         private readonly Queue<SystemsGroup> _groupsToCall = new Queue<SystemsGroup>();
 
-        public void AddSystems(int order, SystemsGroup systemsGroup)
+        public void AddSystems(SystemsGroup systemsGroup)
         {
-            if (_subscribers.TryGetValue(order, out var systems))
+            if (_subscribers.TryGetValue(systemsGroup.Order, out var systems))
             {
                 systems.Add(systemsGroup);
                 return;
             }
 
-            _subscribers[order] = new List<SystemsGroup>
+            _subscribers[systemsGroup.Order] = new List<SystemsGroup>
             {
                 systemsGroup
             };

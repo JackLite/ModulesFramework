@@ -5,49 +5,59 @@ using ModulesFramework.Systems.Events;
 
 namespace ModulesFramework.Data.Events
 {
+    /// <summary>
+    ///     Common interface to run events
+    ///     Contains event and system group to handle it
+    /// </summary>
     internal interface IEventRunner
     {
         public Type EventType { get; }
-        public SystemsGroup SystemsGroup { get; }
-        public void Run<T>(DataWorld world) where T : IEventSystem;
-        public void RunSystem<T>(T system) where T : IEventSystem;
-        public IEnumerable<TSystem> GetSystems<TSystem>() where TSystem : IEventSystem;
+        public void AddSystemsGroup(SystemsGroup systemsGroup);
+        public void Invoke(DataWorld world);
+        public void RemoveSystemsGroup(SystemsGroup systemsGroup);
     }
 
-    internal class EventRunner<T> : IEventRunner where T : struct
+    internal abstract class EventRunner<TEvent> : IEventRunner where TEvent : struct
     {
-        private readonly T _ev;
-        public Type EventType => typeof(T);
-        public SystemsGroup SystemsGroup { get; }
+        protected readonly Queue<TEvent> events = new Queue<TEvent>();
 
-        public EventRunner(T ev, SystemsGroup systemsGroup)
+        public Type EventType => typeof(TEvent);
+        public abstract void AddSystemsGroup(SystemsGroup systemsGroup);
+        public abstract void RemoveSystemsGroup(SystemsGroup systemsGroup);
+        public abstract void Invoke(DataWorld world);
+
+        public void AddEvent(TEvent ev)
         {
-            _ev = ev;
-            SystemsGroup = systemsGroup;
+            events.Enqueue(ev);
+        }
+    }
+
+    internal class EventRunner<TEvent, TSystem> : EventRunner<TEvent> where TEvent : struct
+    {
+        private readonly SortedDictionary<int, SystemsGroup> _systemsGroups = new SortedDictionary<int, SystemsGroup>();
+
+        public override void AddSystemsGroup(SystemsGroup group)
+        {
+#if MODULES_DEBUG
+            if (_systemsGroups.ContainsKey(group.Order))
+                throw new ArgumentException($"Same order {group.Order} already exists", nameof(group.Order));
+#endif
+
+            _systemsGroups[group.Order] = group;
         }
 
-        void IEventRunner.Run<TSystem>(DataWorld world)
+        public override void RemoveSystemsGroup(SystemsGroup systemsGroup)
         {
-            SystemsGroup.HandleEvent(_ev, typeof(TSystem), world);
+            _systemsGroups.Remove(systemsGroup.Order);
         }
 
-        public void RunSystem<TSystem>(TSystem system) where TSystem : IEventSystem
+        public override void Invoke(DataWorld world)
         {
-            if (system is IRunEventSystem<T> runEventSystem)
-                runEventSystem.RunEvent(_ev);
-            else if (system is IPostRunEventSystem<T> postRunEventSystem)
-                postRunEventSystem.PostRunEvent(_ev);
-            else if (system is IFrameEndEventSystem<T> frameEndEventSystem)
-                frameEndEventSystem.FrameEndEvent(_ev);
-        }
-
-        public IEnumerable<TSystem> GetSystems<TSystem>() where TSystem : IEventSystem
-        {
-            var eventSystems = SystemsGroup.GetEventSystems<T>();
-            if (eventSystems == null)
-                return Array.Empty<TSystem>();
-
-            return eventSystems.GetEventSystems<TSystem>();
+            while (events.TryDequeue(out var ev))
+            {
+                foreach (var (_, systemsGroup) in _systemsGroups)
+                    systemsGroup.HandleEvent(ev, typeof(TSystem), world);
+            }
         }
     }
 }

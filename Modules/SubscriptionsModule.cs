@@ -43,17 +43,17 @@ namespace ModulesFramework.Modules
             return wasHandled;
         }
 
-        internal void RegisterSubscriber(Type eventType, SystemsGroup systemsGroup, int order, bool isInit = false)
+        internal void RegisterSubscriber(Type eventType, SystemsGroup systemsGroup, bool isInit = false)
         {
             var systemsList = isInit ? _subscribeInitSystems : _subscribeActivateSystems;
-            if (systemsList.TryGetValue(eventType, out var systems))
+            if (systemsList.TryGetValue(eventType, out var subscribers))
             {
-                systems.AddSystems(order, systemsGroup);
+                subscribers.AddSystems(systemsGroup);
                 return;
             }
 
-            var subscribers = new Subscribers();
-            subscribers.AddSystems(order, systemsGroup);
+            subscribers = new Subscribers();
+            subscribers.AddSystems(systemsGroup);
             systemsList[eventType] = subscribers;
         }
 

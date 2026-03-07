@@ -1,10 +1,10 @@
 ## What is ModulesFramework
 
-**Modules** is a low-level framework that allows you to build your project based on maintanable and transparent types of objects. It allows you to focus on the product instead of wastign your time on code fundament.
+**Modules** is a low-level framework that allows you to build your project based on maintainable and transparent types of objects. It allows you to focus on the product instead of wastign your time on code fundament.
 
 ## Why ModulesFramework
 
-Every programm in this world works with a data. It tooks the data from one place and put it in another form into another place. The more easily you can work with your data the more fast and effectively you will create your product.
+Every program in this world works with a data. It tooks the data from one place and put it in another form into another place. The more easily you can work with your data the more fast and effectively you will create your product.
 
 ModulesFramework uses data-driven approach with ECS support with focus on modularity and simplicity of creating and changing your project. It gives you small kit of abstraction that's enough to create anything you want. You can create very complex project while saving maintainability of it. You can reuse modules between projects withou modifying them. You can create your own architecture sustainable exactly for your project without being limited by framework. You can start with simple simple components and systems and then refactor them without changing architecture, i.e. you can create prototype without throwing them later in a trash.
 
@@ -38,7 +38,7 @@ instead of mix some classic architecture pattern and ECS.
 
 
 
-## <a id="getting-started"/> Getting started
+## <a id="getting-started"> Getting started</a>
 
 This is all abstraction that you need to create anything you want with MF.
 
@@ -497,6 +497,159 @@ _world.RegisterListener<SomeEvent>(MyEventListener listener);
 //unsubscribe 
 _world.UnregisterListener<SomeEvent>(MyEventListener listener);
 ```
+
+### <a id="gs-custom-systems" > Custom Systems </a>
+
+Though in MF there are many types of systems, sometimes it's good to create your own system type.
+For example, if you want the specific control of execution order in the whole game: input processing, game logic, visual updating.
+
+Here's an example how to do this.
+
+```csharp
+// any custom system have to implement interface ISystem
+public interface IInputSystem : ISystem
+{
+    void ProcessInput();
+}
+
+public interface IUpdateViewSystem : ISystem
+{
+    void UpdateView();
+}
+
+public class BaseModule : EcsModule 
+{
+    public override HashSet<Type> GetSystemTypes()
+    {
+        var existed = base.GetSystemTypes();
+        existed.Add(typeof(IInputSystem));
+        return existed;
+    }
+    
+    public override void RunSystems()
+    {
+        // run our input systems
+        CallSystems<IInputSystem>(s => s.ProcessInput());
+        // run usual run systems (IRunSystem)
+        base.RunSystems();
+        // run our update view systems
+        CallSystems<IUpdateViewSystem>(s => s.UpdateView());
+    }
+}
+```
+
+There is a similar way to do this for other module lifetimes steps:
+
+```csharp
+public class BaseModule : EcsModule 
+{
+    public override void PreInitSystems(){}
+    public override void InitSystems(){}
+    public override void ActivateSystems(){}
+    public override void DeactivateSystems(){}
+    public override void DestroySystems();
+}
+```
+
+You can also call your systems in a particular moment if you want. 
+
+```csharp
+public interface IAfterSetupSystem : ISystem
+{
+    public Task InitDependencies();
+}
+
+public class BaseModule : EcsModule 
+{
+    public override async Task OnSetupEnd()
+    {
+        foreach (var system in GetSystems<IAfterSetupSystem>())
+            await system.InitDependencies();
+        
+        // or
+        
+        await CallSystemsAsync<IAfterSetupSystem>(s => s.InitDependencies());
+    }
+    
+    public override List<Type> GetSystemTypes()
+    {
+        var existed = base.GetSystemTypes();
+        existed.Add(typeof(IAfterSetupSystem));
+        return existed;
+    }
+}
+```
+
+And more: you can create your own event systems to handle events in a very specific moment.
+
+```csharp
+// this interface using for registration
+public interface IUIEventSystem : IEventSystem {}
+
+// generic interface for any type of event
+public interface IUIEventSystem<TEvent> : IUIEventSystem
+{
+    public void UIProcessEvent(TEvent ev);
+}
+
+// we need to specify how to call our system
+public class UIEventSystemInvoker : IRunEventSystemInvoker
+{
+    public void Invoke<TEvent>(TEvent ev, IEventSystem system) where TEvent : struct
+    {
+        ((IUIEventSystem<TEvent>)system).UIProcessEvent(ev);
+    }
+}
+
+public class BaseModule : EcsModule 
+{
+    protected override Dictionary<Type, RunEventSystemDefinition> GetEventSystems()
+    {
+        // do not forget use base method
+        var baseList = base.GetEventSystems();
+        var systemDefinition = new RunEventSystemDefinition(new UIEventSystemInvoker());
+        baseList[typeof(IUIEventSystem)] = systemDefinition;
+        return baseList;
+    }
+    
+    public void CallUIEventProcessing()
+    {
+        // no reflection underhood when calling
+        CallEventSystems(typeof(IUIEventSystem));
+    }
+}
+```
+
+All examples before was about module-scoped system types. You can also add global-scoped system types.
+
+```csharp
+// registration
+MF.RegisterSystemType<IPhysicRunSystem>();
+
+// somewhere in physic simulation
+MF.CallCustomSystems<IPhysicRunSystem>();
+```
+You can also call systems of another module, that's may be useful in some architectures.
+```csharp
+public interface IWeatherSystem : ISystem 
+{
+    public void SimulateWeather();
+}
+
+[EcsSystem(typeof(MainGameModule))]
+public class SunSystem : IWeatherSystem 
+{
+    // implemetation
+}
+
+// in some time controlling service
+// one time per second because it's useless to do it every frame
+_world.GetModule<MainGameModule>().CallCustomSystems<IWeatherSystem>();
+```
+
+Order of custom systems works the same way as for any other systems. 
+
+This is a powerful tool to make architecture more domain-specific. 
 
 ### <a id="gs-indices"/> Keys
 
