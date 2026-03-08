@@ -34,16 +34,6 @@ namespace ModulesFramework.Modules
             RunEvents(eventType, typeof(IRunEventSystem));
         }
 
-        internal void PostRunEvents(Type eventType)
-        {
-            RunEvents(eventType, typeof(IPostRunEventSystem));
-        }
-
-        internal void FrameEndEvents(Type eventType)
-        {
-            RunEvents(eventType, typeof(IFrameEndEventSystem));
-        }
-
         private void RunEvents(Type eventType, Type systemType)
         {
             if (!_eventRunners.TryGetValue(eventType, out var eventRunners))

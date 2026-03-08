@@ -1,7 +1,4 @@
-﻿using System;
-using ModulesFramework.Modules;
-
-namespace ModulesFramework.Systems.Events
+﻿namespace ModulesFramework.Systems.Events
 {
     /// <summary>
     ///     Definition of an event system.
@@ -10,15 +7,10 @@ namespace ModulesFramework.Systems.Events
     public readonly struct RunEventSystemDefinition
     {
         public readonly IRunEventSystemInvoker systemInvoker;
-        public readonly Type activeModuleState;
 
-        public RunEventSystemDefinition(IRunEventSystemInvoker systemInvoker, bool isActiveInInit = false)
+        public RunEventSystemDefinition(IRunEventSystemInvoker systemInvoker)
         {
             this.systemInvoker = systemInvoker;
-            if (isActiveInInit)
-                activeModuleState = typeof(ModuleRunningState);
-            else
-                activeModuleState = typeof(ModuleInitializedState);
         }
     }
 }

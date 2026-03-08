@@ -15,6 +15,7 @@ namespace ModulesFramework.Data.Events
         public void AddSystemsGroup(SystemsGroup systemsGroup);
         public void Invoke(DataWorld world);
         public void RemoveSystemsGroup(SystemsGroup systemsGroup);
+        public void Clear();
     }
 
     internal abstract class EventRunner<TEvent> : IEventRunner where TEvent : struct
@@ -24,6 +25,11 @@ namespace ModulesFramework.Data.Events
         public Type EventType => typeof(TEvent);
         public abstract void AddSystemsGroup(SystemsGroup systemsGroup);
         public abstract void RemoveSystemsGroup(SystemsGroup systemsGroup);
+        public void Clear()
+        {
+            events.Clear();
+        }
+
         public abstract void Invoke(DataWorld world);
 
         public void AddEvent(TEvent ev)

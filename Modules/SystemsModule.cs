@@ -51,7 +51,7 @@ namespace ModulesFramework.Modules
         {
             return new Dictionary<Type, RunEventSystemDefinition>
             {
-                { typeof(IRunEventSystem), new RunEventSystemDefinition(new RunEventSystemInvoker(), false) }
+                { typeof(IRunEventSystem), new RunEventSystemDefinition(new RunEventSystemInvoker()) }
             };
         }
 

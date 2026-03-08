@@ -269,6 +269,13 @@ namespace ModulesFramework.Modules
             // _runEvents.Clear();
             // _postRunEvents.Clear();
             // _frameEndEvents.Clear();
+            foreach (var (_, runners) in _eventRunners)
+            {
+                foreach (var (_, runner) in runners)
+                {
+                    runner.Clear();
+                }
+            }
             DeactivateSystems();
             foreach (var p in _systems)
             {
@@ -330,91 +337,6 @@ namespace ModulesFramework.Modules
             foreach (var p in _systemsArr)
             {
                 p.Run(world);
-            }
-        }
-
-        /// <summary>
-        /// Just call RunPhysics at systems
-        /// </summary>
-        internal void RunPhysics()
-        {
-            if (!IsActive)
-                return;
-
-            foreach (var module in _composedModules)
-            {
-                module.RunPhysics();
-            }
-
-            foreach (var p in _systemsArr)
-            {
-                p.RunPhysic(world);
-            }
-
-            foreach (var group in _submodulesGroups)
-            {
-                foreach (var submodule in group.modules)
-                {
-                    submodule.RunPhysics();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Just call RunLate at systems
-        /// </summary>
-        internal void PostRun()
-        {
-            if (!IsActive)
-                return;
-
-            foreach (var module in _composedModules)
-            {
-                module.PostRun();
-            }
-
-            foreach (var p in _systemsArr)
-            {
-                foreach (var eventType in p.EventTypes)
-                    PostRunEvents(eventType);
-            }
-
-            foreach (var p in _systemsArr)
-            {
-                p.PostRun(world);
-            }
-
-            foreach (var group in _submodulesGroups)
-            {
-                foreach (var submodule in group.modules)
-                {
-                    submodule.PostRun();
-                }
-            }
-        }
-
-        internal void FrameEnd()
-        {
-            if (!IsActive)
-                return;
-
-            foreach (var module in _composedModules)
-            {
-                module.FrameEnd();
-            }
-
-            foreach (var p in _systemsArr)
-            {
-                foreach (var eventType in p.EventTypes)
-                    FrameEndEvents(eventType);
-            }
-
-            foreach (var group in _submodulesGroups)
-            {
-                foreach (var submodule in group.modules)
-                {
-                    submodule.FrameEnd();
-                }
             }
         }
 
