@@ -55,7 +55,7 @@ namespace ModulesFramework.Modules
             };
         }
 
-        protected virtual void CallSystems<TSystemType>(Action<TSystemType> call, bool includeSubmodules = true)
+        public virtual void CallSystems<TSystemType>(Action<TSystemType> call, bool includeSubmodules = true)
         {
             if (!_isSetup)
             {
@@ -64,6 +64,15 @@ namespace ModulesFramework.Modules
                     $"You can't run systems before setup finished. Use {nameof(OnSetupEnd)} or {nameof(PreInitSystems)}"
                 );
             }
+
+#if MODULES_DEBUG
+            if (!SystemTypes.Contains(typeof(TSystemType)))
+            {
+                world.Logger.LogWarning(
+                    $"Module {ConcreteType.GetTypeName()} tries to call {typeof(TSystemType)} systems" +
+                    $" but this type is not registered");
+            }
+#endif
 
             foreach (var (_, group) in _systems)
             {
@@ -82,7 +91,7 @@ namespace ModulesFramework.Modules
             }
         }
 
-        protected virtual async Task CallSystemsAsync<TSystemType>(Func<TSystemType, Task> call)
+        public virtual async Task CallSystemsAsync<TSystemType>(Func<TSystemType, Task> call)
         {
             if (!_isSetup)
             {

@@ -21,6 +21,7 @@ instead of mix some classic architecture pattern and ECS.
 - [Submodules](#gs-submodules)
 - [Composition of modules](#gs-composition-modules)
 - [Dependency Injection](#gs-di)
+- [Custom Systems](#gs-custom-systems)
 - [Multiple Components](#gs-multiple)
 - [Multiple Worlds](#gs-multiple-worlds)
 #### FAQ
@@ -468,7 +469,7 @@ systems.
 #### Subscriptions
 
 Sometimes you want more classic events.
-For example, if you're making ActionRPG game,
+For example, if you're making an ActionRPG game,
 you may have very complex damage logic with buffs from several sources like equipment and spells.
 In this case, you can, and you should use subscription systems. 
 
@@ -498,9 +499,10 @@ _world.RegisterListener<SomeEvent>(MyEventListener listener);
 _world.UnregisterListener<SomeEvent>(MyEventListener listener);
 ```
 
-### <a id="gs-custom-systems" > Custom Systems </a>
+<a id="gs-custom-systems"></a>
+### Custom Systems
 
-Though in MF there are many types of systems, sometimes it's good to create your own system type.
+Though in MF there are many types of systems, sometimes it's good to create your own.
 For example, if you want the specific control of execution order in the whole game: input processing, game logic, visual updating.
 
 Here's an example how to do this.
@@ -547,14 +549,14 @@ public class BaseModule : EcsModule
     public override void InitSystems(){}
     public override void ActivateSystems(){}
     public override void DeactivateSystems(){}
-    public override void DestroySystems();
+    public override void DestroySystems(){}
 }
 ```
 
 You can also call your systems in a particular moment if you want. 
 
 ```csharp
-public interface IAfterSetupSystem : ISystem
+public interface IOnSetupSystem : ISystem
 {
     public Task InitDependencies();
 }
@@ -627,7 +629,7 @@ All examples before was about module-scoped system types. You can also add globa
 MF.RegisterSystemType<IPhysicRunSystem>();
 
 // somewhere in physic simulation
-MF.CallCustomSystems<IPhysicRunSystem>();
+MF.CallSystems<IPhysicRunSystem>();
 ```
 You can also call systems of another module, that's may be useful in some architectures.
 ```csharp
@@ -644,14 +646,15 @@ public class SunSystem : IWeatherSystem
 
 // in some time controlling service
 // one time per second because it's useless to do it every frame
-_world.GetModule<MainGameModule>().CallCustomSystems<IWeatherSystem>();
+_world.GetModule<MainGameModule>().CallSystems<IWeatherSystem>();
 ```
 
 Order of custom systems works the same way as for any other systems. 
 
-This is a powerful tool to make architecture more domain-specific. 
+This is a powerful tool to make architecture more domain-specific.
 
-### <a id="gs-indices"/> Keys
+<a id="gs-indices"/></a>
+### Keys
 
 Sometimes you may want to get a particular component (or entity) by particular field.
 The most common case is when you have some unique id for game entity in online game, and you want to send some message with that id from server to client.
