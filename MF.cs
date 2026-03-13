@@ -113,33 +113,6 @@ namespace ModulesFramework
             }
         }
 
-        public void PostRun()
-        {
-            if (!_isInitialized)
-                return;
-
-            foreach (var world in _worldsMap.Values)
-            {
-                world.PostRun();
-            }
-
-            foreach (var world in _worldsMap.Values)
-            {
-                world.FrameEnd();
-            }
-        }
-
-        public void RunPhysic()
-        {
-            if (!_isInitialized)
-                return;
-
-            foreach (var world in _worldsMap.Values)
-            {
-                world.RunPhysic();
-            }
-        }
-
         public void Destroy()
         {
             if (!_isInitialized)

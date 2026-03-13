@@ -8,110 +8,67 @@ namespace ModulesFramework.Modules
 {
     public abstract partial class EcsModule
     {
-        private readonly Dictionary<Type, List<SystemsGroup>> _eventListeners = new();
-
-        private readonly Dictionary<Type, Queue<IEventRunner>> _runEvents = new();
-        private readonly Dictionary<Type, Queue<IEventRunner>> _postRunEvents = new();
-        private readonly Dictionary<Type, Queue<IEventRunner>> _frameEndEvents = new();
+        // type of event -> (type of system -> list of runners)
+        private readonly Dictionary<Type, Dictionary<Type, IEventRunner>> _eventRunners = new();
 
         /// <summary>
-        ///     Return true if event has listener
+        ///     Return true if the event has a runner
         /// </summary>
-        public bool AddEvent<T>(T ev) where T : struct
+        public bool RegisterEvent<T>(T ev) where T : struct
         {
-            if (!IsActivating)
-                return false;
             var type = typeof(T);
 
-            if (!_eventListeners.ContainsKey(type))
+            if (!_eventRunners.TryGetValue(type, out var eventRunners))
                 return false;
-            CheckRunEventType(type);
-            var wasAdded = false;
-            foreach (var systemsGroup in _eventListeners[type])
+
+            foreach (var (_, runner) in eventRunners)
             {
-                wasAdded = true;
-                var runner = new EventRunner<T>(ev, systemsGroup);
-                _runEvents[type].Enqueue(runner);
-                _postRunEvents[type].Enqueue(runner);
-                _frameEndEvents[type].Enqueue(runner);
+                ((EventRunner<T>)runner).AddEvent(ev);
             }
 
-            return wasAdded;
-        }
-
-        internal void DequeueRunEventRunner(Type eventType)
-        {
-            _runEvents[eventType].Dequeue();
-        }
-
-        internal void DequeuePostRunEventRunner(Type eventType)
-        {
-            _postRunEvents[eventType].Dequeue();
-        }
-
-        internal void DequeueFrameEndEventRunner(Type eventType)
-        {
-            _frameEndEvents[eventType].Dequeue();
-        }
-
-        private void CheckRunEventType(Type type)
-        {
-            CreateQueueIfNeed(type, _runEvents);
-            CreateQueueIfNeed(type, _postRunEvents);
-            CreateQueueIfNeed(type, _frameEndEvents);
-        }
-
-        private void CreateQueueIfNeed(Type type, Dictionary<Type, Queue<IEventRunner>> runners)
-        {
-            runners.TryAdd(type, new Queue<IEventRunner>());
+            return true;
         }
 
         internal void RunEvents(Type eventType)
         {
-            RunEvents<IRunEventSystem>(eventType, _runEvents);
+            RunEvents(eventType, typeof(IRunEventSystem));
         }
 
-        internal void PostRunEvents(Type eventType)
+        private void RunEvents(Type eventType, Type systemType)
         {
-            RunEvents<IPostRunEventSystem>(eventType, _postRunEvents);
-        }
-
-        internal void FrameEndEvents(Type eventType)
-        {
-            RunEvents<IFrameEndEventSystem>(eventType, _frameEndEvents);
-        }
-
-        private void RunEvents<TSystem>(Type eventType, Dictionary<Type, Queue<IEventRunner>> runners)
-            where TSystem : IEventSystem
-        {
-            if (!runners.TryGetValue(eventType, out var queue))
+            if (!_eventRunners.TryGetValue(eventType, out var eventRunners))
                 return;
-            while (queue.Count > 0)
+
+            if (!eventRunners.TryGetValue(systemType, out var runner))
+                return;
+
+            runner.Invoke(world);
+        }
+
+        private void RegisterSystemsGroupForEvent(Type eventType, Type systemType, SystemsGroup systemsGroup)
+        {
+            if (!_eventRunners.ContainsKey(eventType))
+                _eventRunners[eventType] = new Dictionary<Type, IEventRunner>();
+
+            if (!_eventRunners[eventType].ContainsKey(systemType))
             {
-                var runner = queue.Dequeue();
-                try
-                {
-                    runner.Run<TSystem>(world);
-                }
-                catch (Exception e)
-                {
-                    world.Logger.RethrowException(e);
-                }
+                var runnerType = typeof(EventRunner<,>).MakeGenericType(eventType, systemType);
+                var runner = (IEventRunner)Activator.CreateInstance(runnerType)!;
+                _eventRunners[eventType][systemType] = runner;
             }
+
+            _eventRunners[eventType][systemType].AddSystemsGroup(systemsGroup);
         }
 
-        private void RegisterListener(Type eventType, SystemsGroup systemsGroup)
+        private void UnregisterSystemsGroupForEvent(Type eventType, Type systemType, SystemsGroup systemsGroup)
         {
-            if (!_eventListeners.ContainsKey(eventType))
-                _eventListeners[eventType] = new List<SystemsGroup>(64);
-            _eventListeners[eventType].Add(systemsGroup);
-        }
+            if (!_eventRunners.TryGetValue(eventType, out var runners))
+                return;
 
-        private void UnregisterListener(Type eventType, SystemsGroup listener)
-        {
-            if (!_eventListeners.ContainsKey(eventType))
-                _eventListeners[eventType] = new List<SystemsGroup>(64);
-            _eventListeners[eventType].Remove(listener);
+            if (!runners.ContainsKey(systemType))
+                return;
+
+            _eventRunners[eventType][systemType].RemoveSystemsGroup(systemsGroup);
         }
     }
 }

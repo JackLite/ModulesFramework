@@ -1,17 +1,27 @@
 ## What is ModulesFramework
 
-**Modules** is a low-level framework that allows you to build your project based on maintanable and transparent types of objects. It allows you to focus on the product instead of wastign your time on code fundament.
+**Modules** is a low-level framework that allows you to build your project based on maintainable and transparent types of objects. It allows you to focus on the product instead of wastign your time on code fundament.
 
 ## Why ModulesFramework
 
-Every programm in this world works with a data. It tooks the data from one place and put it in another form into another place. The more easily you can work with your data the more fast and effectively you will create your product.
+Every program in this world works with a data. It tooks the data from one place and put it in another form into another place. The more easily you can work with your data the more fast and effectively you will create your product.
 
-ModulesFramework uses data-driven approach with ECS support with focus on modularity and simplicity of creating and changing your project. It gives you small kit of abstraction that's enough to create anything you want. You can create very complex project while saving maintainability of it. You can reuse modules between projects withou modifying them. You can create your own architecture sustainable exactly for your project without being limited by framework. You can start with simple simple components and systems and then refactor them without changing architecture, i.e. you can create prototype without throwing them later in a trash.
+Modules Framework (MF) uses a data-driven approach with ECS support. 
+It focuses on the modularity and simplicity of creating and changing your project. 
+MF gives you a small kit of abstraction that's enough to create anything you want. 
+You can create very complex project while saving maintainability of it. 
+You can reuse modules between projects without modifying them. 
+You can create your own architecture sustainable exactly for your project without being 
+limited by framework. You can start with basic components and systems and 
+then refactor them without changing architecture, i.e., 
+you can create a prototype without throwing them later in trash.
 
 ### N.B.
 
-MF is not a pure ECS framework! Instead it has ECS pattern as part and allows you to develop whole project 
-basing only at one collection of abstractions. In another words it gives you homogeneous architecture 
+MF is not a pure ECS framework! 
+Instead it has ECS pattern as part and allows you to develop whole project 
+basing only at one collection of abstractions. 
+In another words it gives you homogeneous architecture 
 instead of mix some classic architecture pattern and ECS.
 
 - [Queries](#gs-queries)
@@ -21,6 +31,7 @@ instead of mix some classic architecture pattern and ECS.
 - [Submodules](#gs-submodules)
 - [Composition of modules](#gs-composition-modules)
 - [Dependency Injection](#gs-di)
+- [Custom Systems](#gs-custom-systems)
 - [Multiple Components](#gs-multiple)
 - [Multiple Worlds](#gs-multiple-worlds)
 #### FAQ
@@ -38,7 +49,7 @@ instead of mix some classic architecture pattern and ECS.
 
 
 
-## <a id="getting-started"/> Getting started
+## <a id="getting-started"> Getting started</a>
 
 This is all abstraction that you need to create anything you want with MF.
 
@@ -234,8 +245,7 @@ And finally death system.
 
 ```csharp
 [EcsSystem(typeof(BattleModule))] // bind system to module
-// use IPostRunSystem to proceed entities after all IRunSystem-s 
-public class DeathSystem : IPostRunSystem
+public class DeathSystem : IRunSystem
 {
     private DataWorld _world;
     
@@ -350,11 +360,11 @@ public class StartupModule : EcsModule
 ```
 ```csharp
 [EcsSystem(typeof(BattleModule))] 
-public class DeathSystem : IPostRunSystem
+public class DeathSystem : IRunSystem
 {
     private DataWorld _world;
     
-    public void PostRun()
+    public void Run()
     {
         using var query = _world.Select<DeadTag>();
         // get Wallet one data 
@@ -405,11 +415,12 @@ something like this.
 It's good to keep such logic in a separated system.
 Usually in classic OOP approach event concept is using it for such a thing.
 In pure ECS frameworks instead of events there is
-entity that exists for only one frame (one frame entity) and systems are trying to find that entity
+entity that exists for only one frame (one frame entity) 
+and systems are trying to find that entity
 in `Run()` or `PostRun()`.
 Often it makes you create system chains by ordering them
 or invent some other way to guarantee that every system proceeds this "one-frame entity."
-ModulesFramework uses other way - event systems.
+ModulesFramework uses another way - event systems.
 
 Event is struct like any other component.
 ```csharp
@@ -421,11 +432,11 @@ public struct GameOverEvent
 Fire event is simple:
 ```csharp
 [EcsSystem(typeof(BattleModule))] 
-public class DeathSystem : IPostRunSystem
+public class DeathSystem : IRunSystem
 {
     private DataWorld _world;
     
-    public void PostRun()
+    public void Run()
     {
         // other code
         foreach(var entity in query.GetEntities())
@@ -433,9 +444,9 @@ public class DeathSystem : IPostRunSystem
             if (entity.HasComponent<PlayerTag>())
                 // if event is empty we can use _world.RiseEvent<EventType>()
                 _world.RiseEvent(new GameOverEvent 
-                    { 
-                          reason = GameOverReason.Dead 
-                    });
+                { 
+                      reason = GameOverReason.Dead 
+                });
             
             // other code
         }
@@ -456,19 +467,10 @@ public class DeathSystem : IRunEventSystem<GameOverEvent>
 Method `RunEvent<T>(T ev)` calls only when there is event.
 Every event system subscribes when module activated and unsubscribes when deactivated.
 
-There are three types of event systems. Every call in particular time:
-- `IRunEventSystem<T>` - calls **before** all `IRunSystem`s with the same order;
-- `IPostRunEventSystem<T>` - calls **after** all `IRunSystem`s (and `IRunEventSystem<T>`)
-and **before** all `IPostRunSystem`s with the same order;
-- `IFrameEndEventSystem<T>` - calls **after** all `IRunSystem`s and `IPostRunSystem`s
-systems.
-
-**Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()` so game over will be showing in *next* frame (i.e., next `MF.Run()` call) but **will not** be lost. 
-
 #### Subscriptions
 
 Sometimes you want more classic events.
-For example, if you're making ActionRPG game,
+For example, if you're making an ActionRPG game,
 you may have very complex damage logic with buffs from several sources like equipment and spells.
 In this case, you can, and you should use subscription systems. 
 
@@ -498,7 +500,183 @@ _world.RegisterListener<SomeEvent>(MyEventListener listener);
 _world.UnregisterListener<SomeEvent>(MyEventListener listener);
 ```
 
-### <a id="gs-indices"/> Keys
+<a id="gs-custom-systems"></a>
+### Custom Systems
+
+Though in MF there are many types of systems, sometimes it's good to create your own.
+For example, if you want the specific control of execution order in the whole game: input processing, game logic, visual updating.
+
+Here's an example how to do this.
+
+```csharp
+// any custom system have to implement interface ISystem
+public interface IInputSystem : ISystem
+{
+    void ProcessInput();
+}
+
+public interface IUpdateViewSystem : ISystem
+{
+    void UpdateView();
+}
+
+public class BaseModule : EcsModule 
+{
+    public override HashSet<Type> GetSystemTypes()
+    {
+        var existed = base.GetSystemTypes();
+        existed.Add(typeof(IInputSystem));
+        return existed;
+    }
+    
+    public override void RunSystems()
+    {
+        // run our input systems
+        CallSystems<IInputSystem>(s => s.ProcessInput());
+        // run usual run systems (IRunSystem)
+        base.RunSystems();
+        // run our update view systems
+        CallSystems<IUpdateViewSystem>(s => s.UpdateView());
+    }
+}
+```
+
+There is a similar way to do this for other module lifetimes steps:
+
+```csharp
+public class BaseModule : EcsModule 
+{
+    public override void PreInitSystems(){}
+    public override void InitSystems(){}
+    public override void ActivateSystems(){}
+    public override void DeactivateSystems(){}
+    public override void DestroySystems(){}
+}
+```
+
+You can also call your systems in a particular moment if you want. 
+
+```csharp
+public interface IOnSetupSystem : ISystem
+{
+    public Task InitDependencies();
+}
+
+public class BaseModule : EcsModule 
+{
+    public override async Task OnSetupEnd()
+    {
+        foreach (var system in GetSystems<IAfterSetupSystem>())
+            await system.InitDependencies();
+        
+        // or
+        
+        await CallSystemsAsync<IAfterSetupSystem>(s => s.InitDependencies());
+    }
+    
+    public override List<Type> GetSystemTypes()
+    {
+        var existed = base.GetSystemTypes();
+        existed.Add(typeof(IAfterSetupSystem));
+        return existed;
+    }
+}
+```
+
+And more: you can create your own event systems to handle events in a very specific moment.
+
+```csharp
+// this interface using for registration
+public interface IUIEventSystem : IEventSystem {}
+
+// generic interface for any type of event
+public interface IUIEventSystem<TEvent> : IUIEventSystem
+{
+    public void UIProcessEvent(TEvent ev);
+}
+
+// we need to specify how to call our system
+public class UIEventSystemInvoker : IRunEventSystemInvoker
+{
+    public void Invoke<TEvent>(TEvent ev, IEventSystem system) where TEvent : struct
+    {
+        ((IUIEventSystem<TEvent>)system).UIProcessEvent(ev);
+    }
+}
+
+public class BaseModule : EcsModule 
+{
+    protected override Dictionary<Type, RunEventSystemDefinition> GetEventSystems()
+    {
+        // do not forget use base method
+        var baseList = base.GetEventSystems();
+        var systemDefinition = new RunEventSystemDefinition(new UIEventSystemInvoker());
+        baseList[typeof(IUIEventSystem)] = systemDefinition;
+        return baseList;
+    }
+    
+    public void CallUIEventProcessing()
+    {
+        // no reflection underhood when calling
+        CallEventSystems(typeof(IUIEventSystem));
+    }
+}
+```
+
+All examples before were about module-scoped system types. 
+You can also add world-scoped system types.
+
+```csharp
+// registration
+_world.RegisterSystemType<IPhysicRunSystem>();
+
+// somewhere in physic simulation
+_world.CallSystems<IPhysicRunSystem>();
+```
+You can also call systems of another module, that's may be useful in some architectures.
+```csharp
+public interface IWeatherSystem : ISystem 
+{
+    public void SimulateWeather();
+}
+
+[EcsSystem(typeof(MainGameModule))]
+public class SunSystem : IWeatherSystem 
+{
+    // implemetation
+}
+
+// in some time controlling service
+// one time per second because it's useless to do it every frame
+_world.GetModule<MainGameModule>().CallSystems<IWeatherSystem>();
+```
+
+Order of custom systems works the same way as for any other systems. In case 
+of global custom systems (systems marked with `GlobalSystemAttribute`) 
+they MUST be registered before calling `Start()` method in `DataWorld` object.
+
+```csharp
+// example with main world
+var mf = new MF();
+// main world always exists after MF is created
+mf.MainWorld.RegisterSystemType<IPostRunSystem>();
+// here's we actually starts the worlds
+await mf.Start();
+// the next registration is valid only for non-initialized modules
+_world.RegisterSystemType<ISomeAnotherSystem>();
+
+// example with another world
+var world = mf.CreateWorld("SecondWorld");
+// world are not started yet so we can register systems type
+world.RegisterSystemType<ISomeUsefulSystem>();
+// and here we start the world and our GlobalSystems registered
+await world.Start();
+```
+
+This is a powerful tool to make architecture more domain-specific.
+
+<a id="gs-indices"/></a>
+### Keys
 
 Sometimes you may want to get a particular component (or entity) by particular field.
 The most common case is when you have some unique id for game entity in online game, and you want to send some message with that id from server to client.
@@ -1062,13 +1240,7 @@ every `IPreInitSystem`s works;
 - `IActivateSystem` - calls once when module activated;
 - `IDeactivateSystem` - calls once when module deactivated;
 - `IRunSystem` - calls every `MF.Run()`;
-- `IPostRunSystem` - calls every `MF.PostRun()`;
-- `IRunPhysicSystem` - calls every `MF.RunPhysic()`;
 - `IRunEventSystem<T>` - calls *before* `IRunSystem` if event `T` was raised;
-- `IPostRunEventSystem<T>` - calls *after* `IRunSystem` and *before*
-`IPostRunSystem` if event `T` was raised;
-- `IFrameEndEventSystem<T>` - calls *after* `IPostRunSystem` if event `T` 
-was raised;
 - `IDestroySystem` - calls once when module destroyed; 
 
 ### MF
@@ -1078,8 +1250,6 @@ was raised;
 - `DataWorld MainWorld` - world at 0 index;
 - `async void Start()` - inits and activate all global modules (all exceptions checks internally);
 - `void Run()` - calls `Run()` on `IRunSystem`;
-- `void PostRun()` - calls `PostRun()` on `IPostRunSystem`;
-- `void RunPhysic()` - calls `RunPhysic()` on `IRunPhysicSystem`;
 - `void Destroy()` - destroys all modules;
 - `DataWorld GetWorld(int index)` - returns world by index;
 

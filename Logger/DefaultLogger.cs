@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace ModulesFramework
 {
@@ -39,6 +39,7 @@ namespace ModulesFramework
 
         public virtual void RethrowException(Exception e)
         {
+            Console.WriteLine(e.StackTrace);
             throw e;
         }
 

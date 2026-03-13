@@ -47,45 +47,6 @@ namespace ModulesFramework.Data
                     module.Run();
             }
         }
-
-        /// <summary>
-        ///     Physic tick (IRunPhysicSystem) 
-        /// </summary>
-        public void RunPhysic()
-        {
-            _embeddedGlobalModule.RunPhysics();
-            foreach (var module in _modules.Values)
-            {
-                if (module.IsRoot)
-                    module.RunPhysics();
-            }
-        }
-
-        /// <summary>
-        ///     Post or late update tick (IPostRunSystem and IPostRunEventSystem)
-        /// </summary>
-        public void PostRun()
-        {
-            _embeddedGlobalModule.PostRun();
-            foreach (var module in _modules.Values)
-            {
-                if (module.IsRoot)
-                    module.PostRun();
-            }
-        }
-
-        /// <summary>
-        ///     Frame end tick (IFrameEndEventSystem)
-        /// </summary>
-        public void FrameEnd()
-        {
-            _embeddedGlobalModule.FrameEnd();
-            foreach (var module in _modules.Values)
-            {
-                if (module.IsRoot)
-                    module.FrameEnd();
-            }
-        }
         
         /// <summary>
         ///     Deactivate and destroys all modules, clear all OneData, components and entities<br/>

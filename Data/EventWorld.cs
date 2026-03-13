@@ -64,7 +64,7 @@ namespace ModulesFramework.Data
             var isSubscribersExists = false;
             if (module.IsRoot)
                 isSubscribersExists = module.RunSubscribers(ev);
-            var isHandlerExists = module.AddEvent(ev);
+            var isHandlerExists = module.RegisterEvent(ev);
             return isSubscribersExists || isHandlerExists;
         }
 

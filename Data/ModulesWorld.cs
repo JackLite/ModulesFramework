@@ -19,11 +19,9 @@ namespace ModulesFramework.Data
         private Dictionary<Type, List<Type>>? _allSystemTypes;
         private EmbeddedGlobalModule _embeddedGlobalModule;
 
-        public EmbeddedGlobalModule EmbeddedGlobalModule => _embeddedGlobalModule;
-
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
-        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// You must activate the module for IRunSystem
         /// </summary>
         /// <typeparam name="T">Type of module that you want to activate</typeparam>
         /// <seealso cref="ActivateModule{T}"/>
@@ -36,7 +34,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         /// Init module: call Setup() and GetDependencies()
-        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// You must activate the module for IRunSystem
         /// </summary>
         /// <seealso cref="ActivateModule{T}"/>
         /// <seealso cref="InitModule{T}"/>
@@ -48,7 +46,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         /// Init module asynchronously. Call Setup() and GetDependencies()
-        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// You must activate the module for IRunSystem
         /// </summary>
         /// <seealso cref="ActivateModule{T}"/>
         /// <seealso cref="InitModule{T}"/>
@@ -60,7 +58,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         /// Init module asynchronously. Call Setup() and GetDependencies()
-        /// You must activate module for IRunSystem, IRunPhysicSystem and IPostRunSystem
+        /// You must activate module for IRunSystem
         /// </summary>
         /// <seealso cref="ActivateModule{T}"/>
         /// <seealso cref="InitModule{T}"/>
@@ -95,7 +93,6 @@ namespace ModulesFramework.Data
         /// <summary>
         /// Destroy module: calls Deactivate() in module and Destroy() in IDestroy systems
         /// </summary>
-        /// <typeparam name="T">Type of module that you want to destroy</typeparam>
         public void DestroyModule(Type moduleType)
         {
             var module = GetModule(moduleType);
@@ -106,7 +103,7 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
+        /// Activate module: IRunSystem will start update
         /// </summary>
         /// <typeparam name="T">Type of module for activate</typeparam>
         /// <seealso cref="InitModule{T}"/>
@@ -117,7 +114,7 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        /// Activate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will start update
+        /// Activate module: IRunSystem will start update
         /// </summary>
         /// <seealso cref="InitModule{T}"/>
         /// <seealso cref="DeactivateModule{T}"/>
@@ -132,7 +129,7 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        /// Deactivate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will stop update
+        /// Deactivate module: IRunSystem will stop update
         /// </summary>
         /// <typeparam name="T">Type of module for deactivate</typeparam>
         /// <seealso cref="DestroyModule{T}"/>
@@ -143,7 +140,7 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
-        /// Deactivate module: IRunSystem, IRunPhysicSystem and IPostRunSystem will stop update
+        /// Deactivate module: IRunSystem will stop update
         /// </summary>
         /// <seealso cref="DestroyModule{T}"/>
         /// <seealso cref="ActivateModule{T}"/>
