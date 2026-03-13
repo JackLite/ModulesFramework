@@ -98,8 +98,7 @@ namespace ModulesFramework.Modules
 
             UpdateGlobalDependencies();
 
-            if (_createdSystem == null)
-                CreateSystems();
+            CreateSystemsGroup();
 
             foreach (var system in _createdSystem!)
                 InsertDependencies(system, world);
@@ -196,7 +195,7 @@ namespace ModulesFramework.Modules
 
         /// <summary>
         /// Turn on/off the module.
-        /// If false, IRunSystem, IRunPhysicSystem and IPostRunSystem will to be updated
+        /// If false, IRunSystem will to be updated
         /// </summary>
         /// <param name="isActive">Flag to turn on/off the module</param>
         internal void SetActive(bool isActive)

@@ -101,16 +101,6 @@ namespace ModulesFramework.Systems
             await Task.WhenAll(_tasks);
         }
 
-        internal void RunPhysic(DataWorld world)
-        {
-            CallSystems<IRunPhysicSystem>(world, s => s.RunPhysic());
-        }
-
-        internal void PostRun(DataWorld world)
-        {
-            CallSystems<IPostRunSystem>(world, s => s.PostRun());
-        }
-
         internal void Deactivate(DataWorld world)
         {
             CallSystems<IDeactivateSystem>(world, s => s.Deactivate());

@@ -2,7 +2,7 @@
 {
     /// <summary>
     ///     Definition of an event system.
-    ///     It describes when an event system is active, i.e., when it stores an event to handle it later.
+    ///     It will describe when an event system is active, i.e., when it stores an event to handle it later.
     /// </summary>
     public readonly struct RunEventSystemDefinition
     {

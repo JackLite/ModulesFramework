@@ -6,12 +6,22 @@
 
 Every program in this world works with a data. It tooks the data from one place and put it in another form into another place. The more easily you can work with your data the more fast and effectively you will create your product.
 
-ModulesFramework uses data-driven approach with ECS support with focus on modularity and simplicity of creating and changing your project. It gives you small kit of abstraction that's enough to create anything you want. You can create very complex project while saving maintainability of it. You can reuse modules between projects withou modifying them. You can create your own architecture sustainable exactly for your project without being limited by framework. You can start with simple simple components and systems and then refactor them without changing architecture, i.e. you can create prototype without throwing them later in a trash.
+Modules Framework (MF) uses a data-driven approach with ECS support. 
+It focuses on the modularity and simplicity of creating and changing your project. 
+MF gives you a small kit of abstraction that's enough to create anything you want. 
+You can create very complex project while saving maintainability of it. 
+You can reuse modules between projects without modifying them. 
+You can create your own architecture sustainable exactly for your project without being 
+limited by framework. You can start with basic components and systems and 
+then refactor them without changing architecture, i.e., 
+you can create a prototype without throwing them later in trash.
 
 ### N.B.
 
-MF is not a pure ECS framework! Instead it has ECS pattern as part and allows you to develop whole project 
-basing only at one collection of abstractions. In another words it gives you homogeneous architecture 
+MF is not a pure ECS framework! 
+Instead it has ECS pattern as part and allows you to develop whole project 
+basing only at one collection of abstractions. 
+In another words it gives you homogeneous architecture 
 instead of mix some classic architecture pattern and ECS.
 
 - [Queries](#gs-queries)
@@ -235,8 +245,7 @@ And finally death system.
 
 ```csharp
 [EcsSystem(typeof(BattleModule))] // bind system to module
-// use IPostRunSystem to proceed entities after all IRunSystem-s 
-public class DeathSystem : IPostRunSystem
+public class DeathSystem : IRunSystem
 {
     private DataWorld _world;
     
@@ -351,11 +360,11 @@ public class StartupModule : EcsModule
 ```
 ```csharp
 [EcsSystem(typeof(BattleModule))] 
-public class DeathSystem : IPostRunSystem
+public class DeathSystem : IRunSystem
 {
     private DataWorld _world;
     
-    public void PostRun()
+    public void Run()
     {
         using var query = _world.Select<DeadTag>();
         // get Wallet one data 
@@ -406,11 +415,12 @@ something like this.
 It's good to keep such logic in a separated system.
 Usually in classic OOP approach event concept is using it for such a thing.
 In pure ECS frameworks instead of events there is
-entity that exists for only one frame (one frame entity) and systems are trying to find that entity
+entity that exists for only one frame (one frame entity) 
+and systems are trying to find that entity
 in `Run()` or `PostRun()`.
 Often it makes you create system chains by ordering them
 or invent some other way to guarantee that every system proceeds this "one-frame entity."
-ModulesFramework uses other way - event systems.
+ModulesFramework uses another way - event systems.
 
 Event is struct like any other component.
 ```csharp
@@ -422,11 +432,11 @@ public struct GameOverEvent
 Fire event is simple:
 ```csharp
 [EcsSystem(typeof(BattleModule))] 
-public class DeathSystem : IPostRunSystem
+public class DeathSystem : IRunSystem
 {
     private DataWorld _world;
     
-    public void PostRun()
+    public void Run()
     {
         // other code
         foreach(var entity in query.GetEntities())
@@ -434,9 +444,9 @@ public class DeathSystem : IPostRunSystem
             if (entity.HasComponent<PlayerTag>())
                 // if event is empty we can use _world.RiseEvent<EventType>()
                 _world.RiseEvent(new GameOverEvent 
-                    { 
-                          reason = GameOverReason.Dead 
-                    });
+                { 
+                      reason = GameOverReason.Dead 
+                });
             
             // other code
         }
@@ -456,15 +466,6 @@ public class DeathSystem : IRunEventSystem<GameOverEvent>
 ```
 Method `RunEvent<T>(T ev)` calls only when there is event.
 Every event system subscribes when module activated and unsubscribes when deactivated.
-
-There are three types of event systems. Every call in particular time:
-- `IRunEventSystem<T>` - calls **before** all `IRunSystem`s with the same order;
-- `IPostRunEventSystem<T>` - calls **after** all `IRunSystem`s (and `IRunEventSystem<T>`)
-and **before** all `IPostRunSystem`s with the same order;
-- `IFrameEndEventSystem<T>` - calls **after** all `IRunSystem`s and `IPostRunSystem`s
-systems.
-
-**Note**: in example above we created event in `PostRun()` and check in `RunEvent<T>()` so game over will be showing in *next* frame (i.e., next `MF.Run()` call) but **will not** be lost. 
 
 #### Subscriptions
 
@@ -622,14 +623,15 @@ public class BaseModule : EcsModule
 }
 ```
 
-All examples before was about module-scoped system types. You can also add global-scoped system types.
+All examples before were about module-scoped system types. 
+You can also add world-scoped system types.
 
 ```csharp
 // registration
-MF.RegisterSystemType<IPhysicRunSystem>();
+_world.RegisterSystemType<IPhysicRunSystem>();
 
 // somewhere in physic simulation
-MF.CallSystems<IPhysicRunSystem>();
+_world.CallSystems<IPhysicRunSystem>();
 ```
 You can also call systems of another module, that's may be useful in some architectures.
 ```csharp
@@ -649,7 +651,27 @@ public class SunSystem : IWeatherSystem
 _world.GetModule<MainGameModule>().CallSystems<IWeatherSystem>();
 ```
 
-Order of custom systems works the same way as for any other systems. 
+Order of custom systems works the same way as for any other systems. In case 
+of global custom systems (systems marked with `GlobalSystemAttribute`) 
+they MUST be registered before calling `Start()` method in `DataWorld` object.
+
+```csharp
+// example with main world
+var mf = new MF();
+// main world always exists after MF is created
+mf.MainWorld.RegisterSystemType<IPostRunSystem>();
+// here's we actually starts the worlds
+await mf.Start();
+// the next registration is valid only for non-initialized modules
+_world.RegisterSystemType<ISomeAnotherSystem>();
+
+// example with another world
+var world = mf.CreateWorld("SecondWorld");
+// world are not started yet so we can register systems type
+world.RegisterSystemType<ISomeUsefulSystem>();
+// and here we start the world and our GlobalSystems registered
+await world.Start();
+```
 
 This is a powerful tool to make architecture more domain-specific.
 
@@ -1218,13 +1240,7 @@ every `IPreInitSystem`s works;
 - `IActivateSystem` - calls once when module activated;
 - `IDeactivateSystem` - calls once when module deactivated;
 - `IRunSystem` - calls every `MF.Run()`;
-- `IPostRunSystem` - calls every `MF.PostRun()`;
-- `IRunPhysicSystem` - calls every `MF.RunPhysic()`;
 - `IRunEventSystem<T>` - calls *before* `IRunSystem` if event `T` was raised;
-- `IPostRunEventSystem<T>` - calls *after* `IRunSystem` and *before*
-`IPostRunSystem` if event `T` was raised;
-- `IFrameEndEventSystem<T>` - calls *after* `IPostRunSystem` if event `T` 
-was raised;
 - `IDestroySystem` - calls once when module destroyed; 
 
 ### MF
@@ -1234,8 +1250,6 @@ was raised;
 - `DataWorld MainWorld` - world at 0 index;
 - `async void Start()` - inits and activate all global modules (all exceptions checks internally);
 - `void Run()` - calls `Run()` on `IRunSystem`;
-- `void PostRun()` - calls `PostRun()` on `IPostRunSystem`;
-- `void RunPhysic()` - calls `RunPhysic()` on `IRunPhysicSystem`;
 - `void Destroy()` - destroys all modules;
 - `DataWorld GetWorld(int index)` - returns world by index;
 

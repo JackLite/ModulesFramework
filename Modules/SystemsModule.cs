@@ -36,25 +36,23 @@ namespace ModulesFramework.Modules
                 return Parent!.GetSystemTypes();
             }
 
-            return new HashSet<Type>
-            {
-                typeof(IPreInitSystem),
-                typeof(IInitSystem),
-                typeof(IActivateSystem),
-                typeof(IDeactivateSystem),
-                typeof(IDestroySystem),
-                typeof(IRunSystem)
-            };
+            var globalTypes = world.GetSystemTypes();
+
+            return globalTypes;
         }
 
         protected virtual Dictionary<Type, RunEventSystemDefinition> GetEventSystems()
         {
-            return new Dictionary<Type, RunEventSystemDefinition>
-            {
-                { typeof(IRunEventSystem), new RunEventSystemDefinition(new RunEventSystemInvoker()) }
-            };
+            return world.GetEventSystemTypes();
         }
 
+        /// <summary>
+        ///     This method is used to call systems of a specified type in module and submodules.
+        ///     Note: it works only if the module is set up.
+        /// </summary>
+        /// <param name="call">How to call systems</param>
+        /// <param name="includeSubmodules">Call also in submodules</param>
+        /// <seealso cref="CallSystemsAsync"/>
         public virtual void CallSystems<TSystemType>(Action<TSystemType> call, bool includeSubmodules = true)
         {
             if (!_isSetup)
@@ -91,7 +89,16 @@ namespace ModulesFramework.Modules
             }
         }
 
-        public virtual async Task CallSystemsAsync<TSystemType>(Func<TSystemType, Task> call)
+        /// <summary>
+        ///     This method is used to call async systems of a specified type in module and submodules.
+        ///     Note: it works only if the module is set up.
+        /// </summary>
+        /// <param name="call">How to call systems. Must be async</param>
+        /// <param name="includeSubmodules">Call also in submodules</param>
+        /// <seealso cref="CallSystemsAsync"/>
+        public virtual async Task CallSystemsAsync<TSystemType>(
+            Func<TSystemType, Task> call,
+            bool includeSubmodules = true)
         {
             if (!_isSetup)
             {
@@ -105,9 +112,24 @@ namespace ModulesFramework.Modules
             {
                 await group.CallSystemsAsync(world, call);
             }
+
+            if (!includeSubmodules)
+                return;
+
+            foreach (var submodulesGroup in _submodulesGroups)
+            {
+                foreach (var submodule in submodulesGroup.modules)
+                {
+                    await submodule.CallSystemsAsync(call, includeSubmodules);
+                }
+            }
         }
 
-        protected void CallEventSystems(Type systemType)
+        /// <summary>
+        ///     Allows calling event systems of a specified type in module and submodules.
+        ///     Note: it works only if the module is set up.
+        /// </summary>
+        public void CallEventSystems<TSystem>() where TSystem : IEventSystem
         {
             if (!_isSetup)
             {
@@ -121,7 +143,7 @@ namespace ModulesFramework.Modules
             {
                 foreach (var eventType in group.EventTypes)
                 {
-                    RunEvents(eventType, systemType);
+                    RunEvents(eventType, typeof(TSystem));
                 }
             }
         }
@@ -237,10 +259,12 @@ namespace ModulesFramework.Modules
             }
         }
 
-        private void CreateSystems()
+        private void CreateSystemsGroup()
         {
             var systemOrder = GetSystemsOrder();
-            _createdSystem = GetSystems().ToList();
+            if (_createdSystem == null)
+                _createdSystem = GetSystems().ToList();
+            _systems.Clear();
             foreach (var system in _createdSystem)
             {
                 var order = 0;
