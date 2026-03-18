@@ -4,16 +4,17 @@ namespace ModulesFramework
 {
     public class DefaultLogger : IModulesLogger
     {
-        private LogFilter _logFilter = LogFilter.Full;
+        public LogFilter LogFilter { get; private set; } = LogFilter.Full;
+
         public virtual void LogDebug(string msg, LogFilter logFilter = LogFilter.Full)
         {
-            if((_logFilter & logFilter) != LogFilter.None)
+            if((LogFilter & logFilter) != LogFilter.None)
                 Console.WriteLine(msg);
         }
 
         public virtual void LogDebug(object msg, LogFilter logFilter = LogFilter.Full)
         {
-            if((_logFilter & logFilter) != LogFilter.None)
+            if((LogFilter & logFilter) != LogFilter.None)
                 LogDebug(msg.ToString());
         }
 
@@ -45,7 +46,7 @@ namespace ModulesFramework
 
         public virtual void SetLogType(LogFilter logFilter)
         {
-            _logFilter = logFilter;
+            LogFilter = logFilter;
         }
     }
 }

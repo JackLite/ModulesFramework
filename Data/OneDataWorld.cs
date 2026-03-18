@@ -119,7 +119,7 @@ namespace ModulesFramework.Data
         /// </summary>
         public void RemoveOneData(Type type)
         {
-            if (_oneDatas.Remove(d => d.GetDataObject().GetType() == type))
+            if (_oneDatas.Remove(d => d != null && d.GetDataObject().GetType() == type))
             {
                 OnOneDataRemoved?.Invoke(type);
             }
