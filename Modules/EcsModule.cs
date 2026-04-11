@@ -100,12 +100,12 @@ namespace ModulesFramework.Modules
 
             CreateSystemsGroup();
 
-            foreach (var system in _createdSystem!)
-                InsertDependencies(system, world);
+            await SetupSubmodules();
 
             _isSetup = true;
 
-            await SetupSubmodules();
+            foreach (var system in _createdSystem!)
+                InsertDependencies(system, world);
 
             await OnSetupEnd();
         }
@@ -275,6 +275,7 @@ namespace ModulesFramework.Modules
                     runner.Clear();
                 }
             }
+
             DeactivateSystems();
             foreach (var p in _systems)
             {
