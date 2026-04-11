@@ -52,8 +52,12 @@ namespace ModulesFramework.Modules
         /// </summary>
         /// <param name="call">How to call systems</param>
         /// <param name="includeSubmodules">Call also in submodules</param>
+        /// <param name="isSubmoduleNeedToBeActive">Submodule need to be active to be called</param>
         /// <seealso cref="CallSystemsAsync"/>
-        public virtual void CallSystems<TSystemType>(Action<TSystemType> call, bool includeSubmodules = true)
+        public virtual void CallSystems<TSystemType>(
+            Action<TSystemType> call,
+            bool includeSubmodules = true,
+            bool isSubmoduleNeedToBeActive = true)
         {
             if (!_isSetup)
             {
@@ -84,7 +88,13 @@ namespace ModulesFramework.Modules
             {
                 foreach (var submodule in submodulesGroup.modules)
                 {
-                    submodule.CallSystems(call, includeSubmodules);
+                    if (!submodule.IsInitialized)
+                        continue;
+
+                    if (isSubmoduleNeedToBeActive && !submodule.IsActive)
+                        continue;
+
+                    submodule.CallSystems(call, true, isSubmoduleNeedToBeActive);
                 }
             }
         }
@@ -95,10 +105,12 @@ namespace ModulesFramework.Modules
         /// </summary>
         /// <param name="call">How to call systems. Must be async</param>
         /// <param name="includeSubmodules">Call also in submodules</param>
+        /// <param name="isSubmoduleNeedToBeActive">Is submodule need to be active to be called</param>
         /// <seealso cref="CallSystemsAsync"/>
         public virtual async Task CallSystemsAsync<TSystemType>(
             Func<TSystemType, Task> call,
-            bool includeSubmodules = true)
+            bool includeSubmodules = true,
+            bool isSubmoduleNeedToBeActive = true)
         {
             if (!_isSetup)
             {
@@ -120,7 +132,13 @@ namespace ModulesFramework.Modules
             {
                 foreach (var submodule in submodulesGroup.modules)
                 {
-                    await submodule.CallSystemsAsync(call, includeSubmodules);
+                    if (!submodule.IsInitialized)
+                        continue;
+
+                    if (isSubmoduleNeedToBeActive && !submodule.IsActive)
+                        continue;
+
+                    await submodule.CallSystemsAsync(call, true, isSubmoduleNeedToBeActive);
                 }
             }
         }
@@ -129,7 +147,7 @@ namespace ModulesFramework.Modules
         ///     Allows calling event systems of a specified type in module and submodules.
         ///     Note: it works only if the module is set up.
         /// </summary>
-        public void CallEventSystems<TSystem>() where TSystem : IEventSystem
+        public void CallEventSystems<TSystem>(bool includeSubmodules = true) where TSystem : IEventSystem
         {
             if (!_isSetup)
             {
@@ -144,6 +162,15 @@ namespace ModulesFramework.Modules
                 foreach (var eventType in group.EventTypes)
                 {
                     RunEvents(eventType, typeof(TSystem));
+                }
+            }
+
+            if (includeSubmodules)
+            {
+                foreach (var submodule in Submodules)
+                {
+                    if(submodule.IsActive)
+                        submodule.CallEventSystems<TSystem>();
                 }
             }
         }

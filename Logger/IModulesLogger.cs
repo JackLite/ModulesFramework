@@ -4,6 +4,7 @@ namespace ModulesFramework
 {
     public interface IModulesLogger
     {
+        public LogFilter LogFilter { get; }
         public void LogDebug(string msg, LogFilter logFilter);
         public void LogDebug(object msg, LogFilter logFilter);
 
