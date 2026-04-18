@@ -19,7 +19,7 @@ namespace ModulesFramework
         private Queue<int> _freeWorldsIndices = new Queue<int>(64);
         private readonly MFCache _cache;
         public DataWorld MainWorld => _worlds[0]!;
-        public IEnumerable<DataWorld> Worlds => _worldsMap.Values;
+        public WorldEnumerable Worlds => new WorldEnumerable(_worlds);
         private static MF Instance { get; set; }
 
         public static bool IsInitialized => Instance is { _isInitialized: true };
@@ -66,13 +66,11 @@ namespace ModulesFramework
             Instance._freeWorldsIndices.Enqueue(world.WorldIndex);
         }
 
-        public static IEnumerable<DataWorld> GetAllWorlds()
+        public static WorldEnumerable GetAllWorlds()
         {
-            return Instance._worldsMap.Values;
+            return Instance.Worlds;
         }
-
         
-
         private void CreateMainWorld()
         {
             CreateWorld("Default");
@@ -121,6 +119,21 @@ namespace ModulesFramework
             foreach (var world in _worldsMap.Values)
             {
                 world.Destroy();
+            }
+        }
+
+        public readonly struct WorldEnumerable
+        {
+            private readonly DataWorld[] _worlds;
+
+            public WorldEnumerable(DataWorld[] worlds)
+            {
+                _worlds = worlds;
+            }
+            
+            public NullableArrayEnumerator<DataWorld> GetEnumerator()
+            {
+                return new NullableArrayEnumerator<DataWorld>(_worlds);
             }
         }
     }

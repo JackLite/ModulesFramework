@@ -43,7 +43,7 @@ namespace ModulesFramework.Data
         {
             _embeddedGlobalModule.CallSystems(call);
 
-            foreach (var module in _modules.Values)
+            foreach (var module in _modules)
             {
                 if (module.IsSubmodule || !module.IsInitialized)
                     continue;
@@ -66,7 +66,7 @@ namespace ModulesFramework.Data
         {
             await _embeddedGlobalModule.CallSystemsAsync(call);
 
-            foreach (var module in _modules.Values)
+            foreach (var module in _modules)
             {
                 if (module.IsSubmodule || !module.IsInitialized)
                     continue;
@@ -99,7 +99,7 @@ namespace ModulesFramework.Data
         public void CallEventSystems<TSystemType>() where TSystemType : IEventSystem
         {
             _embeddedGlobalModule.CallEventSystems<TSystemType>();
-            foreach (var module in _modules.Values)
+            foreach (var module in _modules)
             {
                 if (module.IsSubmodule || !module.IsInitialized)
                     continue;

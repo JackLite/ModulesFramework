@@ -11,18 +11,6 @@ namespace ModulesFramework.Utils
     {
         private T[] _existed;
 
-        public IEnumerable<T> Values
-        {
-            get
-            {
-                foreach (var value in _existed)
-                {
-                    if (value != null)
-                        yield return value;
-                }
-            }
-        }
-
         public Map()
         {
             _existed = new T[64];
@@ -121,6 +109,51 @@ namespace ModulesFramework.Utils
         public void Clear()
         {
             Array.Clear(_existed, 0, _existed.Length);
+        }
+
+        public Enumerator GetEnumerator()
+        {
+            return new Enumerator(this);
+        }
+
+        internal struct Enumerator
+        {
+            private int _index;
+            private readonly Map<T> _map;
+
+            public Enumerator(Map<T> map)
+            {
+                _index = -1;
+                _map = map;
+            }
+
+            public T Current
+            {
+                get
+                {
+                    if (_index < 0 || _map == null)
+                        throw new InvalidOperationException();
+
+                    return _map._existed[_index];
+                }
+            }
+
+            public bool MoveNext()
+            {
+                ++_index;
+                while (_index < _map._existed.Length && _map._existed[_index] == null)
+                    ++_index;
+
+                if (_index >= _map._existed.Length)
+                    return false;
+
+                return true;
+            }
+
+            public void Reset()
+            {
+                _index = 0;
+            }
         }
     }
 }

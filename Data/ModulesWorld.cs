@@ -226,7 +226,8 @@ namespace ModulesFramework.Data
         /// </summary>
         public IEnumerable<EcsModule> GetAllModules()
         {
-            return _modules.Values;
+            foreach (var module in _modules)
+                yield return module;
         }
 
         /// <summary>
