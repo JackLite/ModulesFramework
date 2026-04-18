@@ -18,7 +18,7 @@ namespace ModulesFramework.Modules
         private List<ISystem>? _createdSystem;
         private HashSet<Type>? _systemTypes;
         private Dictionary<Type, RunEventSystemDefinition>? _eventSystems;
-        private readonly SortedDictionary<int, SystemsGroup> _systems = new SortedDictionary<int, SystemsGroup>();
+        private readonly SortedList<int, SystemsGroup> _systems = new SortedList<int, SystemsGroup>();
         private SystemsGroup[] _systemsArr = Array.Empty<SystemsGroup>();
 
         public HashSet<Type> SystemTypes => _systemTypes ?? GetSystemTypes();
@@ -75,9 +75,10 @@ namespace ModulesFramework.Modules
                     $" but this type is not registered");
             }
 #endif
-
-            foreach (var (_, group) in _systems)
+            
+            for (var i = 0; i < _systems.Count; i++)
             {
+                var group = _systems.Values[i];
                 group.CallSystems(world, call);
             }
 
@@ -120,8 +121,9 @@ namespace ModulesFramework.Modules
                 );
             }
 
-            foreach (var (_, group) in _systems)
+            for (var i = 0; i < _systems.Count; i++)
             {
+                var group = _systems.Values[i];
                 await group.CallSystemsAsync(world, call);
             }
 
@@ -157,8 +159,9 @@ namespace ModulesFramework.Modules
                 );
             }
 
-            foreach (var (_, group) in _systems)
+            for (var i = 0; i < _systems.Count; i++)
             {
+                var group = _systems.Values[i];
                 foreach (var eventType in group.EventTypes)
                 {
                     RunEvents(eventType, typeof(TSystem));
@@ -167,10 +170,13 @@ namespace ModulesFramework.Modules
 
             if (includeSubmodules)
             {
-                foreach (var submodule in Submodules)
+                foreach (var submodulesGroup in _submodulesGroups)
                 {
-                    if(submodule.IsActive)
-                        submodule.CallEventSystems<TSystem>();
+                    foreach (var submodule in submodulesGroup.modules)
+                    {
+                        if (submodule.IsActive)
+                            submodule.CallEventSystems<TSystem>();
+                    }
                 }
             }
         }

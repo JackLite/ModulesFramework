@@ -6,7 +6,6 @@ using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
-using ModulesFramework.Systems;
 using ModulesFramework.Utils;
 using ModulesFramework.Utils.Types;
 
@@ -493,7 +492,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DestroyEntity(int id)
         {
-            foreach (var table in _data.Values)
+            foreach (var table in _data)
             {
                 table.RemoveInternal(id);
             }
@@ -508,7 +507,7 @@ namespace ModulesFramework.Data
 
         internal void MapTables(Action<Type, EcsTable> handler)
         {
-            foreach (var table in _data.Values)
+            foreach (var table in _data)
             {
                 handler.Invoke(table.Type, table);
             }
@@ -528,7 +527,7 @@ namespace ModulesFramework.Data
         /// </summary>
         public bool IsEmptyEntity(int id)
         {
-            foreach (var value in _data.Values)
+            foreach (var value in _data)
             {
                 if (value.Contains(id))
                     return false;
@@ -572,7 +571,7 @@ namespace ModulesFramework.Data
         /// </summary>
         public IEnumerable<Type> GetEntitySingleComponentsType(int eid)
         {
-            foreach (var table in _data.Values)
+            foreach (var table in _data)
             {
                 if (table.Contains(eid) && !table.IsMultiple)
                     yield return table.Type;
@@ -584,7 +583,7 @@ namespace ModulesFramework.Data
         /// </summary>
         public IEnumerable<Type> GetEntityMultipleComponentsType(int eid)
         {
-            foreach (var table in _data.Values)
+            foreach (var table in _data)
             {
                 if (table.Contains(eid) && table.IsMultiple)
                     yield return table.Type;

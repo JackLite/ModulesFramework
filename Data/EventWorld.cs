@@ -40,7 +40,7 @@ namespace ModulesFramework.Data
             foreach (var module in _externalSubscribers)
                 wasHandled |= HandleEvent(ev, module);
 
-            foreach (var module in _modules.Values)
+            foreach (var module in _modules)
                 wasHandled |= HandleEvent(ev, module);
 
             if (_externalListeners.TryGet<T>(out var listenersList))

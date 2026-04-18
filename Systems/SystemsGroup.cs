@@ -24,8 +24,8 @@ namespace ModulesFramework.Systems
         private readonly Dictionary<Type, Dictionary<Type, List<RunEventSystemWrapper>>> _runEventSystems
             = new Dictionary<Type, Dictionary<Type, List<RunEventSystemWrapper>>>();
 
-        internal IEnumerable<Type> EventTypes => _runEventSystems.Keys;
-        internal IEnumerable<Type> SubscriptionTypes => _subscribes.Keys;
+        internal Dictionary<Type, Dictionary<Type, List<RunEventSystemWrapper>>>.KeyCollection EventTypes => _runEventSystems.Keys;
+        internal Dictionary<Type, List<(bool, ISubscribeSystem)>>.KeyCollection SubscriptionTypes => _subscribes.Keys;
 
         internal IEnumerable<Type> AllSystems =>
             _systems.SelectMany(kvp => kvp.Value.Select(s => s.GetType()))

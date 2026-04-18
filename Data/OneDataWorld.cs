@@ -9,7 +9,14 @@ namespace ModulesFramework.Data
     {
         private readonly Map<OneData> _oneDatas = new Map<OneData>();
 
-        internal IEnumerable<OneData> OneDataCollection => _oneDatas.Values;
+        internal IEnumerable<OneData> OneDataCollection
+        {
+            get
+            {
+                foreach (var oneData in _oneDatas)
+                    yield return oneData;
+            }
+        }
 
         /// <summary>
         /// Create one data container

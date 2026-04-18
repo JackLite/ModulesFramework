@@ -22,8 +22,6 @@ namespace ModulesFramework.Modules
         
         private readonly LinkedList<SubmodulesGroup> _submodulesGroups = new LinkedList<SubmodulesGroup>();
 
-        public IEnumerable<EcsModule> Submodules => _submodulesGroups.SelectMany(g => g.modules);
-
         private async Task SetupSubmodules()
         {
             foreach (var group in _submodulesGroups)

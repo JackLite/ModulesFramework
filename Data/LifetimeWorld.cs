@@ -18,7 +18,7 @@ namespace ModulesFramework.Data
             try
             {
                 var tasks = new List<Task>();
-                foreach (var module in _modules.Values)
+                foreach (var module in _modules)
                 {
                     if (module.IsGlobal)
                     {
@@ -41,7 +41,7 @@ namespace ModulesFramework.Data
         public void Run()
         {
             _embeddedGlobalModule.Run();
-            foreach (var module in _modules.Values)
+            foreach (var module in _modules)
             {
                 if (module.IsRoot)
                     module.Run();
@@ -54,13 +54,13 @@ namespace ModulesFramework.Data
         /// </summary>
         internal void Destroy()
         {
-            foreach (var module in _modules.Values)
+            foreach (var module in _modules)
             {
                 if (module.IsActive)
                     module.SetActive(false);
             }
 
-            foreach (var module in _modules.Values)
+            foreach (var module in _modules)
             {
                 if (module.IsInitialized)
                     module.Destroy();
@@ -68,7 +68,7 @@ namespace ModulesFramework.Data
 
             _embeddedGlobalModule.Destroy();
 
-            foreach (var table in _data.Values)
+            foreach (var table in _data)
                 table.ClearTable();
 
             _entitiesTable.ClearTable();
