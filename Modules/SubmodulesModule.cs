@@ -21,6 +21,8 @@ namespace ModulesFramework.Modules
         private readonly HashSet<int> _orders = new HashSet<int>();
         
         private readonly LinkedList<SubmodulesGroup> _submodulesGroups = new LinkedList<SubmodulesGroup>();
+        
+        public IEnumerable<EcsModule> Submodules => _submodulesGroups.SelectMany(group => group.modules);
 
         private async Task SetupSubmodules()
         {
