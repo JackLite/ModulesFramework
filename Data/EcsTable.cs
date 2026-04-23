@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
+using ModulesFramework.Utils;
 using ModulesFramework.Utils.Types;
 
 namespace ModulesFramework.Data
@@ -65,7 +66,7 @@ namespace ModulesFramework.Data
         private bool _isMultiple;
         private bool _isUsed;
 
-        private TableIndexer<T>? _indexer;
+        private Map<TableIndexer<T>> _indexers = new Map<TableIndexer<T>>();
 
         public override bool IsEmpty => _denseTable.Length == 0;
         public override bool IsMultiple => _isMultiple;
@@ -127,8 +128,7 @@ namespace ModulesFramework.Data
             var bitMask = eid % 64;
             ActiveEntitiesBits[optIdx] |= 1UL << bitMask;
 
-            if (_indexer != null)
-                _indexer.Add(data, eid);
+            AddIndex(data, eid);
 
             OnAddComponent(eid);
         }
@@ -324,7 +324,7 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 return;
             var index = _tableMap[eid];
-            _indexer?.Remove(_denseTable[index]);
+            RemoveIndex(_denseTable[index]);
             _denseTable.RemoveData(index);
             var updateEid = _tableReverseMap[_denseTable.Length];
             _tableReverseMap[index] = updateEid;
@@ -484,7 +484,7 @@ namespace ModulesFramework.Data
         private bool IsActive(int eid)
         {
             var optIdx = eid / 64;
-            if(optIdx >= ActiveEntitiesBits.Length)
+            if (optIdx >= ActiveEntitiesBits.Length)
                 return false;
             var bitMask = eid % 64;
             return Convert.ToBoolean(ActiveEntitiesBits[optIdx] & (1UL << bitMask));
@@ -527,6 +527,11 @@ namespace ModulesFramework.Data
         public void CreateKey<TIndex>(Func<T, TIndex> getIndex) where TIndex : notnull
         {
             CheckSingle();
+            if (_indexers.TryGet<TIndex>(out _))
+            {
+                throw new IndexerAlreadyExistsException<T, TIndex>();
+            }
+
             var indexer = new TableIndexer<T, TIndex>(getIndex);
             for (var i = 0; i < _tableMap.Length; i++)
             {
@@ -536,7 +541,7 @@ namespace ModulesFramework.Data
                 indexer.Add(data, i);
             }
 
-            _indexer = indexer;
+            _indexers.Add<TIndex>(indexer);
         }
 
         public ref T ByKey<TIndex>(TIndex index) where TIndex : notnull
@@ -553,31 +558,31 @@ namespace ModulesFramework.Data
         public int FindEidByKey<TIndex>(TIndex index) where TIndex : notnull
         {
             CheckSingle();
-            if (_indexer == null)
+            if (!_indexers.TryGet<TIndex>(out var indexer))
                 throw new NoIndexerException<T>();
-            var indexer = (TableIndexer<T, TIndex>)_indexer;
-            if (!indexer.Contains(index))
+            var typedIndexer = (TableIndexer<T, TIndex>)indexer;
+            if (!typedIndexer.Contains(index))
                 return -1;
 
-            return indexer[index];
+            return typedIndexer[index];
         }
 
         public bool HasKey<TIndex>(TIndex index) where TIndex : notnull
         {
             CheckSingle();
-            if (_indexer == null)
+            if (!_indexers.TryGet<TIndex>(out var indexer))
                 throw new NoIndexerException<T>();
-            var indexer = (TableIndexer<T, TIndex>)_indexer;
+            var typedIndexer = (TableIndexer<T, TIndex>)indexer;
 
-            return indexer.Contains(index);
+            return typedIndexer.Contains(index);
         }
 
         public void UpdateKey<TIndex>(TIndex old, T component, int eid) where TIndex : notnull
         {
-            if (_indexer == null)
+            if (!_indexers.TryGet<TIndex>(out var indexer))
                 throw new NoIndexerException<T>();
-            var indexer = (TableIndexer<T, TIndex>)_indexer;
-            indexer.Update(old, component, eid);
+            var typedIndexer = (TableIndexer<T, TIndex>)indexer;
+            typedIndexer.Update(old, component, eid);
         }
 
         public IEnumerable<T> GetInternalData()
@@ -592,6 +597,24 @@ namespace ModulesFramework.Data
                 var isActive = IsActive(eid);
                 if (isActive)
                     RemoveInternal(eid);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void AddIndex(in T data, int eid)
+        {
+            foreach (var indexer in _indexers)
+            {
+                indexer.Add(data, eid);
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private void RemoveIndex(T data)
+        {
+            foreach (var indexer in _indexers)
+            {
+                indexer.Remove(data);
             }
         }
     }
