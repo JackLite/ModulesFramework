@@ -33,6 +33,15 @@ namespace ModulesFramework.Data
         {
             _systemTypes.Add(typeof(TSystemType));
         }
+        
+        /// <summary>
+        ///     Returns true if the system type is registered
+        /// </summary>
+        /// <typeparam name="TSystemType">Interface of system.</typeparam>
+        public bool IsSystemRegistered<TSystemType>() where TSystemType : ISystem
+        {
+            return _systemTypes.Contains(typeof(TSystemType));
+        }
 
         /// <summary>
         ///     Call registered systems. Use it with your own types of systems
