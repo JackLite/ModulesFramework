@@ -50,7 +50,7 @@ namespace ModulesFramework.Data
         /// <param name="isNeedToBeActive">If true, only active modules will be called</param>
         public void CallSystems<TSystemType>(Action<TSystemType> call, bool isNeedToBeActive = false)
         {
-            _embeddedGlobalModule.CallSystems(call);
+            _embeddedGlobalModule.WorldCallSystems(call);
 
             foreach (var module in _modules)
             {
@@ -60,7 +60,7 @@ namespace ModulesFramework.Data
                 if (!module.IsActive && isNeedToBeActive)
                     continue;
 
-                module.CallSystems(call);
+                module.WorldCallSystems(call);
             }
         }
 

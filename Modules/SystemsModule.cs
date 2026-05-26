@@ -59,13 +59,7 @@ namespace ModulesFramework.Modules
             bool includeSubmodules = true,
             bool isSubmoduleNeedToBeActive = true)
         {
-            if (!_isSetup)
-            {
-                throw new ModuleNotSetupException(
-                    this,
-                    $"You can't run systems before setup finished. Use {nameof(OnSetupEnd)} or {nameof(PreInitSystems)}"
-                );
-            }
+            EnsureSetup();
 
 #if MODULES_DEBUG
             if (!SystemTypes.Contains(typeof(TSystemType)))
@@ -75,7 +69,35 @@ namespace ModulesFramework.Modules
                     $" but this type is not registered");
             }
 #endif
-            
+
+            SystemsCall(call, includeSubmodules, isSubmoduleNeedToBeActive);
+        }
+
+        internal void WorldCallSystems<TSystemType>(
+            Action<TSystemType> call,
+            bool includeSubmodules = true,
+            bool isSubmoduleNeedToBeActive = true)
+        {
+            EnsureSetup();
+            SystemsCall(call, includeSubmodules, isSubmoduleNeedToBeActive);
+        }
+
+        private void EnsureSetup()
+        {
+            if (!_isSetup)
+            {
+                throw new ModuleNotSetupException(
+                    this,
+                    $"You can't run systems before setup finished. Use {nameof(OnSetupEnd)} or {nameof(PreInitSystems)}"
+                );
+            }
+        }
+
+        private void SystemsCall<TSystemType>(
+            Action<TSystemType> call,
+            bool includeSubmodules = true,
+            bool isSubmoduleNeedToBeActive = true)
+        {
             for (var i = 0; i < _systems.Count; i++)
             {
                 var group = _systems.Values[i];
@@ -95,7 +117,7 @@ namespace ModulesFramework.Modules
                     if (isSubmoduleNeedToBeActive && !submodule.IsActive)
                         continue;
 
-                    submodule.CallSystems(call, true, isSubmoduleNeedToBeActive);
+                    submodule.WorldCallSystems(call, true, isSubmoduleNeedToBeActive);
                 }
             }
         }
