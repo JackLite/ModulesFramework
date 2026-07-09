@@ -13,6 +13,17 @@ namespace ModulesFramework.Data
         {
             GetEcsTable<T>().CreateKey(keyGetter);
         }
+        
+        /// <summary>
+        ///     Check if a key of a given type is created for the component type.
+        /// </summary>
+        /// <typeparam name="T">Type of component</typeparam>
+        /// <typeparam name="TKey">Type of key</typeparam>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsKeyCreated<T, TKey>() where T : struct where TKey : notnull
+        {
+            return GetEcsTable<T>().IsKeyCreated<TKey>();
+        }
 
         /// <summary>
         ///     Return component by custom key. Throws exception if there is no key or component
