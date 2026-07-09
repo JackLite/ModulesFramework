@@ -617,5 +617,15 @@ namespace ModulesFramework.Data
                 indexer.Remove(data);
             }
         }
+
+        /// <summary>
+        ///     Return true if key of a given type is created.
+        /// </summary>
+        /// <typeparam name="TKey">Type of key</typeparam>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsKeyCreated<TKey>() where TKey : notnull
+        {
+            return _indexers.TryGet<TKey>(out _);
+        }
     }
 }
