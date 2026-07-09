@@ -10,6 +10,8 @@ namespace ModulesFramework.Data
 {
     public abstract class EcsTable
     {
+        public event Action<int, ComponentTouchType>? OnComponentTouched;
+        public event Action<ComponentTouchType>? OnGetRawData;
         internal abstract ulong[] ActiveEntitiesBits { get; }
         public abstract bool IsEmpty { get; }
         public abstract bool IsMultiple { get; }
@@ -26,8 +28,19 @@ namespace ModulesFramework.Data
         internal abstract void RemoveInternal(int eid);
         internal abstract void RemoveByDenseIndex(int eid, int denseIndex);
         public abstract int GetMultipleDataLength(int eid);
-
         public abstract void ClearTable();
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected void InvokeOnComponentTouched(int eid, ComponentTouchType touchType)
+        {
+            OnComponentTouched?.Invoke(eid, touchType);
+        }
+        
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        protected void InvokeOnGetRawData()
+        {
+            OnGetRawData?.Invoke(ComponentTouchType.GetRawData);
+        }
     }
 
     public class EcsTable<T> : BaseEcsTable<T> where T : struct
@@ -131,6 +144,7 @@ namespace ModulesFramework.Data
             AddIndex(data, eid);
 
             OnAddComponent(eid);
+            InvokeOnComponentTouched(eid, ComponentTouchType.Add);
         }
 
         /// <summary>
@@ -166,6 +180,7 @@ namespace ModulesFramework.Data
             ActiveEntitiesBits[optIdx] |= 1UL << bitMask;
 
             OnAddComponent(eid);
+            InvokeOnComponentTouched(eid, ComponentTouchType.Add);
         }
 
         public override void AddNewData(int eid, object data)
@@ -188,6 +203,7 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 throw new DataNotExistsInTableException<T>(eid);
             #endif
+            InvokeOnComponentTouched(eid, ComponentTouchType.Get);
             return ref _denseTable.At(_tableMap[eid]);
         }
 
@@ -235,6 +251,7 @@ namespace ModulesFramework.Data
         /// </summary>
         public ref T At(int index)
         {
+            InvokeOnComponentTouched(_tableReverseMap[index], ComponentTouchType.Get);
             return ref _denseTable.At(index);
         }
 
@@ -244,6 +261,7 @@ namespace ModulesFramework.Data
         public ref T MultipleAt(int eid, int mtmIndex)
         {
             CheckMultiple();
+            InvokeOnComponentTouched(eid, ComponentTouchType.Get);
             return ref _denseTable.At(_multipleTableMap[eid][mtmIndex]);
         }
 
@@ -334,6 +352,7 @@ namespace ModulesFramework.Data
             ActiveEntitiesBits[optIdx] &= ~(1UL << bitMask);
 
             OnRemoveComponent(eid);
+            InvokeOnComponentTouched(eid, ComponentTouchType.Remove);
         }
 
         /// <summary>
@@ -357,6 +376,7 @@ namespace ModulesFramework.Data
 
             UpdateMultipleMap(affectedMap, denseIndex);
             OnRemoveComponent(eid);
+            InvokeOnComponentTouched(eid, ComponentTouchType.Remove);
         }
 
         /// <summary>
@@ -375,8 +395,6 @@ namespace ModulesFramework.Data
                     break;
                 }
             }
-
-            ;
         }
 
         private void UpdateMultipleMap(DenseArray<int>? map, int denseIndex)
@@ -497,6 +515,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public Span<T> GetRawData()
         {
+            InvokeOnGetRawData();
             return _denseTable.GetData();
         }
 
@@ -552,7 +571,7 @@ namespace ModulesFramework.Data
                 throw new ComponentNotFoundException<T>($"Component {typeof(T).GetTypeName()} not found by index {index}");
 
             var denseIndex = _tableMap[eid];
-            return ref _denseTable.At(denseIndex);
+            return ref At(denseIndex);
         }
 
         public int FindEidByKey<TIndex>(TIndex index) where TIndex : notnull
@@ -585,7 +604,7 @@ namespace ModulesFramework.Data
             typedIndexer.Update(old, component, eid);
         }
 
-        public IEnumerable<T> GetInternalData()
+        internal IEnumerable<T> GetInternalData()
         {
             return _denseTable.Enumerate();
         }

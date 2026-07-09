@@ -217,103 +217,6 @@ namespace ModulesFramework.Modules
             return _systemsArr.SelectMany(g => g.GetSystems(systemType));
         }
 
-        private void InsertDependencies(ISystem system, DataWorld world)
-        {
-            var setupMethod = GetSetupMethod(system);
-            if (setupMethod != null)
-            {
-                var parameters = setupMethod.GetParameters();
-                var injections = new object[parameters.Length];
-                var i = 0;
-                foreach (var parameter in parameters)
-                {
-                    var t = parameter.ParameterType;
-                    if (t == typeof(DataWorld))
-                    {
-                        injections[i++] = world;
-                        continue;
-                    }
-
-                    if (t.BaseType == typeof(OneData))
-                    {
-                        var data = world.GetOneData(t);
-                        if (data == null)
-                            ThrowOneDataException(t);
-                        else
-                            injections[i++] = data;
-                        continue;
-                    }
-
-                    object? dependency = GetDependency(t);
-
-                    if (dependency == null)
-                    {
-                        foreach (var module in _globalModules)
-                        {
-                            dependency = module.GetDependency(t);
-                            if (dependency != null)
-                                break;
-                        }
-                    }
-
-                    if (dependency == null)
-                    {
-                        throw new Exception(
-                            $"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}" +
-                            $" for system {system.GetType().GetTypeName()}");
-                    }
-
-                    injections[i++] = dependency;
-                }
-
-                setupMethod.Invoke(system, injections);
-                return;
-            }
-
-            var fields = system.GetType().GetFields(BindingFlags.NonPublic | BindingFlags.Instance);
-
-            foreach (var field in fields)
-            {
-                var t = field.FieldType;
-                if (t == typeof(DataWorld))
-                {
-                    field.SetValue(system, world);
-                    continue;
-                }
-
-                if (t.BaseType == typeof(OneData))
-                {
-                    var data = world.GetOneData(t);
-                    if (data == null)
-                        ThrowOneDataException(t);
-                    else
-                        field.SetValue(system, data);
-                    continue;
-                }
-
-                object? dependency = GetDependency(t);
-
-                if (dependency == null)
-                {
-                    foreach (var module in _globalModules)
-                    {
-                        dependency = module.GetDependency(t);
-                        if (dependency != null)
-                            break;
-                    }
-                }
-
-                if (dependency != null)
-                    field.SetValue(system, dependency);
-                else
-                    world.Logger.LogDebug(
-                        $"Can't inject dependency for {field.Name} for system {system.GetType().GetTypeName()}." +
-                        " Ignore this message if you create field by yourself",
-                        LogFilter.ModulesFull
-                    );
-            }
-        }
-
         private void CreateSystemsGroup()
         {
             var systemOrder = GetSystemsOrder();
@@ -336,19 +239,6 @@ namespace ModulesFramework.Modules
         protected virtual IEnumerable<ISystem> GetSystems()
         {
             return world.GetSystems(ConcreteType);
-        }
-
-        private MethodInfo? GetSetupMethod(ISystem system)
-        {
-            var methods = system.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance);
-            foreach (var methodInfo in methods)
-            {
-                if (methodInfo.GetCustomAttribute<SetupAttribute>() == null)
-                    continue;
-                return methodInfo;
-            }
-
-            return null;
         }
     }
 }

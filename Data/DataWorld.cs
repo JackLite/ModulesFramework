@@ -1,7 +1,6 @@
 ﻿#nullable enable
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
 using ModulesFramework.Exceptions;
@@ -20,6 +19,7 @@ namespace ModulesFramework.Data
         private readonly Queue<int> _freeEid = new Queue<int>(64);
 
         private readonly Stack<DataQuery> _queriesPool;
+        private readonly MFCache _cache;
 
         /// <summary>
         ///     Index of world inside MF. Using for fast get world from array
@@ -42,17 +42,16 @@ namespace ModulesFramework.Data
         internal DataWorld(
             int worldIndex,
             string worldName,
-            Dictionary<Type, List<Type>> allSystemTypes,
-            List<Type> moduleTypes)
+            MFCache cache)
         {
             WorldIndex = worldIndex;
             WorldName = worldName;
-            _allSystemTypes = allSystemTypes;
+            _cache = cache;
             _modules = new Map<EcsModule>();
             _queriesPool = new Stack<DataQuery>(128);
             _entitiesTable.CreateKey(e => e.GetCustomId());
 
-            var modules = CreateAllEcsModules(moduleTypes.ToList());
+            var modules = CreateAllEcsModules(cache.AllModuleTypes);
             CreateEmbedded();
             CtorModules(modules);
         }
@@ -138,10 +137,8 @@ namespace ModulesFramework.Data
             var table = GetEcsTable(type);
             if (table == null)
             {
-                var tableType = typeof(EcsTable<>).MakeGenericType(type);
-                table = (EcsTable)Activator.CreateInstance(tableType, this);
-                var meth = _data.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(type);
-                meth.Invoke(_data, new[] { table });
+                var getTableMethod = GetType().GetMethod(nameof(GetEcsTable))!.MakeGenericMethod(type);
+                table = (EcsTable)getTableMethod.Invoke(this, null);
             }
 
 #if MODULES_DEBUG
@@ -182,7 +179,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         ///     Add component by type.
-        ///     Use this method only for debugging cause it's slower then <see cref="AddComponent<T>"/>
+        ///     Use this method only for debugging cause it's slower then <see cref="AddNewComponent{T}"/>
         /// </summary>
         public void AddNewComponent(int eid, Type type, object component)
         {
@@ -192,6 +189,12 @@ namespace ModulesFramework.Data
 #endif
 
             var table = GetEcsTable(type);
+            if (table == null)
+            {
+                var getTableMethod = GetType().GetMethod(nameof(GetEcsTable))!.MakeGenericMethod(type);
+                table = (EcsTable)getTableMethod.Invoke(this, null);
+            }
+
             table.AddNewData(eid, component);
 
 #if MODULES_DEBUG
@@ -369,7 +372,7 @@ namespace ModulesFramework.Data
         /// <param name="type"></param>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public EcsTable GetEcsTable(Type type)
+        public EcsTable? GetEcsTable(Type type)
         {
             return _data.Find(table => table != null && table.Type == type);
         }
@@ -439,12 +442,16 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public EcsTable<T> CreateTableIfNeed<T>() where T : struct
         {
-            var type = typeof(T);
             if (_data.TryGet<T>(out var table))
                 return (EcsTable<T>)table;
 
             var newTable = new EcsTable<T>(this);
             _data.Add<T>(newTable);
+
+            #if MODULES_DEBUG
+            newTable.OnComponentTouched += _watchersFacade.RegisterComponentTouch<T>;
+            #endif
+
             return newTable;
         }
 

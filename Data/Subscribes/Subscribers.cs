@@ -47,7 +47,7 @@ namespace ModulesFramework.Data.Subscribes
                 var systemsGroup = _groupsToCall.Dequeue();
                 try
                 {
-                    systemsGroup.ProceedSubscriptions(ev, isInit);
+                    systemsGroup.ProceedSubscriptions(world, ev, isInit);
                 }
                 catch (Exception e)
                 {

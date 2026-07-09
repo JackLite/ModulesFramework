@@ -11,12 +11,11 @@ namespace ModulesFramework
 {
     public class MF
     {
-        private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
 
         private readonly Dictionary<string, DataWorld> _worldsMap = new();
         private DataWorld?[] _worlds = new DataWorld?[64];
-        private Queue<int> _freeWorldsIndices = new Queue<int>(64);
+        private readonly Queue<int> _freeWorldsIndices = new Queue<int>(64);
         private readonly MFCache _cache;
         public DataWorld MainWorld => _worlds[0]!;
         public WorldEnumerable Worlds => new WorldEnumerable(_worlds);
@@ -79,7 +78,7 @@ namespace ModulesFramework
         private int CreateWorldInternal(string name)
         {
             var index = _freeWorldsIndices.Count > 0 ? _freeWorldsIndices.Dequeue() : _worldsMap.Count;
-            var world = new DataWorld(index, name, _cache.AllSystemTypes, _cache.AllModuleTypes);
+            var world = new DataWorld(index, name, _cache);
             while (index >= _worlds.Length)
                 Array.Resize(ref _worlds, _worlds.Length * 2);
             _worlds[index] = world;
