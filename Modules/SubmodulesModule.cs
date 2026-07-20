@@ -32,7 +32,7 @@ namespace ModulesFramework.Modules
                 foreach (var submodule in group.modules)
                 {
                     if (submodule.IsInitWithParent)
-                        tasks.Add(submodule.StartInit());
+                        tasks.Add(submodule.SetupSelfAndSubmodules());
                 }
 
                 await Task.WhenAll(tasks);

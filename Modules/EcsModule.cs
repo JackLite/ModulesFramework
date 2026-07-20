@@ -71,7 +71,12 @@ namespace ModulesFramework.Modules
             try
             {
                 _systemTypes = SystemTypes;
-                await StartInit();
+                // setup self and submodules
+                await SetupSelfAndSubmodules();
+                // process all dependencies
+                InsertDependencies();
+                // call OnSetupEnd seld and submodules
+                await OnSetupEndSelfAndSubmodules();
                 ProcessSystems();
                 if (activateImmediately)
                     SetActive(true);
@@ -82,9 +87,9 @@ namespace ModulesFramework.Modules
             }
         }
 
-        private async Task StartInit()
+        private async Task SetupSelfAndSubmodules()
         {
-#if MODULES_DEBUG
+            #if MODULES_DEBUG
             world.Logger.LogDebug($"Start init module {GetType().GetTypeName()}", LogFilter.ModulesFull);
 #endif
 
@@ -101,12 +106,35 @@ namespace ModulesFramework.Modules
             CreateSystemsGroup();
 
             await SetupSubmodules();
+        }
 
-            _isSetup = true;
-
+        private void InsertDependencies()
+        {
             foreach (var system in _createdSystem!)
                 InsertDependencies(system, world);
 
+            foreach (var submodule in Submodules)
+            {
+                if (submodule.IsInitWithParent)
+                    submodule.InsertDependencies();
+            }
+        }
+
+        private async Task OnSetupEndSelfAndSubmodules()
+        {
+            foreach (var group in _submodulesGroups)
+            {
+                var tasks = new List<Task>();
+                foreach (var submodule in group.modules)
+                {
+                    if (submodule.IsInitWithParent)
+                        tasks.Add(submodule.OnSetupEndSelfAndSubmodules());
+                }
+
+                await Task.WhenAll(tasks);
+            }
+            
+            _isSetup = true;
             await OnSetupEnd();
         }
 
