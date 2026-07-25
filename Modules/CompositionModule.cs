@@ -23,7 +23,18 @@ namespace ModulesFramework.Modules
             _tasksCache.Clear();
             foreach (var composedModule in _composedModules)
             {
-                _tasksCache.Add(composedModule.StartInit());
+                _tasksCache.Add(composedModule.SetupSelfAndSubmodules());
+            }
+
+            await Task.WhenAll(_tasksCache);
+            
+            foreach (var composedModule in _composedModules)
+                composedModule.InsertDependencies();
+
+            _tasksCache.Clear();
+            foreach (var composedModule in _composedModules)
+            {
+                _tasksCache.Add(composedModule.OnSetupEndSelfAndSubmodules());
             }
 
             await Task.WhenAll(_tasksCache);

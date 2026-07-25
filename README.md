@@ -26,7 +26,7 @@ instead of mix some classic architecture pattern and ECS.
 
 - [Queries](#gs-queries)
 - [Events](#gs-events)
-- [Indices](#gs-indices)
+- [Keys](#gs-indices)
 - [Entity's Custom Id](#gs-entities-customid)
 - [Submodules](#gs-submodules)
 - [Composition of modules](#gs-composition-modules)
@@ -691,7 +691,10 @@ public struct NetId
 }
 ...
 // we need to create key manually
-world.CreateKey<NetId, uint>(id => id.someUniqueId);    
+// creating key is a optimizing operation and there's no reason 
+// to create and remove it every time
+if (!world.IsKeyCreated<NetId, uint>())
+    world.CreateKey<NetId, uint>(id => id.someUniqueId);    
 ...
 // if field was updated we need to update the index
 NetId netId = /*get from entity/world*/;
@@ -710,10 +713,11 @@ void OnMessage(HealMsg msg)
 }
 ```
 **Note**:
-- every key slightly increase time of AddComponent/RemoveComponent;
+- every key slightly increases the time of AddComponent/RemoveComponent;
 - key field can be any type, but it must be a correct key for C# Dictionary<TKey, TVal>;
-- keys doesn't work with multiple components;
-- tables do not check that key is unique, so it's up to you to be sure that your keys are unique.
+- keys don't work with multiple components;
+- MF checks if the key is unique only with MODULES_DEBUG define. You should use
+keys for data that must be unique because of the logic of your application.
 
 <a id="gs-entities-customid"></a>
 
