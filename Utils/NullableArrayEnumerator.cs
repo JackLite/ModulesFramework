@@ -8,9 +8,9 @@ namespace ModulesFramework.Utils
     public struct NullableArrayEnumerator<T>
     {
         private int _index;
-        private readonly T[] _array;
+        private readonly T?[] _array;
 
-        public NullableArrayEnumerator(T[] array)
+        public NullableArrayEnumerator(T?[] array)
         {
             _index = -1;
             _array = array;
@@ -23,7 +23,7 @@ namespace ModulesFramework.Utils
                 if (_index < 0 || _array == null)
                     throw new InvalidOperationException();
 
-                return _array[_index];
+                return _array[_index]!;
             }
         }
 

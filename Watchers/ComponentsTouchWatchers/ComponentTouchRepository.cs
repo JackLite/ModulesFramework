@@ -15,14 +15,14 @@ namespace ModulesFramework.Watchers.ComponentsTouchWatchers
             _touches.Enqueue(new ComponentTouch(eid, touch));
         }
 
-        public void CallWatchersAndClear(ComponentTouchWatchersGlobalRegistry registry, object touchOwner)
+        public void CallWatchersAndClear(WatchersGlobalRegistry registry, object touchOwner)
         {
             while (_touches.Count > 0)
             {
                 var touch = _touches.Dequeue();
-                foreach (var watcher in registry.GetWatchers<T>())
+                foreach (var watcher in registry.GetComponentWatchers<T>())
                 {
-                    if (watcher is IComponentWatcher<T> typedWatcher)
+                    if (watcher is IComponentTouchWatcher<T> typedWatcher)
                         typedWatcher.Watch(touch.eid, touchOwner.GetType(), touch.touchType);
                 }
             }

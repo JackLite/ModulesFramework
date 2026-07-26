@@ -11,7 +11,7 @@ namespace ModulesFramework.Data
     public abstract class EcsTable
     {
         public event Action<int, ComponentTouchType>? OnComponentTouched;
-        public event Action<ComponentTouchType>? OnGetRawData;
+        public event Action? OnGetRawData;
         internal abstract ulong[] ActiveEntitiesBits { get; }
         public abstract bool IsEmpty { get; }
         public abstract bool IsMultiple { get; }
@@ -39,19 +39,19 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void InvokeOnGetRawData()
         {
-            OnGetRawData?.Invoke(ComponentTouchType.GetRawData);
+            OnGetRawData?.Invoke();
         }
     }
 
     public class EcsTable<T> : BaseEcsTable<T> where T : struct
     {
-        protected readonly DataWorld _world;
+        protected readonly DataWorld world;
 
         public EcsTable(DataWorld world)
         {
-            _world = world;
-            OnAddComponent += _world.RiseEntityChanged;
-            OnRemoveComponent += _world.RiseEntityChanged;
+            this.world = world;
+            OnAddComponent += this.world.RiseEntityChanged;
+            OnRemoveComponent += this.world.RiseEntityChanged;
         }
     }
 
@@ -68,8 +68,6 @@ namespace ModulesFramework.Data
         ///     Dense index -> eid
         /// </summary>
         private int[] _tableReverseMap;
-
-        private bool[] _entities;
 
         /// <summary>
         ///     Eid -> dense indices
@@ -173,7 +171,7 @@ namespace ModulesFramework.Data
 
             _multipleTableMap[eid] ??= new DenseArray<int>();
 
-            _multipleTableMap[eid].AddData(index);
+            _multipleTableMap[eid]!.AddData(index);
             _tableReverseMap[index] = eid;
             var optIdx = eid / 64;
             var bitMask = eid % 64;
@@ -231,7 +229,7 @@ namespace ModulesFramework.Data
         {
             if (!Contains(eid))
                 return Span<int>.Empty;
-            return _multipleTableMap[eid].GetData();
+            return _multipleTableMap[eid]!.GetData();
         }
 
         /// <summary>
@@ -243,7 +241,7 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 return 0;
 
-            return _multipleTableMap[eid].Length;
+            return _multipleTableMap[eid]!.Length;
         }
 
         /// <summary>
@@ -262,7 +260,7 @@ namespace ModulesFramework.Data
         {
             CheckMultiple();
             InvokeOnComponentTouched(eid, ComponentTouchType.Get);
-            return ref _denseTable.At(_multipleTableMap[eid][mtmIndex]);
+            return ref _denseTable.At(_multipleTableMap[eid]![mtmIndex]);
         }
 
         /// <summary>
@@ -295,6 +293,7 @@ namespace ModulesFramework.Data
         /// Fill result by map of denseIndex into component
         /// </summary>
         /// <param name="eid">Id of Entity</param>
+        /// <param name="result"></param>
         /// <seealso cref="GetData"/>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override void GetDataObjects(int eid, Dictionary<int, object> result)
@@ -310,7 +309,7 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal override void SetDataObjects(int eid, List<object> newData)
         {
-            var data = _multipleTableMap[eid].GetData();
+            var data = _multipleTableMap[eid]!.GetData();
             for (var index = 0; index < data.Length; index++)
             {
                 var denseIndex = data[index];
@@ -365,7 +364,7 @@ namespace ModulesFramework.Data
             if (!Contains(eid))
                 return;
 
-            var map = _multipleTableMap[eid];
+            var map = _multipleTableMap[eid]!;
             var denseIndex = map[mtmIndex];
             _denseTable.RemoveData(denseIndex);
             RemoveMultipleFromTableMap(eid, mtmIndex);
@@ -386,7 +385,7 @@ namespace ModulesFramework.Data
         /// </summary>
         internal override void RemoveByDenseIndex(int eid, int denseIndex)
         {
-            var map = _multipleTableMap[eid];
+            var map = _multipleTableMap[eid]!;
             for (var mtmIndex = 0; mtmIndex < map.Length; mtmIndex++)
             {
                 if (map[mtmIndex] == denseIndex)
@@ -427,10 +426,10 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void RemoveMultipleFromTableMap(int eid, int mtmIndex)
         {
-            if (_multipleTableMap[eid].Length == 1)
+            if (_multipleTableMap[eid]!.Length == 1)
                 ClearMultipleForEntity(eid);
             else
-                _multipleTableMap[eid].RemoveData(mtmIndex);
+                _multipleTableMap[eid]!.RemoveData(mtmIndex);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

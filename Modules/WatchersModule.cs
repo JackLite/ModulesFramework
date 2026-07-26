@@ -1,53 +1,66 @@
 ﻿using System;
 using System.Collections.Generic;
-using ModulesFramework.Watchers;
+using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Modules
 {
     #if MODULES_DEBUG
     public partial class EcsModule
     {
-        private List<IComponentWatcher>? _watchers;
+        private List<IComponentTouchWatcher>? _componentWatchers;
+        private List<IRawDataWatcher>? _rawDataWatchers;
 
         private void CreateWatchers()
         {
-            if (_watchers != null)
+            CreateSpecificWatchersIfNeed(ref _componentWatchers);
+            CreateSpecificWatchersIfNeed(ref _rawDataWatchers);
+        }
+
+        private void CreateSpecificWatchersIfNeed<T>(ref List<T>? watchersList)
+        {
+            if (watchersList != null)
                 return;
 
-            _watchers = new List<IComponentWatcher>();
+            watchersList = new List<T>();
 
             foreach (var watcherType in world.GetWatcherTypes(GetType()))
             {
-                var watcher = (IComponentWatcher)Activator.CreateInstance(watcherType);
-                _watchers.Add(watcher);
+                if (!typeof(T).IsAssignableFrom(watcherType))
+                    continue;
+                var watcher = (T)Activator.CreateInstance(watcherType);
+                watchersList.Add(watcher);
             }
         }
 
         private void RegisterWatchers()
         {
-            if (_watchers == null)
-                return;
-
-            foreach (var watcher in _watchers)
+            if (_componentWatchers != null)
             {
-                world.RegisterWatcher(watcher);
+                foreach (var watcher in _componentWatchers)
+                    world.RegisterComponentWatcher(watcher);
+            }
+
+            if (_rawDataWatchers != null)
+            {
+                foreach (var watcher in _rawDataWatchers)
+                    world.RegisterRawDataWatcher(watcher);
             }
         }
 
         private void UnregisterWatchers()
         {
-            if (_watchers == null)
-                return;
-
-            foreach (var watcher in _watchers)
+            if (_componentWatchers != null)
             {
-                world.UnregisterWatcher(watcher);
+                foreach (var watcher in _componentWatchers)
+                    world.UnregisterComponentWatcher(watcher);
             }
-        }
 
-        internal IEnumerable<IComponentWatcher> GetWatchers()
-        {
-            return _watchers == null ? Array.Empty<IComponentWatcher>() : _watchers;
+            if (_rawDataWatchers != null)
+            {
+                foreach (var watcher in _rawDataWatchers)
+                    world.UnregisterRawDataWatcher(watcher);
+            }
         }
     }
     #endif

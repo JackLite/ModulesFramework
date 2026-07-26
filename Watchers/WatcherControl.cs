@@ -2,6 +2,7 @@
 using ModulesFramework.Data;
 using ModulesFramework.Utils;
 using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Watchers
 {
@@ -12,33 +13,28 @@ namespace ModulesFramework.Watchers
     {
         private readonly WatcherControlsContainer _container;
         private readonly Map<IComponentTouchRepository> _componentTouchRepositories = new Map<IComponentTouchRepository>();
+        private readonly Map<IRawDataTouchRegistry> _rawDataCalls = new Map<IRawDataTouchRegistry>();
 
-        private readonly ComponentTouchWatchersGlobalRegistry _componentTouchWatchersGlobalRegistry;
-        public object Owner
-        {
-            get;
-            private set;
-        }
+        private readonly WatchersGlobalRegistry _watchersGlobalRegistry;
+        private object _owner;
 
-        public WatcherControl(WatcherControlsContainer parentContainer, ComponentTouchWatchersGlobalRegistry watchersRegistry)
+        internal WatcherControl(WatcherControlsContainer parentContainer, WatchersGlobalRegistry watchersRegistry)
         {
             _container = parentContainer;
-            _componentTouchWatchersGlobalRegistry = watchersRegistry;
+            _watchersGlobalRegistry = watchersRegistry;
+            _owner = this;
         }
 
         public void SetOwner(object owner)
         {
-            Owner = owner;
+            _owner = owner;
         }
 
         internal void RegisterComponentTouch<T>(int eid, ComponentTouchType touch) where T : struct
         {
-            // check by global watchers registry if some watcher registered for this component
-            // if not, ignore
-            if (!_componentTouchWatchersGlobalRegistry.IsWatcherRegistered<T>())
+            if (!_watchersGlobalRegistry.IsComponentWatcherRegistered<T>())
                 return;
 
-            // else, register touch in local registry
             if (!_componentTouchRepositories.TryGet<T>(out var repository))
             {
                 repository = new ComponentTouchRepository<T>();
@@ -48,17 +44,36 @@ namespace ModulesFramework.Watchers
             repository.RegisterTouch(eid, touch);
         }
 
+        public void RegisterRawDataCall<T>() where T : struct
+        {
+            if (!_watchersGlobalRegistry.IsRawDataWatcherRegistered<T>())
+                return;
+
+            if (_rawDataCalls.TryGet<T>(out _))
+                return;
+
+            _rawDataCalls.Add<T>(new RawDataTouchRegistry<T>());
+        }
+
         public void CallWatchers()
         {
             foreach (var repository in _componentTouchRepositories)
             {
-                repository.CallWatchersAndClear(_componentTouchWatchersGlobalRegistry, Owner);
+                repository.CallWatchersAndClear(_watchersGlobalRegistry, _owner);
             }
+
+            foreach (var registry in _rawDataCalls)
+            {
+                registry.CallWatchers(_watchersGlobalRegistry, _owner);
+            }
+            _rawDataCalls.Clear();
         }
 
         public void Dispose()
         {
             _componentTouchRepositories.Clear();
+            _rawDataCalls.Clear();
+            _owner = this;
             _container.Return(this);
         }
     }

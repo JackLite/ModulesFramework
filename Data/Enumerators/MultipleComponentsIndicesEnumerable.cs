@@ -2,15 +2,11 @@
 {
     public struct MultipleComponentsIndicesEnumerable<T> where T : struct
     {
-        private readonly BaseEcsTable<T> _table;
-        private readonly int _eid;
         private MultipleComponentsIndicesEnumerator<T> _enumerator;
 
         public MultipleComponentsIndicesEnumerable(BaseEcsTable<T> table, int eid)
         {
-            _table = table;
-            _eid = eid;
-            _enumerator = new MultipleComponentsIndicesEnumerator<T>(_table, _eid);
+            _enumerator = new MultipleComponentsIndicesEnumerator<T>(table, eid);
         }
 
         public MultipleComponentsIndicesEnumerator<T> GetEnumerator()

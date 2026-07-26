@@ -1,5 +1,4 @@
-﻿#nullable enable
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using ModulesFramework.Data.Enumerators;
@@ -314,7 +313,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         ///     Return true if entity exists. Entity may exists but has another generation
-        ///     <seealso cref="IsEntityAlive"/>
+        ///     <seealso cref="IsEntityAlive(int)"/>
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsEntityExists(int eid)
@@ -324,7 +323,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         ///     Return true if entity exists. Entity may exists but has another generation
-        ///     <seealso cref="IsEntityAlive"/>
+        ///     <seealso cref="IsEntityAlive(Entity)"/>
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsEntityExists(Entity entity)
@@ -450,6 +449,7 @@ namespace ModulesFramework.Data
 
             #if MODULES_DEBUG
             newTable.OnComponentTouched += _watchersFacade.RegisterComponentTouch<T>;
+            newTable.OnGetRawData += _watchersFacade.RegisterRawDataCall<T>;
             #endif
 
             return newTable;
@@ -556,6 +556,7 @@ namespace ModulesFramework.Data
         ///     Set entity custom id - the string unique key that can be used to find this entity
         /// </summary>
         /// <param name="id">Entity id</param>
+        /// <param name="customId"></param>
         public void SetEntityCustomId(int id, string customId)
         {
             ref var entity = ref _entitiesTable.GetData(id);

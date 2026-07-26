@@ -1,5 +1,4 @@
 ﻿using System.Threading.Tasks;
-using ModulesFramework.Attributes;
 
 namespace ModulesFramework.Modules
 {

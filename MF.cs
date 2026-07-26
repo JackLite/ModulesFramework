@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using ModulesFramework.Data;
 using ModulesFramework.Exceptions;
-using ModulesFramework.Modules;
 using ModulesFramework.Utils;
 
 namespace ModulesFramework
@@ -39,7 +38,7 @@ namespace ModulesFramework
             return world;
         }
 
-        public static DataWorld GetWorld(int worldIndex)
+        public static DataWorld? GetWorld(int worldIndex)
         {
             if (Instance._worlds.Length <= worldIndex || Instance._worlds[worldIndex] == null)
                 throw new WorldNotFoundException(worldIndex);
@@ -49,7 +48,7 @@ namespace ModulesFramework
         public static DataWorld CreateWorld(string worldName)
         {
             var index = Instance.CreateWorldInternal(worldName);
-            return Instance._worlds[index];
+            return Instance._worlds[index]!;
         }
 
         public static bool IsWorldExists(string worldName)
@@ -123,9 +122,9 @@ namespace ModulesFramework
 
         public readonly struct WorldEnumerable
         {
-            private readonly DataWorld[] _worlds;
+            private readonly DataWorld?[] _worlds;
 
-            public WorldEnumerable(DataWorld[] worlds)
+            public WorldEnumerable(DataWorld?[] worlds)
             {
                 _worlds = worlds;
             }

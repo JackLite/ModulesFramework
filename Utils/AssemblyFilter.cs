@@ -10,8 +10,7 @@ namespace ModulesFramework.Utils
         public virtual bool Filter(Assembly assembly)
         {
             return
-                assembly.FullName != null
-                && !assembly.FullName.Contains("mscorlib")
+                !assembly.FullName.Contains("mscorlib")
                 && assembly.FullName != "System"
                 && !assembly.FullName.StartsWith("System.");
         }

@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -122,11 +121,11 @@ namespace ModulesFramework.Modules
         private void InsertDependencies()
         {
             foreach (var system in _createdSystem!)
-                InsertDependencies(system, world);
+                InsertDependencies(system);
 
             #if MODULES_DEBUG
-            foreach (var watcher in _watchers!)
-                InsertDependencies(watcher, world);
+            foreach (var watcher in _componentWatchers!)
+                InsertDependencies(watcher);
             #endif
 
             foreach (var submodule in Submodules)
@@ -534,7 +533,7 @@ namespace ModulesFramework.Modules
 
             if (IsSubmodule)
             {
-                dependency = Parent.GetDependency(type);
+                dependency = Parent!.GetDependency(type);
                 if (dependency != null)
                     return dependency;
             }
@@ -549,7 +548,7 @@ namespace ModulesFramework.Modules
             return world.GetGlobalDependency(type);
         }
 
-        protected void InsertDependencies(object system, DataWorld world)
+        protected void InsertDependencies(object system)
         {
             var setupMethod = GetSetupMethod(system);
             if (setupMethod != null)

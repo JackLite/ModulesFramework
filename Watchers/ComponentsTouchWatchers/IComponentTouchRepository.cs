@@ -1,5 +1,4 @@
-﻿using System.Collections.Generic;
-using ModulesFramework.Data;
+﻿using ModulesFramework.Data;
 
 namespace ModulesFramework.Watchers.ComponentsTouchWatchers
 {
@@ -10,6 +9,6 @@ namespace ModulesFramework.Watchers.ComponentsTouchWatchers
     internal interface IComponentTouchRepository
     {
         public void RegisterTouch(int eid, ComponentTouchType touch);
-        public void CallWatchersAndClear(ComponentTouchWatchersGlobalRegistry registry, object touchOwner);
+        public void CallWatchersAndClear(WatchersGlobalRegistry registry, object touchOwner);
     }
 }

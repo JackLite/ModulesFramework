@@ -5,7 +5,6 @@
         Undefined,
         Add,
         Get,
-        GetRawData,
         Remove
     }
 }

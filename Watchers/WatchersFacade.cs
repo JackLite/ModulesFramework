@@ -1,5 +1,6 @@
 ﻿using ModulesFramework.Data;
 using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Watchers
 {
@@ -8,13 +9,13 @@ namespace ModulesFramework.Watchers
     /// </summary>
     internal class WatchersFacade
     {
-        private readonly ComponentTouchWatchersGlobalRegistry _componentTouchWatchersGlobalRegistry;
+        private readonly WatchersGlobalRegistry _watchersGlobalRegistry;
         private readonly WatcherControlsContainer _watcherControlsContainer;
 
         public WatchersFacade()
         {
-            _componentTouchWatchersGlobalRegistry = new ComponentTouchWatchersGlobalRegistry();
-            _watcherControlsContainer = new WatcherControlsContainer(_componentTouchWatchersGlobalRegistry);
+            _watchersGlobalRegistry = new WatchersGlobalRegistry();
+            _watcherControlsContainer = new WatcherControlsContainer(_watchersGlobalRegistry);
         }
         
         public WatcherControl StartWatch(object owner)
@@ -27,15 +28,31 @@ namespace ModulesFramework.Watchers
             foreach (var watcherControl in _watcherControlsContainer.ActiveControls)
                 watcherControl.RegisterComponentTouch<T>(eid, touchType);
         }
-        
-        public void RegisterComponentWatcher(IComponentWatcher watcher)
+
+        public void RegisterRawDataCall<T>() where T : struct
         {
-            _componentTouchWatchersGlobalRegistry.RegisterWatcherComponents(watcher);
+            foreach (var watcherControl in _watcherControlsContainer.ActiveControls)
+                watcherControl.RegisterRawDataCall<T>();
         }
         
-        public void UnregisterComponentWatcher(IComponentWatcher watcher)
+        public void RegisterComponentWatcher(IComponentTouchWatcher watcher)
         {
-            _componentTouchWatchersGlobalRegistry.UnregisterWatcher(watcher);
+            _watchersGlobalRegistry.RegisterWatcher(watcher);
+        }
+
+        public void UnregisterComponentWatcher(IComponentTouchWatcher watcher)
+        {
+            _watchersGlobalRegistry.UnregisterWatcher(watcher);
+        }
+        
+        public void RegisterRawDataWatcher(IRawDataWatcher watcher)
+        {
+            _watchersGlobalRegistry.RegisterWatcher(watcher);
+        }
+        
+        public void UnregisterRawDataWatcher(IRawDataWatcher watcher)
+        {
+            _watchersGlobalRegistry.UnregisterWatcher(watcher);
         }
     }
 }

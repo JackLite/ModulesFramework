@@ -2,6 +2,8 @@
 using System;
 using System.Collections.Generic;
 using ModulesFramework.Watchers;
+using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Data
 {
@@ -19,14 +21,24 @@ namespace ModulesFramework.Data
             return _watchersFacade.StartWatch(owner);
         }
 
-        public void RegisterWatcher(IComponentWatcher watcher)
+        public void RegisterComponentWatcher(IComponentTouchWatcher watcher)
         {
             _watchersFacade.RegisterComponentWatcher(watcher);
         }
         
-        public void UnregisterWatcher(IComponentWatcher watcher)
+        public void UnregisterComponentWatcher(IComponentTouchWatcher watcher)
         {
             _watchersFacade.UnregisterComponentWatcher(watcher);
+        }
+
+        public void RegisterRawDataWatcher(IRawDataWatcher watcher)
+        {
+            _watchersFacade.RegisterRawDataWatcher(watcher);
+        }
+        
+        public void UnregisterRawDataWatcher(IRawDataWatcher watcher)
+        {
+            _watchersFacade.UnregisterRawDataWatcher(watcher);
         }
     }
 }

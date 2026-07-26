@@ -1,6 +1,5 @@
 ﻿using System;
 using ModulesFramework.Modules;
-using ModulesFramework.Utils;
 
 namespace ModulesFramework.Attributes
 {
@@ -17,7 +16,6 @@ namespace ModulesFramework.Attributes
 
         /// <param name="module">Type of module</param>
         /// <seealso cref="EcsModule"/>
-        /// <seealso cref="EcsUtilities"/>
         public EcsSystemAttribute(Type module)
         {
             this.module = module;
