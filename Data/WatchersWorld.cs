@@ -1,7 +1,6 @@
 ﻿#if MODULES_DEBUG
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using ModulesFramework.Watchers;
 
 namespace ModulesFramework.Data
@@ -15,22 +14,19 @@ namespace ModulesFramework.Data
             return _cache.WatchersType.GetWatcherTypes(moduleType);
         }
 
-        internal void CallComponentWatchers(Type systemType)
+        public WatcherControl StartWatch(object owner)
         {
-        }
-
-        public WatcherControl StartWatch()
-        {
-            return null;
-        }
-
-        public void StopWatch()
-        {
+            return _watchersFacade.StartWatch(owner);
         }
 
         public void RegisterWatcher(IComponentWatcher watcher)
         {
             _watchersFacade.RegisterComponentWatcher(watcher);
+        }
+        
+        public void UnregisterWatcher(IComponentWatcher watcher)
+        {
+            _watchersFacade.UnregisterComponentWatcher(watcher);
         }
     }
 }

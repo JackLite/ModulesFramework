@@ -8,29 +8,34 @@ namespace ModulesFramework.Watchers
     /// </summary>
     internal class WatchersFacade
     {
-        private readonly ComponentTouchWatchersRegistry _componentTouchWatchersRegistry;
-        private readonly WatcherControlPool _watcherControlPool;
+        private readonly ComponentTouchWatchersGlobalRegistry _componentTouchWatchersGlobalRegistry;
+        private readonly WatcherControlsContainer _watcherControlsContainer;
 
         public WatchersFacade()
         {
-            _componentTouchWatchersRegistry = new ComponentTouchWatchersRegistry();
-            _watcherControlPool = new WatcherControlPool();
+            _componentTouchWatchersGlobalRegistry = new ComponentTouchWatchersGlobalRegistry();
+            _watcherControlsContainer = new WatcherControlsContainer(_componentTouchWatchersGlobalRegistry);
+        }
+        
+        public WatcherControl StartWatch(object owner)
+        {
+            return _watcherControlsContainer.Pop(owner);
         }
         
         public void RegisterComponentTouch<T>(int eid, ComponentTouchType touchType) where T : struct
         {
-            foreach (var watcherControl in _watcherControlPool.ActiveControls)
+            foreach (var watcherControl in _watcherControlsContainer.ActiveControls)
                 watcherControl.RegisterComponentTouch<T>(eid, touchType);
         }
         
         public void RegisterComponentWatcher(IComponentWatcher watcher)
         {
-            _componentTouchWatchersRegistry.RegisterWatcherComponents(watcher);
+            _componentTouchWatchersGlobalRegistry.RegisterWatcherComponents(watcher);
         }
         
         public void UnregisterComponentWatcher(IComponentWatcher watcher)
         {
-            _componentTouchWatchersRegistry.UnregisterWatcher(watcher);
+            _componentTouchWatchersGlobalRegistry.UnregisterWatcher(watcher);
         }
     }
 }

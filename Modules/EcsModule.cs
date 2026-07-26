@@ -77,8 +77,13 @@ namespace ModulesFramework.Modules
                 await SetupSelfAndSubmodules();
                 // process all dependencies
                 InsertDependencies();
-                // call OnSetupEnd seld and submodules
+                // call OnSetupEnd self and submodules
                 await OnSetupEndSelfAndSubmodules();
+
+                #if MODULES_DEBUG
+                RegisterWatchers();
+                #endif
+
                 ProcessSystems();
                 if (activateImmediately)
                     SetActive(true);
@@ -110,7 +115,7 @@ namespace ModulesFramework.Modules
             #if MODULES_DEBUG
             CreateWatchers();
             #endif
-            
+
             await SetupSubmodules();
         }
 
@@ -118,12 +123,12 @@ namespace ModulesFramework.Modules
         {
             foreach (var system in _createdSystem!)
                 InsertDependencies(system, world);
-            
+
             #if MODULES_DEBUG
             foreach (var watcher in _watchers!)
                 InsertDependencies(watcher, world);
             #endif
-            
+
             foreach (var submodule in Submodules)
             {
                 if (submodule.IsInitWithParent)
@@ -144,7 +149,7 @@ namespace ModulesFramework.Modules
 
                 await Task.WhenAll(tasks);
             }
-            
+
             _isSetup = true;
 
             await OnSetupEnd();
@@ -475,6 +480,9 @@ namespace ModulesFramework.Modules
             }
 
             OnDestroy();
+            #if MODULES_DEBUG
+            UnregisterWatchers();
+            #endif
             DestroySystemsInternal();
 
             foreach (var composedModule in _composedModules)

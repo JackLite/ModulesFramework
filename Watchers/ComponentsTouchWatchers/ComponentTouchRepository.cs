@@ -4,7 +4,7 @@ using ModulesFramework.Data;
 namespace ModulesFramework.Watchers.ComponentsTouchWatchers
 {
     /// <summary>
-    ///     Type-specific component touch repository
+    ///     Type-specific local component touch repository
     /// </summary>
     internal class ComponentTouchRepository<T> : IComponentTouchRepository where T : struct
     {
@@ -14,10 +14,18 @@ namespace ModulesFramework.Watchers.ComponentsTouchWatchers
         {
             _touches.Enqueue(new ComponentTouch(eid, touch));
         }
-        
-        public ComponentTouch PopTouch()
+
+        public void CallWatchersAndClear(ComponentTouchWatchersGlobalRegistry registry, object touchOwner)
         {
-            return _touches.Dequeue();
+            while (_touches.Count > 0)
+            {
+                var touch = _touches.Dequeue();
+                foreach (var watcher in registry.GetWatchers<T>())
+                {
+                    if (watcher is IComponentWatcher<T> typedWatcher)
+                        typedWatcher.Watch(touch.eid, touchOwner.GetType(), touch.touchType);
+                }
+            }
         }
     }
 }

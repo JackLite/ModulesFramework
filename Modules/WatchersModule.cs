@@ -20,7 +20,28 @@ namespace ModulesFramework.Modules
             {
                 var watcher = (IComponentWatcher)Activator.CreateInstance(watcherType);
                 _watchers.Add(watcher);
+            }
+        }
+
+        private void RegisterWatchers()
+        {
+            if (_watchers == null)
+                return;
+
+            foreach (var watcher in _watchers)
+            {
                 world.RegisterWatcher(watcher);
+            }
+        }
+
+        private void UnregisterWatchers()
+        {
+            if (_watchers == null)
+                return;
+
+            foreach (var watcher in _watchers)
+            {
+                world.UnregisterWatcher(watcher);
             }
         }
 
