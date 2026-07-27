@@ -126,6 +126,8 @@ namespace ModulesFramework.Modules
             #if MODULES_DEBUG
             foreach (var watcher in _componentWatchers!)
                 InsertDependencies(watcher);
+            foreach (var watcher in _rawDataWatchers!)
+                InsertDependencies(watcher);
             #endif
 
             foreach (var submodule in Submodules)
