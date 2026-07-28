@@ -1,7 +1,5 @@
-﻿#nullable enable
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using ModulesFramework.Attributes;
@@ -16,7 +14,6 @@ namespace ModulesFramework.Data
     public partial class DataWorld
     {
         private readonly Map<EcsModule> _modules;
-        private Dictionary<Type, List<Type>>? _allSystemTypes;
         private EmbeddedGlobalModule _embeddedGlobalModule;
 
         /// <summary>
@@ -195,7 +192,7 @@ namespace ModulesFramework.Data
             }
         }
 
-        private Dictionary<Type, EcsModule> CreateAllEcsModules(List<Type> moduleTypes)
+        private Dictionary<Type, EcsModule> CreateAllEcsModules(HashSet<Type> moduleTypes)
         {
             var result = new Dictionary<Type, EcsModule>();
             foreach (var moduleType in moduleTypes)
@@ -247,7 +244,7 @@ namespace ModulesFramework.Data
 
         internal IEnumerable<ISystem> GetSystems(Type moduleType)
         {
-            if (_allSystemTypes == null || !_allSystemTypes.TryGetValue(moduleType, out var systems))
+            if (!_cache.AllSystemTypes.TryGetValue(moduleType, out var systems))
                 yield break;
 
             foreach (var system in systems)

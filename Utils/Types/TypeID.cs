@@ -6,8 +6,10 @@ namespace ModulesFramework.Utils.Types
     ///     Hack to convert type to int to fasten getting things by type
     ///     TBaseType is a type of thing in collection
     /// </summary>
+    // ReSharper disable once UnusedTypeParameter
     internal class TypeID<TBaseType, TType> : TypeID<TBaseType>
     {
+        // ReSharper disable once StaticMemberInGenericType
         public static int id = -1;
 
         public override void Reset()
@@ -18,22 +20,23 @@ namespace ModulesFramework.Utils.Types
 
     internal static class TypeIDCollection<TBaseType>
     {
-        private static List<TypeID<TBaseType>> types = new List<TypeID<TBaseType>>();
+        private static readonly List<TypeID<TBaseType>> _types = new List<TypeID<TBaseType>>();
 
         public static int Add<TType>()
         {
-            TypeID<TBaseType, TType>.id = types.Count;
-            types.Add(new TypeID<TBaseType, TType>());
+            TypeID<TBaseType, TType>.id = _types.Count;
+            _types.Add(new TypeID<TBaseType, TType>());
             return TypeID<TBaseType, TType>.id;
         }
 
         public static void Reset()
         {
-            foreach (var typeId in types)
+            foreach (var typeId in _types)
                 typeId.Reset();
         }
     }
 
+    // ReSharper disable once UnusedTypeParameter
     internal abstract class TypeID<TBaseType>
     {
         public abstract void Reset();

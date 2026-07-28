@@ -34,6 +34,7 @@ instead of mix some classic architecture pattern and ECS.
 - [Custom Systems](#gs-custom-systems)
 - [Multiple Components](#gs-multiple)
 - [Multiple Worlds](#gs-multiple-worlds)
+- [Advanced debug and validation](#advanced-debug-and-validation)
 #### FAQ
 - [How to create an instance of system?](#faq-1)
 - [What is a module?](#faq-2)
@@ -718,7 +719,9 @@ void OnMessage(HealMsg msg)
 - MF checks if the key is unique only with MODULES_DEBUG define. You should use
 keys for data that must be unique because of the logic of your application.
 
-### <a id="gs-entities-customid"/> Entity's custom id
+<a id="gs-entities-customid"></a>
+
+### Entity's custom id
 Entities store in the same way as the components. And they may have an unique string index:
 ```csharp
 // mark entity that it's a Player
@@ -737,7 +740,9 @@ var customId = entity.GetCustomId();
 ```
 **Note**: for entities custom id works same rules that works for component indices. The main one is that you have to check there's no doubling of custom id.
 
-### <a id="gs-submodules"/>Submodules
+<a id="gs-submodules"></a>
+
+### Submodules
 
 In the large project, it will be good to keep things as simple as possible. There can be hundreds of dependencies and thousands of systems. To simplify complexity, you can use submodules. 
 
@@ -781,7 +786,9 @@ public override Dictionary<Type, int> GetSubmodulesOrder()
 }
 ```
 
-### <a id="gs-composition-modules"> Composition of modules
+<a id="gs-composition-modules"></a>
+
+### Composition of modules
 
 While submodules is an aggregation of features there's another way to organize modules.
 ```csharp
@@ -812,10 +819,12 @@ Order of composition modules is the same as in ```ComposedOf``` property.
 
 There's no way to prevent initialization or activation of composition modules because their work as parts of module-container.
 
-### <a id="gs-di"/>Dependency Injection
+<a id="gs-di"></a>
+
+### Dependency Injection
 MF doesn't have dependency resolving.
-It only inject dependency into systems.
-Thus you can and you should use your favorite DI. The only thing you need to do is
+It only injects dependency into systems.
+Thus, you can and you should use your favorite DI. The only thing you need to do is
 to override method `object GetDependency(Type type)` in your module.
 Here's an example:
 ```csharp
@@ -835,7 +844,9 @@ public override object GetDependency(Type type)
 }
 ```
 
-### <a id="gs-multiple"/> Multiple Components
+<a id="gs-multiple"></a>
+
+### Multiple Components
 What if you're making a cool dynamic game with a lot of things that happened simultaneously?
 Hundreds of entities fighting each other, long-term effects continuously damage everyone.
 Based on who damages who the AI change the aggression or healing or buffing.
@@ -906,7 +917,9 @@ world.Select<Enemy>().Without<Damage>();
 ```
 **Note**: if you add some component to an entity like a single, you cannot use it after as multiple and vice versa. Thus, if you see that component's using like a multiple, then you can be sure that it's _always_ multiple.
 
-### <a id="gs-multiple-worlds"/> Multiple Worlds
+<a id="gs-multiple-worlds"></a>
+
+### Multiple Worlds
 
 There are cases when you may want to have more than one world with their own modules or even with shared modules. For example for the host mode in online game. So all common logic will be in one world and local player logic in another. Anyway, this feature is very rare need but because it's remove some unbreakable limits it's been added to the core of MF.
 
@@ -938,6 +951,107 @@ public class SomeModule : EcsModule
 
 **Note**: systems belong to module will run within every world. 
 It allows using same systems in different worlds and making shared logic.
+
+<a id="advanced-debug-and-validation"></a>
+
+### Advanced debug and validation
+
+Often when you are working with ECS, you may want to check if your components are valid.
+You can hide its fields using properties or explicit getter/setter where you can add validation logic.
+But it adds some performance cost and complexity to the component. Sometimes you want just to log some changes.
+Sometimes you want to see what system (or even service) changes the component. You can do all of this and more using 
+Watchers.
+
+```csharp
+// simple watcher that calls after any system that adds, gets or removes specific component
+[Watcher(typeof(SomeModule))]
+public class HealthWatcher : IComponentWatcher<HealthComponent>
+{
+    // you can use dependencies the same way like in systems
+    private ILogger _myLogger;
+    
+    public void Process(int eid, Type scope, ComponentTouchType touchType)
+    {
+        // scope is a type that used as an owner of watcher scope (WatcherControl)
+        // for systems it's a type of system, but you can use it inside any of your types
+        
+        // touchType is a type of what exactly happens: component added, got or removed
+    }
+}
+```
+
+Because there's no way to distinct if systems change or not component field,
+any GetComponent will be considered as a change. However, this watchers works ONLY with
+define `MODULES_DEBUG` so they never affected production code.
+
+In the case of using GetRawData there's no knowledge about entities, so you can't use previous watchers.
+Instead, you should use `IRawDataWatcher`:
+
+```csharp
+public class HealthAnotherWatcher : IRawDataWatcher<HealthComponent>
+{
+    public void Process(Type scope)
+    {
+        // do something
+    }
+}
+```
+
+There's also a watcher interface for OneData:
+
+```csharp
+//  watchers can be attached to modules like systems
+[Watcher(typeof(CameraModule))]
+public class CameraDataWatcher : IOneDataWatcher<CameraData>
+{
+    public void Process(Type source, OneDataTouchType touchType)
+    {
+        // validate camera data
+    }
+}
+```
+
+If you want to log something in production, you can register your own handler the same way
+that watchers do.
+```csharp
+// handler calls every time when using AddComponent, GetComponent or RemoveComponent
+world.GetEcsTable<HealthComponent>().OnComponentTouched += (eid, touchType) => 
+{
+    
+};
+
+// handler calls every time when using GetRawData
+world.GetEcsTable<HealthComponent>().OnGetRawData += () => 
+{
+    
+};
+
+// handler calls every time when using CreateOneData<T>(T data), RemoveOneData<T> or OneData<T>()
+world.OnOneDataTouch += (dataType, touchType) => 
+{
+    
+};
+```
+
+In the code outside of systems you can manually start watch.
+
+```csharp
+// pass any object that you want to use as a scope
+using var control = world.StartWatch(this);
+// some logic
+control.CallWatchers();
+```
+
+Inside of control there's different collections, so it's good to dispose it to avoid allocations every time 
+you call `StartWatch`.
+
+#### Best practices
+
+- Use both interfaces `IComponentWatcher<T>` and `IRawDataWatcher<T>` to be sure that you didn't miss some changes;
+- Create separate validation module for watchers, so you can simply initialize it or destroy it;
+- Do not use watchers for logic and do not change data inside of them;
+- Use `StartWatch` inside your classes to minimize scope of changes;
+- Consider to use code generation based on some attributes.
 
 ## <a id="faq-0"/> FAQ
 

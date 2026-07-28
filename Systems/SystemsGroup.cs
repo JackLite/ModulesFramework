@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using ModulesFramework.Modules;
 using ModulesFramework.Systems.Events;
 using ModulesFramework.Systems.Subscribes;
+using ModulesFramework.Watchers;
 using DataWorld = ModulesFramework.Data.DataWorld;
 
 namespace ModulesFramework.Systems
@@ -71,7 +72,15 @@ namespace ModulesFramework.Systems
             {
                 try
                 {
+                    #if MODULES_DEBUG
+                    using var control = world.StartWatch(s);
+                    #endif
+                    
                     call((TSystemType)s);
+                    
+                    #if MODULES_DEBUG
+                    CallWatchers(control, world);
+                    #endif
                 }
                 catch (Exception e)
                 {
@@ -86,19 +95,42 @@ namespace ModulesFramework.Systems
                 return;
 
             _tasks.Clear();
+            Exception? systemException = null;
             foreach (var s in systems)
             {
                 try
                 {
-                    _tasks.Add(call((TSystemType)s));
+                    #if MODULES_DEBUG
+                    var task = CallSystemAsyncWithWatchers(s, world, call);
+                    #else
+                    var task = call((TSystemType)s);
+                    #endif
+                    _tasks.Add(task);
                 }
                 catch (Exception e)
                 {
-                    world.Logger.RethrowException(e);
+                    systemException = e;
                 }
             }
 
-            await Task.WhenAll(_tasks);
+            try
+            {
+                await Task.WhenAll(_tasks);
+            }
+            catch (Exception e)
+            {
+                systemException ??= e;
+            }
+
+            if (systemException != null)
+                world.Logger.RethrowException(systemException);
+        }
+
+        private async Task CallSystemAsyncWithWatchers<TSystemType>(ISystem system, DataWorld world, Func<TSystemType, Task> call)
+        {
+            using var control = world.StartWatch(system);
+            await call((TSystemType)system);
+            CallWatchers(control, world);
         }
 
         internal void Deactivate(DataWorld world)
@@ -143,7 +175,7 @@ namespace ModulesFramework.Systems
                 {
                     if (!systemTypes.ContainsKey(parentInterface))
                         continue;
-                    
+
                     var eventType = type.GetGenericArguments()[0];
                     if (!_runEventSystems.ContainsKey(eventType))
                         _runEventSystems[eventType] = new Dictionary<Type, List<RunEventSystemWrapper>>();
@@ -197,18 +229,30 @@ namespace ModulesFramework.Systems
             if (!systems.TryGetValue(systemType, out var wrappers))
                 return;
 
+            
+
             foreach (var wrapper in wrappers)
             {
+                #if MODULES_DEBUG
+                using var watcherControl = world.StartWatch(wrapper.system);
+                #endif
+                
                 world.Logger.LogDebug($"Handle event {eventType} by {wrapper.system.GetType()}", LogFilter.EventsFull);
                 wrapper.definition.systemInvoker.Invoke(ev, wrapper.system);
+
+                #if MODULES_DEBUG
+                CallWatchers(watcherControl, world);
+                #endif
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal void ProceedSubscriptions<T>(T ev, bool isInit = false) where T : struct
+        internal void ProceedSubscriptions<T>(DataWorld world, T ev, bool isInit = false) where T : struct
         {
             if (!_subscribes.TryGetValue(typeof(T), out var subscribeSystems))
                 return;
+
+            
 
             foreach (var (isActivate, system) in subscribeSystems)
             {
@@ -216,10 +260,30 @@ namespace ModulesFramework.Systems
                     continue;
 
                 if (!isInit && system is ISubscribeActivateSystem<T> activateSystem)
+                {
+                    #if MODULES_DEBUG
+                    using var watcherControl = world.StartWatch(system);
+                    #endif
+                    
                     activateSystem.HandleEvent(ev);
 
+                    #if MODULES_DEBUG
+                    CallWatchers(watcherControl, world);
+                    #endif
+                }
+
                 if (isInit && system is ISubscribeInitSystem<T> initSystem)
+                {
+                    #if MODULES_DEBUG
+                    using var watcherControl = world.StartWatch(system);
+                    #endif
+                    
                     initSystem.HandleEvent(ev);
+
+                    #if MODULES_DEBUG
+                    CallWatchers(watcherControl, world);
+                    #endif
+                }
             }
         }
 
@@ -234,6 +298,18 @@ namespace ModulesFramework.Systems
                 throw new ArgumentException($"Event {eventType} does not exists in systems group");
 
             return systems.Select(p => p.Key);
+        }
+
+        private void CallWatchers(WatcherControl control, DataWorld world)
+        {
+            try
+            {
+                control.CallWatchers();
+            }
+            catch (Exception e)
+            {
+                world.Logger.RethrowException(e);
+            }
         }
     }
 }

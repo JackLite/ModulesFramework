@@ -1,6 +1,6 @@
 ﻿using ModulesFramework.Utils.Types;
 using System;
-using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 
 namespace ModulesFramework.Utils
 {
@@ -9,7 +9,7 @@ namespace ModulesFramework.Utils
     /// </summary>
     internal class Map<T> where T : class
     {
-        private T[] _existed;
+        private T?[] _existed;
 
         public Map()
         {
@@ -26,7 +26,7 @@ namespace ModulesFramework.Utils
 
             if (index >= _existed.Length)
             {
-                var newSize = System.Math.Max(_existed.Length * 2, index + 1);
+                var newSize = Math.Max(_existed.Length * 2, index + 1);
                 Array.Resize(ref _existed, newSize);
             }
 
@@ -50,7 +50,7 @@ namespace ModulesFramework.Utils
         /// <summary>
         ///     Fast get element by TType
         /// </summary>
-        public bool TryGet<TType>(out T value)
+        public bool TryGet<TType>([NotNullWhen(returnValue: true)] out T? value)
         {
             value = null;
             var idx = TypeID<T, TType>.id;
@@ -66,7 +66,7 @@ namespace ModulesFramework.Utils
         /// </summary>
         /// <param name="finder"></param>
         /// <returns></returns>
-        public T Find(Func<T, bool> finder)
+        public T? Find(Func<T?, bool> finder)
         {
             for (var i = 0; i < _existed.Length; i++)
                 if (finder(_existed[i]))
@@ -89,7 +89,7 @@ namespace ModulesFramework.Utils
         ///     Return true if element was found and removed
         ///     Note: O(n)
         /// </summary>
-        public bool Remove(Func<T, bool> finder)
+        public bool Remove(Func<T?, bool> finder)
         {
             for (var i = 0; i < _existed.Length; i++)
             {
@@ -134,7 +134,7 @@ namespace ModulesFramework.Utils
                     if (_index < 0 || _map == null)
                         throw new InvalidOperationException();
 
-                    return _map._existed[_index];
+                    return _map._existed[_index]!;
                 }
             }
 

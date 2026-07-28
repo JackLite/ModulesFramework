@@ -1,4 +1,3 @@
-#nullable enable
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -6,6 +5,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using ModulesFramework.Attributes;
+using ModulesFramework.Data;
+using ModulesFramework.DependencyInjection;
 using ModulesFramework.Exceptions;
 using ModulesFramework.Utils.Types;
 using DataWorld = ModulesFramework.Data.DataWorld;
@@ -75,8 +76,13 @@ namespace ModulesFramework.Modules
                 await SetupSelfAndSubmodules();
                 // process all dependencies
                 InsertDependencies();
-                // call OnSetupEnd seld and submodules
+                // call OnSetupEnd self and submodules
                 await OnSetupEndSelfAndSubmodules();
+
+                #if MODULES_DEBUG
+                RegisterWatchers();
+                #endif
+
                 ProcessSystems();
                 if (activateImmediately)
                     SetActive(true);
@@ -105,13 +111,26 @@ namespace ModulesFramework.Modules
 
             CreateSystemsGroup();
 
+            #if MODULES_DEBUG
+            CreateWatchers();
+            #endif
+
             await SetupSubmodules();
         }
 
         private void InsertDependencies()
         {
             foreach (var system in _createdSystem!)
-                InsertDependencies(system, world);
+                InsertDependencies(system);
+
+            #if MODULES_DEBUG
+            foreach (var watcher in _componentWatchers!)
+                InsertDependencies(watcher);
+            foreach (var watcher in _rawDataWatchers!)
+                InsertDependencies(watcher);
+            foreach (var watcher in _oneDataWatchers!)
+                InsertDependencies(watcher);
+            #endif
 
             foreach (var submodule in Submodules)
             {
@@ -133,8 +152,9 @@ namespace ModulesFramework.Modules
 
                 await Task.WhenAll(tasks);
             }
-            
+
             _isSetup = true;
+
             await OnSetupEnd();
         }
 
@@ -292,10 +312,6 @@ namespace ModulesFramework.Modules
             world.Logger.LogDebug($"Deactivate systems in {GetType().GetTypeName()}", LogFilter.SystemsDestroy);
 #endif
 
-            //todo: clean!
-            // _runEvents.Clear();
-            // _postRunEvents.Clear();
-            // _frameEndEvents.Clear();
             foreach (var (_, runners) in _eventRunners)
             {
                 foreach (var (_, runner) in runners)
@@ -467,6 +483,9 @@ namespace ModulesFramework.Modules
             }
 
             OnDestroy();
+            #if MODULES_DEBUG
+            UnregisterWatchers();
+            #endif
             DestroySystemsInternal();
 
             foreach (var composedModule in _composedModules)
@@ -518,7 +537,7 @@ namespace ModulesFramework.Modules
 
             if (IsSubmodule)
             {
-                dependency = Parent.GetDependency(type);
+                dependency = Parent!.GetDependency(type);
                 if (dependency != null)
                     return dependency;
             }
@@ -531,6 +550,116 @@ namespace ModulesFramework.Modules
             }
 
             return world.GetGlobalDependency(type);
+        }
+
+        protected void InsertDependencies(object system)
+        {
+            var setupMethod = GetSetupMethod(system);
+            if (setupMethod != null)
+            {
+                var parameters = setupMethod.GetParameters();
+                var injections = new object[parameters.Length];
+                var i = 0;
+                foreach (var parameter in parameters)
+                {
+                    var t = parameter.ParameterType;
+                    if (t == typeof(DataWorld))
+                    {
+                        injections[i++] = world;
+                        continue;
+                    }
+
+                    if (t.BaseType == typeof(OneData))
+                    {
+                        var data = world.GetOneData(t);
+                        if (data == null)
+                            ThrowOneDataException(t);
+                        else
+                            injections[i++] = data;
+                        continue;
+                    }
+
+                    object? dependency = GetDependency(t);
+
+                    if (dependency == null)
+                    {
+                        foreach (var module in _globalModules)
+                        {
+                            dependency = module.GetDependency(t);
+                            if (dependency != null)
+                                break;
+                        }
+                    }
+
+                    if (dependency == null)
+                    {
+                        throw new Exception(
+                            $"Can't find injection {parameter.ParameterType} in method {setupMethod.Name}" +
+                            $" for system {system.GetType().GetTypeName()}");
+                    }
+
+                    injections[i++] = dependency;
+                }
+
+                setupMethod.Invoke(system, injections);
+                return;
+            }
+
+            var fields = system.GetType().GetFields(BindingFlags.NonPublic | BindingFlags.Instance);
+
+            foreach (var field in fields)
+            {
+                var t = field.FieldType;
+                if (t == typeof(DataWorld))
+                {
+                    field.SetValue(system, world);
+                    continue;
+                }
+
+                if (t.BaseType == typeof(OneData))
+                {
+                    var data = world.GetOneData(t);
+                    if (data == null)
+                        ThrowOneDataException(t);
+                    else
+                        field.SetValue(system, data);
+                    continue;
+                }
+
+                object? dependency = GetDependency(t);
+
+                if (dependency == null)
+                {
+                    foreach (var module in _globalModules)
+                    {
+                        dependency = module.GetDependency(t);
+                        if (dependency != null)
+                            break;
+                    }
+                }
+
+                if (dependency != null)
+                    field.SetValue(system, dependency);
+                else
+                    world.Logger.LogDebug(
+                        $"Can't inject dependency for {field.Name} for system {system.GetType().GetTypeName()}." +
+                        " Ignore this message if you create field by yourself",
+                        LogFilter.ModulesFull
+                    );
+            }
+        }
+
+        private MethodInfo? GetSetupMethod(object system)
+        {
+            var methods = system.GetType().GetMethods(BindingFlags.Public | BindingFlags.Instance);
+            foreach (var methodInfo in methods)
+            {
+                if (methodInfo.GetCustomAttribute<SetupAttribute>() == null)
+                    continue;
+                return methodInfo;
+            }
+
+            return null;
         }
     }
 }

@@ -4,19 +4,17 @@ using System.Linq;
 using System.Threading.Tasks;
 using ModulesFramework.Data;
 using ModulesFramework.Exceptions;
-using ModulesFramework.Modules;
 using ModulesFramework.Utils;
 
 namespace ModulesFramework
 {
     public class MF
     {
-        private EcsModule[] _globalModules = Array.Empty<EcsModule>();
         private bool _isInitialized;
 
         private readonly Dictionary<string, DataWorld> _worldsMap = new();
         private DataWorld?[] _worlds = new DataWorld?[64];
-        private Queue<int> _freeWorldsIndices = new Queue<int>(64);
+        private readonly Queue<int> _freeWorldsIndices = new Queue<int>(64);
         private readonly MFCache _cache;
         public DataWorld MainWorld => _worlds[0]!;
         public WorldEnumerable Worlds => new WorldEnumerable(_worlds);
@@ -40,7 +38,7 @@ namespace ModulesFramework
             return world;
         }
 
-        public static DataWorld GetWorld(int worldIndex)
+        public static DataWorld? GetWorld(int worldIndex)
         {
             if (Instance._worlds.Length <= worldIndex || Instance._worlds[worldIndex] == null)
                 throw new WorldNotFoundException(worldIndex);
@@ -50,7 +48,7 @@ namespace ModulesFramework
         public static DataWorld CreateWorld(string worldName)
         {
             var index = Instance.CreateWorldInternal(worldName);
-            return Instance._worlds[index];
+            return Instance._worlds[index]!;
         }
 
         public static bool IsWorldExists(string worldName)
@@ -79,7 +77,7 @@ namespace ModulesFramework
         private int CreateWorldInternal(string name)
         {
             var index = _freeWorldsIndices.Count > 0 ? _freeWorldsIndices.Dequeue() : _worldsMap.Count;
-            var world = new DataWorld(index, name, _cache.AllSystemTypes, _cache.AllModuleTypes);
+            var world = new DataWorld(index, name, _cache);
             while (index >= _worlds.Length)
                 Array.Resize(ref _worlds, _worlds.Length * 2);
             _worlds[index] = world;
@@ -124,9 +122,9 @@ namespace ModulesFramework
 
         public readonly struct WorldEnumerable
         {
-            private readonly DataWorld[] _worlds;
+            private readonly DataWorld?[] _worlds;
 
-            public WorldEnumerable(DataWorld[] worlds)
+            public WorldEnumerable(DataWorld?[] worlds)
             {
                 _worlds = worlds;
             }

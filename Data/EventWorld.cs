@@ -31,7 +31,6 @@ namespace ModulesFramework.Data
         /// <seealso cref="RiseEvent{T}()"/>
         public void RiseEvent<T>(T ev) where T : struct
         {
-            var type = typeof(T);
 #if MODULES_DEBUG
             Logger.LogDebug($"Rising {typeof(T).GetTypeName()} event", LogFilter.EventsFull);
 #endif

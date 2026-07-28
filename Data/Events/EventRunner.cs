@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using ModulesFramework.Systems;
-using ModulesFramework.Systems.Events;
 
 namespace ModulesFramework.Data.Events
 {
