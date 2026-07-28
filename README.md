@@ -963,16 +963,19 @@ Sometimes you want to see what system (or even service) changes the component. Y
 Watchers.
 
 ```csharp
-// simple watcher that calls right system that adds or gets component
+// simple watcher that calls after any system that adds, gets or removes specific component
 [Watcher(typeof(SomeModule))]
 public class HealthWatcher : IComponentWatcher<HealthComponent>
 {
     // you can use dependencies the same way like in systems
     private ILogger _myLogger;
     
-    public void Process(Entity entity, Type systemType)
+    public void Process(int eid, Type scope, ComponentTouchType touchType)
     {
-        // here you can log component and what system added or got it
+        // scope is a type that used as an owner of watcher scope (WatcherControl)
+        // for systems it's a type of system, but you can use it inside any of your types
+        
+        // touchType is a type of what exactly happens: component added, got or removed
     }
 }
 ```
@@ -985,20 +988,28 @@ In the case of using GetRawData there's no knowledge about entities, so you can'
 Instead, you should use `IRawDataWatcher`:
 
 ```csharp
-// this watcher called after any system that use GetRawData<HealthComponent>
 public class HealthAnotherWatcher : IRawDataWatcher<HealthComponent>
 {
-    public void Process(Type systemType)
+    public void Process(Type scope)
     {
         // do something
     }
 }
 ```
 
-For custom async systems there is some limitations. Because all async systems
-with the same order are called without waiting each other, you can't call
-watcher after one of them without waiting it to finish. Of course, you can use
-`ContinueWith`
+There's also a watcher interface for OneData:
+
+```csharp
+//  watchers can be attached to modules like systems
+[Watcher(typeof(CameraModule))]
+public class CameraDataWatcher : IOneDataWatcher<CameraData>
+{
+    public void Process(Type source, OneDataTouchType touchType)
+    {
+        // validate camera data
+    }
+}
+```
 
 If you want to log something in production, you can register your own handler the same way
 that watchers do.
@@ -1009,12 +1020,38 @@ world.GetEcsTable<HealthComponent>().OnComponentTouched += (eid, touchType) =>
     
 };
 
-// handler calls every time when using AddComponent, GetComponent or RemoveComponent
+// handler calls every time when using GetRawData
 world.GetEcsTable<HealthComponent>().OnGetRawData += () => 
 {
     
 };
+
+// handler calls every time when using CreateOneData<T>(T data), RemoveOneData<T> or OneData<T>()
+world.OnOneDataTouch += (dataType, touchType) => 
+{
+    
+};
 ```
+
+In the code outside of systems you can manually start watch.
+
+```csharp
+// pass any object that you want to use as a scope
+using var control = world.StartWatch(this);
+// some logic
+control.CallWatchers();
+```
+
+Inside of control there's different collections, so it's good to dispose it to avoid allocations every time 
+you call `StartWatch`.
+
+#### Best practices
+
+- Use both interfaces `IComponentWatcher<T>` and `IRawDataWatcher<T>` to be sure that you didn't miss some changes;
+- Create separate validation module for watchers, so you can simply initialize it or destroy it;
+- Do not use watchers for logic and do not change data inside of them;
+- Use `StartWatch` inside your classes to minimize scope of changes;
+- Consider to use code generation based on some attributes.
 
 ## <a id="faq-0"/> FAQ
 
