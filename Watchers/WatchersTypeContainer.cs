@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using ModulesFramework.Modules;
 using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.OneDataWatchers;
 using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Watchers
@@ -18,8 +19,12 @@ namespace ModulesFramework.Watchers
 
         public void ProcessType(Type type)
         {
-            if (!typeof(IComponentTouchWatcher).IsAssignableFrom(type) && !typeof(IRawDataWatcher).IsAssignableFrom(type))
+            if (!typeof(IComponentTouchWatcher).IsAssignableFrom(type)
+                && !typeof(IRawDataWatcher).IsAssignableFrom(type)
+                && !typeof(IOneDataWatcher).IsAssignableFrom(type))
+            {
                 return;
+            }
 
             var moduleAttribute = type.GetCustomAttribute<WatcherAttribute>();
             var moduleType = typeof(EmbeddedGlobalModule);

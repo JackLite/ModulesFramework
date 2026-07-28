@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.OneDataWatchers;
 using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Watchers
@@ -11,16 +12,22 @@ namespace ModulesFramework.Watchers
     public class WatchersGlobalRegistry
     {
         /// <summary>
-        ///     Component type -> count of watchers
+        ///     Component type -> list of watchers
         /// </summary>
         private readonly Dictionary<Type, List<IComponentTouchWatcher>> _componentTouchWatchers =
             new Dictionary<Type, List<IComponentTouchWatcher>>();
 
         /// <summary>
-        ///     Component type -> count of watchers
+        ///     Component type -> list of watchers
         /// </summary>
         private readonly Dictionary<Type, List<IRawDataWatcher>> _rawDataWatchers =
             new Dictionary<Type, List<IRawDataWatcher>>();
+        
+        /// <summary>
+        ///     Component type -> list of watchers
+        /// </summary>
+        private readonly Dictionary<Type, List<IOneDataWatcher>> _oneDataWatchers =
+            new Dictionary<Type, List<IOneDataWatcher>>();
 
 
         public void RegisterWatcher(object watcher)
@@ -52,6 +59,18 @@ namespace ModulesFramework.Watchers
                         _rawDataWatchers[type] = watchersList;
                     }
                     watchersList.Add((IRawDataWatcher)watcher);
+                }
+                
+                if (@interface.GetGenericTypeDefinition() == typeof(IOneDataWatcher<>))
+                {
+                    var type = @interface.GetGenericArguments()[0];
+
+                    if (!_oneDataWatchers.TryGetValue(type, out var watchersList))
+                    {
+                        watchersList = new List<IOneDataWatcher>();
+                        _oneDataWatchers[type] = watchersList;
+                    }
+                    watchersList.Add((IOneDataWatcher)watcher);
                 }
             }
         }
@@ -87,6 +106,19 @@ namespace ModulesFramework.Watchers
                     if (watchersList.Count == 0)
                         _rawDataWatchers.Remove(type);
                 }
+                
+                if (@interface.GetGenericTypeDefinition() == typeof(IOneDataWatcher<>))
+                {
+                    var type = @interface.GetGenericArguments()[0];
+
+                    if (!_oneDataWatchers.TryGetValue(type, out var watchersList))
+                        continue;
+
+                    watchersList.Remove((IOneDataWatcher)watcher);
+
+                    if (watchersList.Count == 0)
+                        _oneDataWatchers.Remove(type);
+                }
             }
         }
 
@@ -98,6 +130,11 @@ namespace ModulesFramework.Watchers
         public bool IsRawDataWatcherRegistered<T>() where T : struct
         {
             return _rawDataWatchers.ContainsKey(typeof(T));
+        }
+        
+        public bool IsOneDataWatcherRegistered(Type dataType)
+        {
+            return _oneDataWatchers.ContainsKey(dataType);
         }
 
         public IReadOnlyCollection<IComponentTouchWatcher> GetComponentWatchers<T>() where T : struct
@@ -112,6 +149,14 @@ namespace ModulesFramework.Watchers
         {
             if (!_rawDataWatchers.TryGetValue(typeof(T), out var watchersList))
                 return Array.Empty<IRawDataWatcher>();
+
+            return watchersList;
+        }
+
+        public IReadOnlyCollection<IOneDataWatcher> GetOneDataWatchers(Type type)
+        {
+            if (!_oneDataWatchers.TryGetValue(type, out var watchersList))
+                return Array.Empty<IOneDataWatcher>();
 
             return watchersList;
         }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.OneDataWatchers;
 using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Modules
@@ -10,11 +11,13 @@ namespace ModulesFramework.Modules
     {
         private List<IComponentTouchWatcher>? _componentWatchers;
         private List<IRawDataWatcher>? _rawDataWatchers;
+        private List<IOneDataWatcher>? _oneDataWatchers;
 
         private void CreateWatchers()
         {
             CreateSpecificWatchersIfNeed(ref _componentWatchers);
             CreateSpecificWatchersIfNeed(ref _rawDataWatchers);
+            CreateSpecificWatchersIfNeed(ref _oneDataWatchers);
         }
 
         private void CreateSpecificWatchersIfNeed<T>(ref List<T>? watchersList)
@@ -46,6 +49,12 @@ namespace ModulesFramework.Modules
                 foreach (var watcher in _rawDataWatchers)
                     world.RegisterRawDataWatcher(watcher);
             }
+
+            if (_oneDataWatchers != null)
+            {
+                foreach (var watcher in _oneDataWatchers)
+                    world.RegisterOneDataWatcher(watcher);
+            }
         }
 
         private void UnregisterWatchers()
@@ -60,6 +69,12 @@ namespace ModulesFramework.Modules
             {
                 foreach (var watcher in _rawDataWatchers)
                     world.UnregisterRawDataWatcher(watcher);
+            }
+
+            if (_oneDataWatchers != null)
+            {
+                foreach (var watcher in _oneDataWatchers)
+                    world.UnregisterOneDataWatcher(watcher);
             }
         }
     }

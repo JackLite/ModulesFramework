@@ -9,6 +9,13 @@ namespace ModulesFramework.Data
     {
         private readonly Map<OneData> _oneDatas = new Map<OneData>();
 
+        [Obsolete("Use OnOneDataTouch event instead. This event will be removed in the version 1.5.0")]
+        public event Action<Type, OneData>? OnOneDataCreated;
+        public event Action<Type, OneDataTouchType>? OnOneDataTouch;
+        
+        [Obsolete("Use OnOneDataTouch event instead. This event will be removed in the version 1.5.0")]
+        public event Action<Type>? OnOneDataRemoved;
+
         internal IEnumerable<OneData> OneDataCollection
         {
             get
@@ -56,6 +63,7 @@ namespace ModulesFramework.Data
 
             _oneDatas.AddOrReplace<T>(oneData);
             OnOneDataCreated?.Invoke(typeof(T), oneData);
+            OnOneDataTouch?.Invoke(typeof(T), OneDataTouchType.Create);
             return ref oneData.GetData();
         }
 
@@ -65,7 +73,7 @@ namespace ModulesFramework.Data
             return _oneDatas.Find(d => d != null && d.GetDataObject().GetType() == dataType);
         }
 
-        public OneData? GetOneDataWrapper(Type dataType)
+        internal OneData? GetOneDataWrapper(Type dataType)
         {
             return _oneDatas.Find(d => d != null && d.GetDataObject().GetType() == dataType);
         }
@@ -78,6 +86,7 @@ namespace ModulesFramework.Data
         /// <returns>Ref to one data component</returns>
         public ref T OneData<T>() where T : struct
         {
+            OnOneDataTouch?.Invoke(typeof(T), OneDataTouchType.Get);
             if (!_oneDatas.TryGet<T>(out var oneData))
                 return ref CreateOneData<T>();
 
@@ -117,6 +126,7 @@ namespace ModulesFramework.Data
             {
                 _oneDatas.Remove<T>();
                 OnOneDataRemoved?.Invoke(typeof(T));
+                OnOneDataTouch?.Invoke(typeof(T), OneDataTouchType.Remove);
             }
         }
 
@@ -129,6 +139,7 @@ namespace ModulesFramework.Data
             if (_oneDatas.Remove(d => d != null && d.GetDataObject().GetType() == type))
             {
                 OnOneDataRemoved?.Invoke(type);
+                OnOneDataTouch?.Invoke(type, OneDataTouchType.Remove);
             }
         }
 

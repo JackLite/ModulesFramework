@@ -1,5 +1,7 @@
-﻿using ModulesFramework.Data;
+﻿using System;
+using ModulesFramework.Data;
 using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.OneDataWatchers;
 using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Watchers
@@ -35,6 +37,12 @@ namespace ModulesFramework.Watchers
                 watcherControl.RegisterRawDataCall<T>();
         }
         
+        public void RegisterOneDataCall(Type oneDataType, OneDataTouchType touchType)
+        {
+            foreach (var watcherControl in _watcherControlsContainer.ActiveControls)
+                watcherControl.RegisterOneDataTouch(oneDataType, touchType);
+        }
+        
         public void RegisterComponentWatcher(IComponentTouchWatcher watcher)
         {
             _watchersGlobalRegistry.RegisterWatcher(watcher);
@@ -51,6 +59,16 @@ namespace ModulesFramework.Watchers
         }
         
         public void UnregisterRawDataWatcher(IRawDataWatcher watcher)
+        {
+            _watchersGlobalRegistry.UnregisterWatcher(watcher);
+        }
+
+        public void RegisterOneDataWatcher(IOneDataWatcher watcher)
+        {
+            _watchersGlobalRegistry.RegisterWatcher(watcher);
+        }
+        
+        public void UnregisterOneDataWatcher(IOneDataWatcher watcher)
         {
             _watchersGlobalRegistry.UnregisterWatcher(watcher);
         }

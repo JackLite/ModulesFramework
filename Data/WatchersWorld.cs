@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using ModulesFramework.Watchers;
 using ModulesFramework.Watchers.ComponentsTouchWatchers;
+using ModulesFramework.Watchers.OneDataWatchers;
 using ModulesFramework.Watchers.RawDataWatchers;
 
 namespace ModulesFramework.Data
@@ -39,6 +40,16 @@ namespace ModulesFramework.Data
         public void UnregisterRawDataWatcher(IRawDataWatcher watcher)
         {
             _watchersFacade.UnregisterRawDataWatcher(watcher);
+        }
+
+        public void RegisterOneDataWatcher(IOneDataWatcher watcher)
+        {
+            _watchersFacade.RegisterOneDataWatcher(watcher);
+        }
+        
+        public void UnregisterOneDataWatcher(IOneDataWatcher watcher)
+        {
+            _watchersFacade.UnregisterOneDataWatcher(watcher);
         }
     }
 }

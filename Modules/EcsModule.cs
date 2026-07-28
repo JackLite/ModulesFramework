@@ -128,6 +128,8 @@ namespace ModulesFramework.Modules
                 InsertDependencies(watcher);
             foreach (var watcher in _rawDataWatchers!)
                 InsertDependencies(watcher);
+            foreach (var watcher in _oneDataWatchers!)
+                InsertDependencies(watcher);
             #endif
 
             foreach (var submodule in Submodules)

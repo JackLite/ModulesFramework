@@ -6,6 +6,7 @@ using ModulesFramework.Exceptions;
 using ModulesFramework.Modules;
 using ModulesFramework.Utils;
 using ModulesFramework.Utils.Types;
+using ModulesFramework.Watchers.OneDataWatchers;
 
 namespace ModulesFramework.Data
 {
@@ -35,8 +36,6 @@ namespace ModulesFramework.Data
         public event Action<int>? OnEntityDestroyed;
         public event Action<int>? OnCustomIdChanged;
 
-        public event Action<Type, OneData>? OnOneDataCreated;
-        public event Action<Type>? OnOneDataRemoved;
 
         internal DataWorld(
             int worldIndex,
@@ -53,6 +52,9 @@ namespace ModulesFramework.Data
             var modules = CreateAllEcsModules(cache.AllModuleTypes);
             CreateEmbedded();
             CtorModules(modules);
+            #if MODULES_DEBUG
+            OnOneDataTouch += _watchersFacade.RegisterOneDataCall;
+            #endif
         }
 
         /// <summary>
