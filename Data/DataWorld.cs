@@ -493,6 +493,14 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DestroyEntity(int id)
         {
+            if (!_entitiesTable.Contains(id))
+            {
+                #if MODULES_DEBUG
+                Logger.LogError($"Entity with id {id} already destroyed");
+                #endif
+                return;
+            }
+            
             foreach (var table in _data.Values)
             {
                 table.RemoveInternal(id);
