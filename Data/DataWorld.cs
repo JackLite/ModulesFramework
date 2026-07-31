@@ -142,7 +142,10 @@ namespace ModulesFramework.Data
                 var tableType = typeof(EcsTable<>).MakeGenericType(type);
                 table = (EcsTable)Activator.CreateInstance(tableType, this);
                 var meth = _data.GetType().GetMethod(nameof(Map<object>.Add))!.MakeGenericMethod(type);
-                meth.Invoke(_data, new[] { table });
+                meth.Invoke(_data, new[]
+                {
+                    table
+                });
             }
 
 #if MODULES_DEBUG
@@ -493,6 +496,14 @@ namespace ModulesFramework.Data
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void DestroyEntity(int id)
         {
+            if (!_entitiesTable.Contains(id))
+            {
+                #if MODULES_DEBUG
+                Logger.LogError($"Entity with id {id} already destroyed");
+                #endif
+                return;
+            }
+
             foreach (var table in _data.Values)
             {
                 table.RemoveInternal(id);
