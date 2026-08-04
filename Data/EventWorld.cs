@@ -10,6 +10,7 @@ namespace ModulesFramework.Data
     {
         private readonly List<EcsModule> _externalSubscribers = new(4);
         private readonly Map<List<IExternalEventListener>> _externalListeners = new Map<List<IExternalEventListener>>();
+        private readonly Queue<IExternalEventListener> _externalListenersCallQueue = new Queue<IExternalEventListener>();
 
         /// <summary>
         /// Create default event T and rise it
@@ -46,7 +47,13 @@ namespace ModulesFramework.Data
             if (_externalListeners.TryGet<T>(out var listenersList))
             {
                 foreach (var listener in listenersList)
+                    _externalListenersCallQueue.Enqueue(listener);
+
+                while (_externalListenersCallQueue.Count > 0)
+                {
+                    var listener = _externalListenersCallQueue.Dequeue();
                     ((IExternalEventListener<T>)listener).OnEvent(ev);
+                }
 
                 wasHandled = true;
             }
