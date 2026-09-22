@@ -28,11 +28,12 @@ namespace ModulesFramework.Data
         /// <summary>
         ///     Registers a system type to call later 
         /// </summary>
-        /// <seealso cref="CallSystems"/>
+        /// <seealso cref="CallSystems{T}"/>
+        /// <seealso cref="CallSystems{TCall, TArg}"/>
         public void RegisterSystemType<TSystemType>() where TSystemType : ISystem
         {
             _systemTypes.Add(typeof(TSystemType));
-        }
+        } 
         
         /// <summary>
         ///     Returns true if the system type is registered
@@ -61,6 +62,22 @@ namespace ModulesFramework.Data
                     continue;
 
                 module.WorldCallSystems(call);
+            }
+        }
+        
+        public void CallSystems<TSystemType, TArg>(Action<TSystemType, TArg> call, TArg arg, bool isNeedToBeActive = false)
+        {
+            _embeddedGlobalModule.WorldCallSystems(call, arg);
+
+            foreach (var module in _modules)
+            {
+                if (module.IsSubmodule || !module.IsInitialized)
+                    continue;
+
+                if (!module.IsActive && isNeedToBeActive)
+                    continue;
+
+                module.WorldCallSystems(call, arg);
             }
         }
 
