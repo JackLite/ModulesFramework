@@ -69,6 +69,35 @@ namespace ModulesFramework.Modules
             SystemsCall(call, includeSubmodules, isSubmoduleNeedToBeActive);
         }
 
+        /// <summary>
+        ///     This method is used to call systems of a specified type in module and submodules.
+        ///     Note: it works only if the module is set up.
+        /// </summary>
+        /// <param name="call">How to call systems</param>
+        /// <param name="arg">Argument for the system to avoid allocations</param>
+        /// <param name="includeSubmodules">Call also in submodules</param>
+        /// <param name="isSubmoduleNeedToBeActive">Submodule need to be active to be called</param>
+        /// <seealso cref="CallSystemsAsync"/>
+        public virtual void CallSystems<TSystemType, TArg>(
+            Action<TSystemType, TArg> call,
+            TArg arg,
+            bool includeSubmodules = true,
+            bool isSubmoduleNeedToBeActive = true)
+        {
+            EnsureSetup();
+
+#if MODULES_DEBUG
+            if (!SystemTypes.Contains(typeof(TSystemType)))
+            {
+                world.Logger.LogWarning(
+                    $"Module {ConcreteType.GetTypeName()} tries to call {typeof(TSystemType)} systems" +
+                    $" but this type is not registered");
+            }
+#endif
+
+            SystemsCall(call, arg, includeSubmodules, isSubmoduleNeedToBeActive);
+        }
+
         internal void WorldCallSystems<TSystemType>(
             Action<TSystemType> call,
             bool includeSubmodules = true,
@@ -76,6 +105,16 @@ namespace ModulesFramework.Modules
         {
             EnsureSetup();
             SystemsCall(call, includeSubmodules, isSubmoduleNeedToBeActive);
+        }
+
+        internal void WorldCallSystems<TSystemType, TArg>(
+            Action<TSystemType, TArg> call,
+            TArg arg,
+            bool includeSubmodules = true,
+            bool isSubmoduleNeedToBeActive = true)
+        {
+            EnsureSetup();
+            SystemsCall(call, arg, includeSubmodules, isSubmoduleNeedToBeActive);
         }
 
         private void EnsureSetup()
@@ -114,6 +153,36 @@ namespace ModulesFramework.Modules
                         continue;
 
                     submodule.WorldCallSystems(call, true, isSubmoduleNeedToBeActive);
+                }
+            }
+        }
+        
+        private void SystemsCall<TSystemType, TArg>(
+            Action<TSystemType, TArg> call,
+            TArg arg,
+            bool includeSubmodules = true,
+            bool isSubmoduleNeedToBeActive = true)
+        {
+            for (var i = 0; i < _systems.Count; i++)
+            {
+                var group = _systems.Values[i];
+                group.CallSystems(world, call, arg);
+            }
+
+            if (!includeSubmodules)
+                return;
+
+            foreach (var submodulesGroup in _submodulesGroups)
+            {
+                foreach (var submodule in submodulesGroup.modules)
+                {
+                    if (!submodule.IsInitialized)
+                        continue;
+
+                    if (isSubmoduleNeedToBeActive && !submodule.IsActive)
+                        continue;
+
+                    submodule.WorldCallSystems(call, arg,true, isSubmoduleNeedToBeActive);
                 }
             }
         }

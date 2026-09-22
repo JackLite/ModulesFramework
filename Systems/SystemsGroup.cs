@@ -75,9 +75,35 @@ namespace ModulesFramework.Systems
                     #if MODULES_DEBUG
                     using var control = world.StartWatch(s);
                     #endif
-                    
+
                     call((TSystemType)s);
-                    
+
+                    #if MODULES_DEBUG
+                    CallWatchers(control, world);
+                    #endif
+                }
+                catch (Exception e)
+                {
+                    world.Logger.RethrowException(e);
+                }
+            }
+        }
+
+        public void CallSystems<TSystemType, TArg>(DataWorld world, Action<TSystemType, TArg> call, TArg arg)
+        {
+            if (!_systems.TryGetValue(typeof(TSystemType), out var systems))
+                return;
+
+            foreach (var s in systems)
+            {
+                try
+                {
+                    #if MODULES_DEBUG
+                    using var control = world.StartWatch(s);
+                    #endif
+
+                    call((TSystemType)s, arg);
+
                     #if MODULES_DEBUG
                     CallWatchers(control, world);
                     #endif
@@ -229,14 +255,13 @@ namespace ModulesFramework.Systems
             if (!systems.TryGetValue(systemType, out var wrappers))
                 return;
 
-            
 
             foreach (var wrapper in wrappers)
             {
                 #if MODULES_DEBUG
                 using var watcherControl = world.StartWatch(wrapper.system);
                 #endif
-                
+
                 world.Logger.LogDebug($"Handle event {eventType} by {wrapper.system.GetType()}", LogFilter.EventsFull);
                 wrapper.definition.systemInvoker.Invoke(ev, wrapper.system);
 
@@ -252,7 +277,6 @@ namespace ModulesFramework.Systems
             if (!_subscribes.TryGetValue(typeof(T), out var subscribeSystems))
                 return;
 
-            
 
             foreach (var (isActivate, system) in subscribeSystems)
             {
@@ -264,7 +288,7 @@ namespace ModulesFramework.Systems
                     #if MODULES_DEBUG
                     using var watcherControl = world.StartWatch(system);
                     #endif
-                    
+
                     activateSystem.HandleEvent(ev);
 
                     #if MODULES_DEBUG
@@ -277,7 +301,7 @@ namespace ModulesFramework.Systems
                     #if MODULES_DEBUG
                     using var watcherControl = world.StartWatch(system);
                     #endif
-                    
+
                     initSystem.HandleEvent(ev);
 
                     #if MODULES_DEBUG
