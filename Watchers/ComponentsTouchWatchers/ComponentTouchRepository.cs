@@ -20,8 +20,11 @@ namespace ModulesFramework.Watchers.ComponentsTouchWatchers
             while (_touches.Count > 0)
             {
                 var touch = _touches.Dequeue();
-                foreach (var watcher in registry.GetComponentWatchers<T>())
+                var list = registry.GetComponentWatchers<T>();
+                // using for to avoid IEnumerator<T> allocation
+                for (var index = 0; index < list.Count; index++)
                 {
+                    var watcher = list[index];
                     if (watcher is IComponentTouchWatcher<T> typedWatcher)
                         typedWatcher.Watch(touch.eid, touchOwner.GetType(), touch.touchType);
                 }

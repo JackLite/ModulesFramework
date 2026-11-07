@@ -11,7 +11,7 @@ namespace ModulesFramework.Watchers
         private readonly Stack<WatcherControl> _pool = new Stack<WatcherControl>();
         private readonly List<WatcherControl> _activeControls = new List<WatcherControl>();
 
-        public IReadOnlyCollection<WatcherControl> ActiveControls => _activeControls;
+        public List<WatcherControl> ActiveControls => _activeControls;
 
         public WatcherControlsContainer(WatchersGlobalRegistry watchersGlobalRegistry)
         {
