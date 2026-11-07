@@ -137,7 +137,7 @@ namespace ModulesFramework.Watchers
             return _oneDataWatchers.ContainsKey(dataType);
         }
 
-        public IReadOnlyCollection<IComponentTouchWatcher> GetComponentWatchers<T>() where T : struct
+        public IReadOnlyList<IComponentTouchWatcher> GetComponentWatchers<T>() where T : struct
         {
             if (!_componentTouchWatchers.TryGetValue(typeof(T), out var watchersList))
                 return Array.Empty<IComponentTouchWatcher>();
@@ -145,7 +145,7 @@ namespace ModulesFramework.Watchers
             return watchersList;
         }
 
-        public IReadOnlyCollection<IRawDataWatcher> GetRawDataWatchers<T>() where T : struct
+        public IReadOnlyList<IRawDataWatcher> GetRawDataWatchers<T>() where T : struct
         {
             if (!_rawDataWatchers.TryGetValue(typeof(T), out var watchersList))
                 return Array.Empty<IRawDataWatcher>();
@@ -153,7 +153,7 @@ namespace ModulesFramework.Watchers
             return watchersList;
         }
 
-        public IReadOnlyCollection<IOneDataWatcher> GetOneDataWatchers(Type type)
+        public IReadOnlyList<IOneDataWatcher> GetOneDataWatchers(Type type)
         {
             if (!_oneDataWatchers.TryGetValue(type, out var watchersList))
                 return Array.Empty<IOneDataWatcher>();

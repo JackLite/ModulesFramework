@@ -24,8 +24,10 @@ namespace ModulesFramework.Watchers.OneDataWatchers
             foreach (var (dataType, set) in _touchTypes)
             {
                 var watchers = registry.GetOneDataWatchers(dataType);
-                foreach (var watcher in watchers)
+                // using for to avoid IEnumerator<T> allocations
+                for (var index = 0; index < watchers.Count; index++)
                 {
+                    var watcher = watchers[index];
                     foreach (var touchType in set)
                     {
                         watcher.Watch(owner.GetType(), touchType);

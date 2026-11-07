@@ -4,8 +4,11 @@
     {
         public void CallWatchers(WatchersGlobalRegistry watchersRegistry, object source)
         {
-            foreach (var watcher in watchersRegistry.GetRawDataWatchers<T>())
+            var list = watchersRegistry.GetRawDataWatchers<T>();
+            // using for to avoid IEnumerator<T> allocation
+            for (var index = 0; index < list.Count; index++)
             {
+                var watcher = list[index];
                 ((IRawDataWatcher<T>)watcher).Watch(source.GetType());
             }
         }
