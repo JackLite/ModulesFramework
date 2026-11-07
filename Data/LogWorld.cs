@@ -3,6 +3,7 @@
     public partial class DataWorld
     {
         public IModulesLogger Logger { get; private set; } = new DefaultLogger();
+        public IEntityStringifier EntityStringifier { get; private set; } = new DefaultEntityStringifier();
 
         /// <summary>
         /// Set custom logger instead default
@@ -24,6 +25,14 @@
         public void SetLogType(LogFilter logFilter)
         {
             Logger.SetLogType(logFilter);
+        }
+
+        /// <summary>
+        ///     Set custom to string implementation for entities instead of default
+        /// </summary>
+        public void SetStringifier(IEntityStringifier stringifier)
+        {
+            EntityStringifier = stringifier;
         }
     }
 }

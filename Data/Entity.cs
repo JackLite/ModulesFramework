@@ -201,5 +201,13 @@ namespace ModulesFramework.Data
         {
             return generation == other.generation && Id == other.Id && World == other.World;
         }
+
+        public override string ToString()
+        {
+            if (!IsAlive())
+                return "Dead entity";
+
+            return World.EntityStringifier.ToString(this);
+        }
     }
 }
