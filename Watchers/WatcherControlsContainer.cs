@@ -9,9 +9,8 @@ namespace ModulesFramework.Watchers
     {
         private readonly WatchersGlobalRegistry _watchersGlobalRegistry;
         private readonly Stack<WatcherControl> _pool = new Stack<WatcherControl>();
-        private readonly List<WatcherControl> _activeControls = new List<WatcherControl>();
 
-        public List<WatcherControl> ActiveControls => _activeControls;
+        public List<WatcherControl> ActiveControls { get; } = new List<WatcherControl>();
 
         public WatcherControlsContainer(WatchersGlobalRegistry watchersGlobalRegistry)
         {
@@ -22,13 +21,13 @@ namespace ModulesFramework.Watchers
         {
             var control = _pool.Count > 0 ? _pool.Pop() : new WatcherControl(this, _watchersGlobalRegistry);
             control.SetOwner(controlOwner);
-            _activeControls.Add(control);
+            ActiveControls.Add(control);
             return control;
         }
 
         public void Return(WatcherControl watcherControl)
         {
-            _activeControls.Remove(watcherControl);
+            ActiveControls.Remove(watcherControl);
             _pool.Push(watcherControl);
         }
     }
