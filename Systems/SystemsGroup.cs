@@ -151,14 +151,14 @@ namespace ModulesFramework.Systems
             if (systemException != null)
                 world.Logger.RethrowException(systemException);
         }
-
+#if MODULES_DEBUG
         private async Task CallSystemAsyncWithWatchers<TSystemType>(ISystem system, DataWorld world, Func<TSystemType, Task> call)
         {
             using var control = world.StartWatch(system);
             await call((TSystemType)system);
             CallWatchers(control, world);
         }
-
+#endif
         internal void Deactivate(DataWorld world)
         {
             CallSystems<IDeactivateSystem>(world, s => s.Deactivate());
