@@ -34,10 +34,5 @@ namespace ModulesFramework.Data.Enumerators
             var indices = _table.GetMultipleDenseIndices(_eid);
             return _index <= indices.Length;
         }
-
-        public void Reset()
-        {
-            _index = 0;
-        }
     }
 }

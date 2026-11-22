@@ -15,5 +15,10 @@
         {
             return new MultipleComponentsEnumerator<T>(_table, _eid);
         }
+
+        public int Count()
+        {
+            return _table.GetMultipleDataLength(_eid);
+        }
     }
 }

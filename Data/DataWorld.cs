@@ -245,6 +245,48 @@ namespace ModulesFramework.Data
         }
 
         /// <summary>
+        ///     Remove multiple component by predicate
+        ///     This is a MultipleComponents API and allowed to remove specified components from entity
+        /// </summary>
+        public int RemoveWhere<T>(int eid, Predicate<T> filter) where T : struct
+        {
+#if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+#endif
+
+            var count = GetEcsTable<T>().RemoveWhere(eid, filter);
+
+#if MODULES_DEBUG
+            Logger.LogDebug($"Remove {count} of {typeof(T).GetTypeName()} components from {eid.ToString()} by filter", 
+                LogFilter.EntityModifications);
+#endif
+            OnEntityChanged?.Invoke(eid);
+            return count;
+        }
+        
+        /// <summary>
+        ///     Remove multiple component by predicate. Use it to avoid allocation for lambda.
+        ///     This is a MultipleComponents API and allowed to remove specified components from entity
+        /// </summary>
+        public int RemoveWhere<T, TArg>(int eid, Func<T, TArg, bool> filter, TArg arg) where T : struct
+        {
+#if MODULES_DEBUG
+            if (!IsEntityAlive(eid))
+                throw new EntityDestroyedException(eid);
+#endif
+
+            var count = GetEcsTable<T>().RemoveWhere(eid, filter, arg);
+
+#if MODULES_DEBUG
+            Logger.LogDebug($"Remove {count} of {typeof(T).GetTypeName()} components from {eid.ToString()} by filter", 
+                LogFilter.EntityModifications);
+#endif
+            OnEntityChanged?.Invoke(eid);
+            return count;
+        }
+
+        /// <summary>
         ///     Remove all components of type T from entity
         ///     This is MultipleComponents API and allowed to remove all components from an entity
         /// </summary>
@@ -285,6 +327,9 @@ namespace ModulesFramework.Data
         /// <typeparam name="T"></typeparam>
         /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("This method is causing allocation and not secure in every cases. Though you can use it in typical scenario, " +
+            "prefer RemoveWhere<T> alternative if you want to remove components, GetAll<T> if you want to get all components or GetBy<T> " +
+            "if you search for specific component. \r\n This method will be removed in MF v1.5.0")]
         public MultipleComponentsIndicesEnumerable<T> GetIndices<T>(int eid) where T : struct
         {
             return GetEcsTable<T>().GetMultipleIndices(eid);
@@ -508,7 +553,7 @@ namespace ModulesFramework.Data
                 #endif
                 return;
             }
-            
+
             foreach (var table in _data)
             {
                 table.RemoveInternal(id);

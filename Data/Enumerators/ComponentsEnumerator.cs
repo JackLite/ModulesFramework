@@ -52,10 +52,5 @@ namespace ModulesFramework.Data.Enumerators
 
             return _index <= _table.ActiveEntitiesBits.Length * 64 && eid < _filter.Length * 64;
         }
-
-        public void Reset()
-        {
-            _index = 0;
-        }
     }
 }
