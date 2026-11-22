@@ -79,11 +79,5 @@ namespace ModulesFramework.Data.Enumerators
                 return true;
             }
         }
-
-        public void Reset()
-        {
-            _index = 0;
-            _innerIndex = 0;
-        }
     }
 }

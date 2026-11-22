@@ -46,6 +46,9 @@ namespace ModulesFramework.Data
         ///     Return enumerable of inner indices for multiple components
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        [Obsolete("This method is causing allocation and not secure in every cases. Though you can use it in typical scenario, " +
+            "prefer RemoveWhere<T> alternative if you want to remove components, GetAll<T> if you want to get all components or GetBy<T> " +
+            "if you search for specific component. \r\n This method will be removed in MF v1.5.0")]
         public MultipleComponentsIndicesEnumerable<T> GetIndices<T>() where T : struct
         {
             return World.GetIndices<T>(Id);
@@ -89,6 +92,24 @@ namespace ModulesFramework.Data
         {
             World.RemoveFirstComponent<T>(Id);
             return this;
+        }
+
+        /// <summary>
+        ///     Remove multiple component by predicate,
+        ///     Returns count of removed components
+        /// </summary>
+        public int RemoveWhere<T>(Predicate<T> filter) where T : struct
+        {
+            return World.RemoveWhere(Id, filter);
+        }
+        
+        /// <summary>
+        ///     Remove multiple component by predicate. Use it to avoid closure allocations 
+        ///     Returns count of removed components
+        /// </summary>
+        public int RemoveWhere<T, TArg>(Func<T, TArg, bool> filter, TArg arg) where T : struct
+        {
+            return World.RemoveWhere(Id, filter, arg);
         }
 
         /// <summary>

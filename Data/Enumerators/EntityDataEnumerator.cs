@@ -47,10 +47,5 @@ namespace ModulesFramework.Data.Enumerators
 
             return _index <= _pool.Length * 64;
         }
-
-        public void Reset()
-        {
-            _index = 0;
-        }
     }
 }

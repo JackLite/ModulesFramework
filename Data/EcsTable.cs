@@ -29,13 +29,13 @@ namespace ModulesFramework.Data
         internal abstract void RemoveByDenseIndex(int eid, int denseIndex);
         public abstract int GetMultipleDataLength(int eid);
         public abstract void ClearTable();
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void InvokeOnComponentTouched(int eid, ComponentTouchType touchType)
         {
             OnComponentTouched?.Invoke(eid, touchType);
         }
-        
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         protected void InvokeOnGetRawData()
         {
@@ -212,6 +212,9 @@ namespace ModulesFramework.Data
         /// </summary>
         /// <param name="eid">Id of entity</param>
         /// <returns>Enumerable of indices with ability to delete in cycle</returns>
+        [Obsolete("This method is causing allocation and not secure in every cases. Though you can use it in typical scenario, " +
+            "prefer RemoveWhere<T> alternative if you want to remove components, GetAll<T> if you want to get all components or GetBy<T> " +
+            "if you search for specific component. \r\n This method will be removed in MF v1.5.0")]
         public MultipleComponentsIndicesEnumerable<T> GetMultipleIndices(int eid)
         {
             CheckMultiple();
@@ -220,7 +223,7 @@ namespace ModulesFramework.Data
 
         /// <summary>
         ///     Returns internal indices of components array for entity id
-        ///     It allows to get data by <see cref="At"/>
+        ///     It allows to get data by <see cref="MultipleAt"/>
         ///     Note: only for multiple components
         /// </summary>
         /// <param name="eid">Id of entity</param>
@@ -354,10 +357,6 @@ namespace ModulesFramework.Data
             InvokeOnComponentTouched(eid, ComponentTouchType.Remove);
         }
 
-        /// <summary>
-        ///     Remove multiple component from entity by multiple index (NOT dense index)
-        ///     <para>Note: you can use it with <seealso cref="GetMultipleIndices"/></para>
-        /// </summary>
         internal void RemoveAt(int eid, int mtmIndex)
         {
             CheckMultiple();
@@ -421,6 +420,41 @@ namespace ModulesFramework.Data
                 return;
 
             RemoveAt(eid, 0);
+        }
+
+        internal int RemoveWhere(int eid, Predicate<T> filter)
+        {
+            return RemoveWhere(eid, static (c, p) => p(c), filter);
+        }
+
+        internal int RemoveWhere<TArg>(int eid, Func<T, TArg, bool> filter, TArg arg)
+        {
+            CheckMultiple();
+            if (!Contains(eid))
+                return 0;
+
+            var indices = GetMultipleDenseIndices(eid);
+            var head = 0;
+            var removedCount = 0;
+            while (head < indices.Length)
+            {
+                var data = At(indices[head]);
+                if (filter(data, arg))
+                {
+                    RemoveAt(eid, head);
+                    removedCount++;
+                    if (!Contains(eid))
+                        break;
+
+                    indices = _multipleTableMap[eid]!.GetData();
+                }
+                else
+                {
+                    head++;
+                }
+            }
+
+            return removedCount;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
